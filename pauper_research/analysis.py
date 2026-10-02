@@ -143,52 +143,93 @@ def deck_records(matches: pd.DataFrame) -> pd.DataFrame:
     return nm.groupby("deck_id").agg(wins=("score", "sum"), matches=("score", "size")).reset_index()
 
 
-def card_impact(decks: pd.DataFrame, deck_cards: pd.DataFrame, matches: pd.DataFrame, archetype: str,
-                board: str = "main", min_decks: int = 5) -> pd.DataFrame:
+def newcombe(w1: float, n1: float, w2: float, n2: float, z: float = Z) -> tuple[float, float]:
+    """95% interval for the difference of two proportions (Newcombe's hybrid score method).
+
+    Built from the two Wilson intervals, so it stays sensible at the small,
+    lopsided sample sizes typical of card comparisons.
+    """
+    if n1 <= 0 or n2 <= 0:
+        return (math.nan, math.nan)
+    p1, p2 = w1 / n1, w2 / n2
+    l1, u1 = wilson(w1, n1, z)
+    l2, u2 = wilson(w2, n2, z)
+    d = p1 - p2
+    return (d - math.sqrt((p1 - l1) ** 2 + (u2 - p2) ** 2), d + math.sqrt((u1 - p1) ** 2 + (p2 - l2) ** 2))
+
+
+def card_effects(decks: pd.DataFrame, deck_cards: pd.DataFrame, matches: pd.DataFrame, archetype: str,
+                 board: str = "main", by_opponent: bool = False, min_decks: int = 5,
+                 min_matches: int = 1) -> pd.DataFrame:
     """Within one archetype, compare decks that play a card against decks that don't.
 
-    For every card played by some, but not all, decks of the archetype (with at
-    least `min_decks` decks on each side), report the non-mirror win rate with
-    and without it, the difference, and a 95% interval for the difference.
+    For every card played by some, but not all, decks of the archetype, report
+    the non-mirror match win rate with and without it, the difference, and a
+    95% interval for the difference. With `by_opponent=True` the comparison is
+    done separately for each opposing archetype (column `opponent`).
 
-    This is a first, descriptive pass. Differences are confounded by who plays
-    the card, when, and in which events; treat them as leads to investigate,
-    not as causal effects.
+    A card is kept only when both sides have at least `min_decks` decks and
+    `min_matches` matches. Differences are confounded by who plays the card,
+    when, and in which events; treat them as leads, not causal effects.
     """
-    arch_decks = decks.loc[decks["archetype"] == archetype, "deck_id"]
-    records = deck_records(matches)
-    records = records[records["deck_id"].isin(arch_decks)]
-    if records.empty:
+    arch_ids = set(decks.loc[decks["archetype"] == archetype, "deck_id"])
+    nm = non_mirror(matches).dropna(subset=["deck_id"])
+    nm = nm[nm["deck_id"].isin(arch_ids)]
+    if nm.empty:
         return pd.DataFrame()
-    deck_set = set(records["deck_id"])
-    cards = deck_cards[(deck_cards["board"] == board) & deck_cards["deck_id"].isin(deck_set)]
-    n_decks = len(deck_set)
-    total_w, total_n = records["wins"].sum(), records["matches"].sum()
-    rec = records.set_index("deck_id")
+    keys = ["opp_archetype", "deck_id"] if by_opponent else ["deck_id"]
+    if by_opponent:
+        nm = nm[nm["opp_archetype"] != UNKNOWN]
+    records = nm.groupby(keys).agg(wins=("score", "sum"), matches=("score", "size")).reset_index()
+    group = ["opp_archetype"] if by_opponent else []
 
-    rows = []
-    for card, group in cards.groupby("card"):
-        with_ids = set(group["deck_id"])
-        k = len(with_ids)
-        if k < min_decks or n_decks - k < min_decks:
-            continue
-        w_in, n_in = rec.loc[list(with_ids), ["wins", "matches"]].sum()
-        w_out, n_out = total_w - w_in, total_n - n_in
-        if n_in == 0 or n_out == 0:
-            continue
-        p_in, p_out = w_in / n_in, w_out / n_out
-        se = math.sqrt(p_in * (1 - p_in) / n_in + p_out * (1 - p_out) / n_out) or math.nan
-        rows.append({
-            "card": card, "decks_with": k, "decks_without": n_decks - k, "play_rate": k / n_decks,
-            "avg_copies": group["count"].mean(),
-            "matches_with": int(n_in), "matches_without": int(n_out),
-            "win_rate_with": p_in, "win_rate_without": p_out, "delta": p_in - p_out,
-            "delta_ci_low": p_in - p_out - Z * se, "delta_ci_high": p_in - p_out + Z * se,
-        })
-    out = pd.DataFrame(rows)
+    if group:
+        totals = records.groupby(group).agg(w_tot=("wins", "sum"), n_tot=("matches", "sum"),
+                                            d_tot=("deck_id", "nunique")).reset_index()
+    else:
+        totals = pd.DataFrame({"w_tot": [records["wins"].sum()], "n_tot": [records["matches"].sum()],
+                               "d_tot": [records["deck_id"].nunique()]})
+
+    present = deck_cards[(deck_cards["board"] == board) & deck_cards["deck_id"].isin(set(records["deck_id"]))]
+    joined = records.merge(present[["deck_id", "card", "count"]], on="deck_id")
+    with_card = joined.groupby(group + ["card"]).agg(
+        w_in=("wins", "sum"), n_in=("matches", "sum"), d_in=("deck_id", "nunique"),
+        avg_copies=("count", "mean")).reset_index()
+    out = with_card.merge(totals, on=group) if group else with_card.assign(**totals.iloc[0].to_dict())
+    out["w_out"] = out["w_tot"] - out["w_in"]
+    out["n_out"] = out["n_tot"] - out["n_in"]
+    out["d_out"] = out["d_tot"] - out["d_in"]
+    out = out[(out["d_in"] >= min_decks) & (out["d_out"] >= min_decks)
+              & (out["n_in"] >= min_matches) & (out["n_out"] >= min_matches)]
     if out.empty:
-        return out
-    return out.sort_values("delta", ascending=False, ignore_index=True)
+        return pd.DataFrame()
+
+    out = out.assign(
+        play_rate=out["d_in"] / out["d_tot"],
+        win_rate_with=out["w_in"] / out["n_in"], win_rate_without=out["w_out"] / out["n_out"],
+    )
+    out["delta"] = out["win_rate_with"] - out["win_rate_without"]
+    bounds = [newcombe(a, b, c, d) for a, b, c, d in zip(out["w_in"], out["n_in"], out["w_out"], out["n_out"])]
+    out["delta_ci_low"] = [b[0] for b in bounds]
+    out["delta_ci_high"] = [b[1] for b in bounds]
+    out = out.rename(columns={"opp_archetype": "opponent", "d_in": "decks_with", "d_out": "decks_without",
+                              "n_in": "matches_with", "n_out": "matches_without",
+                              "w_in": "wins_with", "w_out": "wins_without"})
+    cols = (["opponent"] if by_opponent else []) + [
+        "card", "decks_with", "decks_without", "play_rate", "avg_copies", "wins_with", "matches_with",
+        "wins_without", "matches_without", "win_rate_with", "win_rate_without", "delta",
+        "delta_ci_low", "delta_ci_high"]
+    out = out[cols]
+    for c in ("decks_with", "decks_without", "matches_with", "matches_without"):
+        out[c] = out[c].astype(int)
+    return out.sort_values((["opponent"] if by_opponent else []) + ["delta"],
+                           ascending=([True] if by_opponent else []) + [False], ignore_index=True)
+
+
+def card_impact(decks: pd.DataFrame, deck_cards: pd.DataFrame, matches: pd.DataFrame, archetype: str,
+                board: str = "main", min_decks: int = 5) -> pd.DataFrame:
+    """Card comparison across all of an archetype's matches. See `card_effects`."""
+    return card_effects(decks, deck_cards, matches, archetype, board, by_opponent=False, min_decks=min_decks)
 
 
 def card_play_rates(decks: pd.DataFrame, deck_cards: pd.DataFrame, archetype: str) -> pd.DataFrame:

@@ -136,7 +136,27 @@ def test_dashboard_renders(tables):
     from pauper_research import dashboard
     data = dashboard.build_data(tables)
     block = data["periods"]["30d"]["scopes"]["paper"]
-    assert {a["name"] for a in block["archetypes"]} == {"Red Madness", "Mono Blue Affinity"}
+    names = [a[0] for a in block["archetypes"]]
+    assert set(names) == {"Red Madness", "Mono Blue Affinity"}
+    # Both decks have each other as a matchup, stored by index.
+    rm = names.index("Red Madness")
+    assert [m[0] for m in block["mu"][rm]] == [names.index("Mono Blue Affinity")]
+    assert set(block["cards"][rm]) == {"main", "side", "decks"}
     html = dashboard.render(data, standalone=False)
     assert "/*__DATA__*/" not in html and "<!doctype" not in html
     assert dashboard.render(data).startswith("<!doctype html>")
+
+
+def test_newcombe():
+    # Newcombe (1998), example (a): 56/70 vs 48/80 -> 0.0524 to 0.3339
+    lo, hi = analysis.newcombe(56, 70, 48, 80)
+    assert lo == pytest.approx(0.0524, abs=1e-3) and hi == pytest.approx(0.3339, abs=1e-3)
+
+
+def test_card_effects_by_opponent(tables):
+    eff = analysis.card_effects(tables["decks"], tables["deck_cards"], tables["matches"], "Red Madness",
+                                by_opponent=True, min_decks=1)
+    bolt = eff[eff.card == "Lightning Bolt"].set_index("opponent")
+    # Only deck c plays Bolt: it lost to d. Deck a (no Bolt) beat b and drew d.
+    row = bolt.loc["Mono Blue Affinity"]
+    assert (row.matches_with, row.wins_with, row.matches_without, row.wins_without) == (1, 0.0, 2, 1.5)
