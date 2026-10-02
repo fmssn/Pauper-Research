@@ -102,7 +102,8 @@ th[aria-sort="ascending"]::after { content: " ↑"; }
 td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 td.r, th.r { text-align: right; }
 tbody tr { cursor: default; }
-#archTable tbody tr { cursor: pointer; }
+#archTable tbody tr { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.num { white-space: nowrap; }
 #archTable tbody tr:hover, #cardTable tbody tr:hover { background: color-mix(in srgb, var(--line) 55%, transparent); }
 #archTable tbody tr.selected { background: color-mix(in srgb, var(--focus) 12%, transparent); }
 
@@ -158,6 +159,19 @@ td.card { font-weight: 600; white-space: nowrap; }
   background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong);
   border-radius: 8px; padding: 8px 10px; font-size: 13px; box-shadow: 0 6px 24px rgba(0,0,0,0.18);
 }
+.info {
+  flex: none; width: 26px; height: 26px; padding: 0; border-radius: 50%;
+  display: inline-grid; place-items: center; cursor: pointer;
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2);
+  font: italic 700 13px/1 Georgia, "Times New Roman", serif;
+}
+.info:hover, .info[aria-expanded="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+/* With a mouse the hover tooltip does the job, so the (i) only appears on the row being looked at. */
+@media (hover: hover) and (pointer: fine) {
+  .info { opacity: 0; }
+  tr:hover .info, .info:focus-visible, .info[aria-expanded="true"] { opacity: 1; }
+}
+.cell.pinned { outline: 2px solid var(--ink); outline-offset: 0; z-index: 1; }
 #tip .v { font-size: 18px; font-weight: 600; font-family: var(--font-display); }
 #tip .k { color: var(--ink-2); }
 
@@ -219,7 +233,7 @@ td.card { font-weight: 600; white-space: nowrap; }
     <div class="panel-head">
       <div>
         <h2 id="muH">Matchups</h2>
-        <p class="note">Row deck's match win rate against the column deck. Hover a cell for the sample and interval.</p>
+        <p class="note">Row deck's match win rate against the column deck. Hover or tap a cell for the sample and interval.</p>
       </div>
       <div class="filter">
         <span class="label" id="sizeLab">Decks</span>
@@ -284,7 +298,7 @@ td.card { font-weight: 600; white-space: nowrap; }
     <p class="small muted" id="generated"></p>
   </section>
 </div>
-<div id="tip" hidden></div>
+<div id="tip" role="status" aria-live="polite" hidden></div>
 
 <script id="data" type="application/json">/*__DATA__*/null</script>
 <script>
@@ -360,17 +374,62 @@ td.card { font-weight: 600; white-space: nowrap; }
 
   // ---- tooltip ----
   const tip = $("#tip");
-  function showTip(evt, build) {
-    tip.replaceChildren(); build(tip); tip.hidden = false;
-    const r = evt.target.getBoundingClientRect ? evt.target.getBoundingClientRect() : null;
-    const x = evt.clientX || (r ? r.right : 0), y = evt.clientY || (r ? r.top : 0);
+  // Two ways to open it: hover with a mouse (follows the pointer), or tap/click an
+  // anchor such as an (i) button or a matrix cell (pinned until tapped again).
+  let pinned = null;
+  function fillTip(build) { tip.replaceChildren(); build(tip); tip.hidden = false; }
+  function placeAt(x, y, offset) {
     const tw = tip.offsetWidth, th = tip.offsetHeight;
-    let left = x + 14, top = y + 14;
-    if (left + tw > window.innerWidth - 8) left = x - tw - 14;
-    if (top + th > window.innerHeight - 8) top = y - th - 14;
+    let left = x + offset, top = y + offset;
+    if (left + tw > window.innerWidth - 8) left = x - tw - offset;
+    if (top + th > window.innerHeight - 8) top = y - th - offset;
     tip.style.left = Math.max(8, left) + "px"; tip.style.top = Math.max(8, top) + "px";
   }
-  const hideTip = () => { tip.hidden = true; };
+  function placeBelow(anchor) {
+    const r = anchor.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+    const left = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), window.innerWidth - tw - 8);
+    let top = r.bottom + 6;
+    if (top + th > window.innerHeight - 8) top = r.top - th - 6;
+    tip.style.left = left + "px"; tip.style.top = Math.max(8, top) + "px";
+  }
+  function showTip(evt, build) {
+    if (pinned || evt.pointerType === "touch") return;
+    fillTip(build); placeAt(evt.clientX, evt.clientY, 14);
+  }
+  function showTipAt(anchor, build) {
+    if (pinned) return;
+    fillTip(build); placeBelow(anchor);
+  }
+  function hideTip() { if (!pinned) tip.hidden = true; }
+  function unpin() {
+    if (!pinned) return;
+    const p = pinned; pinned = null; tip.hidden = true;
+    p.anchor.setAttribute("aria-expanded", "false");
+    if (p.onClose) p.onClose();
+  }
+  function togglePin(anchor, build, onOpen, onClose) {
+    const same = pinned && pinned.anchor === anchor;
+    unpin();
+    if (same) return;
+    if (onOpen) onOpen();
+    fillTip(build); placeBelow(anchor);
+    pinned = { anchor, onClose };
+    anchor.setAttribute("aria-expanded", "true");
+  }
+  function infoButton(build, label) {
+    const b = el("button", "info", "i");
+    b.type = "button";
+    b.setAttribute("aria-label", label || "Show details");
+    b.setAttribute("aria-expanded", "false");
+    b.addEventListener("click", (e) => { e.stopPropagation(); togglePin(b, build); });
+    return b;
+  }
+  document.addEventListener("click", (e) => {
+    if (pinned && !pinned.anchor.contains(e.target) && !tip.contains(e.target)) unpin();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") unpin(); });
+  window.addEventListener("scroll", unpin, { capture: true, passive: true });
+  window.addEventListener("resize", unpin);
   function tipLine(parent, cls, text) { parent.appendChild(el("div", cls, text)); }
 
   function pips(color) {
@@ -467,6 +526,7 @@ td.card { font-weight: 600; white-space: nowrap; }
   }
 
   function renderArchetypes() {
+    unpin();  // the pinned anchor is about to be replaced
     const rows = scopeData().archetypes.slice();
     const key = state.sort;
     rows.sort((a, b) => ((b[key] ?? -1) - (a[key] ?? -1)) * -state.sortDir);
@@ -492,12 +552,14 @@ td.card { font-weight: 600; white-space: nowrap; }
       const tdW = el("td"); const wrap = el("div"); wrap.style.cssText = "display:flex;align-items:center;gap:8px";
       wrap.appendChild(intervalPlot(a.wr, a.lo, a.hi, 0.3, 0.7, 150));
       wrap.appendChild(el("span", "num", a.matches ? pct(a.wr) + "  " + pct(a.lo) + "–" + pct(a.hi) : "no matches"));
-      tdW.appendChild(wrap); tr.appendChild(tdW);
-      tdW.addEventListener("pointermove", (e) => showTip(e, (t) => {
+      const wrTip = (t) => {
         tipLine(t, "v", a.matches ? pct(a.wr, 1) : "No matches");
         tipLine(t, "k", a.name + " · non-mirror match win rate");
         if (a.matches) tipLine(t, null, "95% interval " + pct(a.lo, 1) + " to " + pct(a.hi, 1) + " · " + fmt(a.matches) + " matches");
-      }));
+      };
+      if (a.matches) wrap.appendChild(infoButton(wrTip, "Win rate details for " + a.name));
+      tdW.appendChild(wrap); tr.appendChild(tdW);
+      tdW.addEventListener("pointermove", (e) => showTip(e, wrTip));
       tdW.addEventListener("pointerleave", hideTip);
 
       tr.appendChild(el("td", "r num", fmt(a.matches)));
@@ -507,14 +569,17 @@ td.card { font-weight: 600; white-space: nowrap; }
         const diff = sk.on.wr - sk.pa.wr;
         const p = el("span", "pill" + (sk.skew ? " skew" : ""),
           sk.skew ? (diff > 0 ? "Better online" : "Better on paper") : "Agrees");
-        tdK.appendChild(p);
-        tdK.addEventListener("pointermove", (e) => showTip(e, (t) => {
+        const skTip = (t) => {
           tipLine(t, "v", signed(diff));
           tipLine(t, "k", "Online minus paper win rate");
           tipLine(t, null, "Online " + pct(sk.on.wr) + " (" + pct(sk.on.lo) + "–" + pct(sk.on.hi) + ", " + sk.on.matches + " matches)");
           tipLine(t, null, "Paper " + pct(sk.pa.wr) + " (" + pct(sk.pa.lo) + "–" + pct(sk.pa.hi) + ", " + sk.pa.matches + " matches)");
           tipLine(t, "k", sk.skew ? "The intervals don't overlap." : "The intervals overlap, so the difference could be noise.");
-        }));
+        };
+        const skWrap = el("div"); skWrap.style.cssText = "display:flex;align-items:center;gap:6px";
+        skWrap.append(p, infoButton(skTip, "Online vs paper details for " + a.name));
+        tdK.appendChild(skWrap);
+        tdK.addEventListener("pointermove", (e) => showTip(e, skTip));
         tdK.addEventListener("pointerleave", hideTip);
       } else {
         tdK.appendChild(el("span", "na", "Too few matches"));
@@ -536,6 +601,7 @@ td.card { font-weight: 600; white-space: nowrap; }
 
   // ---- matchup matrix ----
   function renderMatrix() {
+    unpin();  // the pinned anchor is about to be replaced
     const sd = scopeData();
     const names = sd.matrix.slice(0, state.size);
     const n = names.length;
@@ -570,10 +636,15 @@ td.card { font-weight: 600; white-space: nowrap; }
           if (sig) c.classList.add("sig");
         }
         c.tabIndex = 0;
-        const show = (e) => {
+        c.setAttribute("role", "button");
+        c.setAttribute("aria-expanded", "false");
+        c.setAttribute("aria-label", rowName + " vs " + colName + (m ? ": " + pct(wr) + " in " + m + " matches" : ": no matches"));
+        const highlight = () => {
           box.classList.add("dim");
           cells.forEach((x) => x.classList.toggle("hl", x.dataset.r == i || x.dataset.c == j));
-          showTip(e, (t) => {
+        };
+        const unhighlight = () => { box.classList.remove("dim"); cells.forEach((x) => x.classList.remove("hl")); };
+        const cellTip = (t) => {
             tipLine(t, "v", m ? pct(wr) : "No matches");
             tipLine(t, "k", rowName + " vs " + colName);
             if (m) {
@@ -582,13 +653,17 @@ td.card { font-weight: 600; white-space: nowrap; }
               if (m < MIN_N) tipLine(t, "k", "Fewer than " + MIN_N + " matches, so no color.");
               else if (lo <= 0.5 && hi >= 0.5) tipLine(t, "k", "The interval includes 50%, so this could be an even matchup.");
             }
-          });
         };
-        c.addEventListener("pointermove", show);
-        c.addEventListener("focus", show);
-        const leave = () => { box.classList.remove("dim"); cells.forEach((x) => x.classList.remove("hl")); hideTip(); };
+        c.addEventListener("pointermove", (e) => { if (pinned || e.pointerType === "touch") return; highlight(); showTip(e, cellTip); });
+        c.addEventListener("focus", () => { if (pinned) return; highlight(); showTipAt(c, cellTip); });
+        const leave = () => { if (pinned) return; unhighlight(); hideTip(); };
         c.addEventListener("pointerleave", leave);
         c.addEventListener("blur", leave);
+        const pin = () => togglePin(c, cellTip,
+          () => { highlight(); c.classList.add("pinned"); },
+          () => { c.classList.remove("pinned"); unhighlight(); });
+        c.addEventListener("click", pin);
+        c.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pin(); } });
         cells.push(c); box.appendChild(c);
       });
     });
@@ -608,6 +683,7 @@ td.card { font-weight: 600; white-space: nowrap; }
 
   // ---- card lab ----
   function renderCards() {
+    unpin();  // the pinned anchor is about to be replaced
     const p = period();
     const archs = Object.keys(p.cards);
     if (!archs.includes(state.arch)) state.arch = archs[0] || null;
@@ -643,14 +719,16 @@ td.card { font-weight: 600; white-space: nowrap; }
         const wrap = el("div"); wrap.style.cssText = "display:flex;align-items:center;gap:8px";
         wrap.appendChild(intervalPlot(delta, lo, hi, -0.3, 0.3, 150));
         wrap.appendChild(el("span", "num", signed(delta)));
-        tdD.appendChild(wrap);
-        tdD.addEventListener("pointermove", (e) => showTip(e, (t) => {
+        const dTip = (t) => {
           tipLine(t, "v", signed(delta));
           tipLine(t, "k", "Win rate with " + name + " minus without");
           tipLine(t, null, "95% interval " + signed(lo) + " to " + signed(hi));
           tipLine(t, null, "With: " + pct(wrWith) + " in " + nWith + " matches · Without: " + pct(wrWithout) + " in " + nWithout);
           if (lo <= 0 && hi >= 0) tipLine(t, "k", "The interval crosses 0, so this could be noise.");
-        }));
+        };
+        wrap.appendChild(infoButton(dTip, "Difference details for " + name));
+        tdD.appendChild(wrap);
+        tdD.addEventListener("pointermove", (e) => showTip(e, dTip));
         tdD.addEventListener("pointerleave", hideTip);
       }
       tr.appendChild(tdD);
@@ -667,7 +745,7 @@ td.card { font-weight: 600; white-space: nowrap; }
     });
   });
 
-  function renderAll() { buildRamp(); renderFilters(); renderHeader(); renderArchetypes(); renderMatrix(); renderCards(); }
+  function renderAll() { unpin(); buildRamp(); renderFilters(); renderHeader(); renderArchetypes(); renderMatrix(); renderCards(); }
   // Redraw when the viewer's theme changes, since chart colors come from the theme tokens.
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
   new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
