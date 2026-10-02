@@ -15,6 +15,15 @@ from .archetypes import UNKNOWN
 
 Z = 1.959964  # 95%
 
+# Online and paper events differ a lot: MTGO publishes only top-8 brackets and
+# winning lists, while paper sites publish every round. Every statistic can be
+# computed for one scope or both combined, so the skew can be compared.
+SCOPES: dict[str, set[str] | None] = {
+    "online": {"MTGO", "Manatrader"},
+    "paper": {"MTGmelee", "CardsRealm", "Topdeck"},
+    "combined": None,
+}
+
 
 def wilson(wins: float, n: float, z: float = Z) -> tuple[float, float]:
     if n <= 0:
@@ -36,8 +45,12 @@ def _with_ci(df: pd.DataFrame, wins: str = "wins", n: str = "matches") -> pd.Dat
 
 
 def filter_period(tables: dict[str, pd.DataFrame], since: str | None = None, until: str | None = None,
-                  sources: list[str] | None = None) -> dict[str, pd.DataFrame]:
-    """Restrict all tables to a date range and/or a set of sources."""
+                  sources: list[str] | None = None, scope: str = "combined") -> dict[str, pd.DataFrame]:
+    """Restrict all tables to a date range, a scope (online/paper/combined) and/or a set of sources."""
+    if scope not in SCOPES:
+        raise ValueError(f"Unknown scope {scope!r}, expected one of {', '.join(SCOPES)}")
+    scope_sources = SCOPES[scope]
+
     def keep(df: pd.DataFrame) -> pd.DataFrame:
         if df.empty:
             return df
@@ -48,6 +61,8 @@ def filter_period(tables: dict[str, pd.DataFrame], since: str | None = None, unt
             mask &= df["date"] <= pd.Timestamp(until)
         if sources:
             mask &= df["source"].isin(sources)
+        if scope_sources is not None:
+            mask &= df["source"].isin(scope_sources)
         return df[mask]
 
     out = {name: keep(tables[name]) for name in ("events", "decks", "matches")}
@@ -80,6 +95,30 @@ def archetype_summary(decks: pd.DataFrame, matches: pd.DataFrame) -> pd.DataFram
     out = share.merge(perf, on="archetype", how="left")
     out["matches"] = out["matches"].fillna(0).astype(int)
     return out
+
+
+def scope_comparison(tables: dict[str, pd.DataFrame], archetypes: list[str] | None = None) -> pd.DataFrame:
+    """Meta share and win rate of each archetype, online vs paper vs combined.
+
+    `tables` should already be filtered by date but not by scope. The `skew`
+    column flags archetypes whose online and paper win-rate intervals don't
+    overlap, i.e. where the two scenes clearly disagree.
+    """
+    parts = []
+    for scope in SCOPES:
+        t = filter_period(tables, scope=scope)
+        s = archetype_summary(t["decks"], t["matches"])
+        s = s[["archetype", "decks", "share", "matches", "win_rate", "ci_low", "ci_high"]].set_index("archetype")
+        parts.append(s.add_prefix(f"{scope}_"))
+    out = pd.concat(parts, axis=1)
+    if archetypes is not None:
+        out = out.reindex(archetypes)
+    no_overlap = (out["online_ci_low"] > out["paper_ci_high"]) | (out["paper_ci_low"] > out["online_ci_high"])
+    out["skew"] = no_overlap.fillna(False)
+    for col in out.columns:
+        if col.endswith(("_decks", "_matches")):
+            out[col] = out[col].fillna(0).astype(int)
+    return out.reset_index(names="archetype")
 
 
 def matchup_table(matches: pd.DataFrame, min_matches: int = 1) -> pd.DataFrame:

@@ -14,6 +14,7 @@ from .loader import load
 from .sources import DECKLIST_DIR, FORMAT_DIR, fetch_all
 
 ROOT = Path(__file__).resolve().parent.parent
+SCOPE_LABELS = {"online": "MTGO", "paper": "Melee, CardsRealm, Topdeck", "combined": "all sources"}
 PROCESSED = ROOT / "data" / "processed" / "tables.pkl"
 REPORTS = ROOT / "reports"
 
@@ -45,9 +46,33 @@ def _md_table(df: pd.DataFrame) -> str:
     return "\n".join(lines)
 
 
+def _scope_section(period_tables: dict[str, pd.DataFrame], archetypes: list[str]) -> str:
+    comp = analysis.scope_comparison(period_tables, archetypes)
+
+    def wr(row, scope: str) -> str:
+        n = row[f"{scope}_matches"]
+        return "" if n == 0 else f"{_pct(row[f'{scope}_win_rate'])} ({n})"
+
+    rows = [[r["archetype"], _pct(r["online_share"]), _pct(r["paper_share"]),
+             wr(r, "online"), wr(r, "paper"), wr(r, "combined"), "**yes**" if r["skew"] else ""]
+            for _, r in comp.iterrows()]
+    table = pd.DataFrame(rows, columns=["Archetype", "Online share", "Paper share", "Online WR (n)",
+                                        "Paper WR (n)", "Combined WR (n)", "Skew"])
+    return f"""## Online vs paper
+
+The same archetypes measured on each scope. Online win rates come almost
+entirely from MTGO top-8 brackets, so they compare strong decks against each
+other and have small samples. **Skew = yes** means the online and paper 95%
+intervals don't overlap: the two scenes clearly disagree about that deck.
+
+{_md_table(table)}
+"""
+
+
 def report(since: str, until: str | None, sources: list[str] | None, top: int, min_matches: int,
-           out_dir: Path) -> Path:
-    tables = analysis.filter_period(_tables(), since, until, sources)
+           out_dir: Path, scope: str = "combined") -> Path:
+    period_tables = analysis.filter_period(_tables(), since, until, sources)
+    tables = analysis.filter_period(period_tables, scope=scope)
     decks, matches, events = tables["decks"], tables["matches"], tables["events"]
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -92,7 +117,7 @@ def report(since: str, until: str | None, sources: list[str] | None, top: int, m
     period = f"{since} to {until or decks['date'].max().date()}"
     text = f"""# Pauper metagame report
 
-Period: **{period}**{f" · sources: {', '.join(sources)}" if sources else ""}
+Period: **{period}** · scope: **{scope}** ({SCOPE_LABELS[scope]}){f" · sources: {', '.join(sources)}" if sources else ""}
 · {len(events)} events · {len(decks)} decklists · {len(matches) // 2} matches with results
 
 ## Data coverage
@@ -121,15 +146,16 @@ Row deck's match win rate against the column deck, with the number of matches.
 
 Even at 30 matches, a matchup's 95% interval is about ±17 points wide. Full
 long-form data with intervals: `matchups.csv`.
-"""
+
+{_scope_section(period_tables, top_archs)}"""
     path = out_dir / "README.md"
     path.write_text(text, encoding="utf-8")
     return path
 
 
 def cards(archetype: str, since: str, until: str | None, sources: list[str] | None, board: str,
-          min_decks: int, out_dir: Path) -> None:
-    tables = analysis.filter_period(_tables(), since, until, sources)
+          min_decks: int, out_dir: Path, scope: str = "combined") -> None:
+    tables = analysis.filter_period(_tables(), since, until, sources, scope)
     decks = tables["decks"]
     if archetype not in set(decks["archetype"]):
         close = [a for a in decks["archetype"].unique() if archetype.lower() in a.lower()]
@@ -159,6 +185,8 @@ def main(argv: list[str] | None = None) -> None:
         p.add_argument("--since", default=default_since, help="start date, YYYY-MM-DD (default: 90 days ago)")
         p.add_argument("--until", default=None)
         p.add_argument("--sources", nargs="*", help="e.g. MTGO MTGmelee CardsRealm Topdeck")
+        p.add_argument("--scope", choices=[*analysis.SCOPES, "all"], default="combined",
+                       help="online (MTGO), paper (Melee, CardsRealm, Topdeck), combined, or all three")
         p.add_argument("--out", type=Path, default=REPORTS / "latest")
     sub.choices["report"].add_argument("--top", type=int, default=15)
     sub.choices["report"].add_argument("--min-matches", type=int, default=8)
@@ -169,9 +197,17 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     if args.command == "fetch":
         fetch_all()
-    elif args.command == "build":
+        return
+    if args.command == "build":
         build()
-    elif args.command == "report":
-        print(f"Wrote {report(args.since, args.until, args.sources, args.top, args.min_matches, args.out)}")
-    elif args.command == "cards":
-        cards(args.archetype, args.since, args.until, args.sources, args.board, args.min_decks, args.out)
+        return
+    scopes = list(analysis.SCOPES) if args.scope == "all" else [args.scope]
+    for scope in scopes:
+        # With several scopes, each gets its own subfolder.
+        out = args.out / scope if len(scopes) > 1 else args.out
+        if args.command == "report":
+            path = report(args.since, args.until, args.sources, args.top, args.min_matches, out, scope)
+            print(f"Wrote {path}")
+        elif args.command == "cards":
+            print(f"\n== {args.archetype} · {scope} ==")
+            cards(args.archetype, args.since, args.until, args.sources, args.board, args.min_decks, out, scope)

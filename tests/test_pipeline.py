@@ -116,3 +116,17 @@ def test_card_impact(tables):
     impact = analysis.card_impact(tables["decks"], tables["deck_cards"], tables["matches"], "Red Madness", min_decks=1)
     bolt = impact.set_index("card").loc["Lightning Bolt"]
     assert bolt.decks_with == 1 and bolt.win_rate_with == 0.0 and bolt.win_rate_without == 0.75
+
+
+def test_scopes(tables):
+    # The fixture only has Melee events, so "online" is empty.
+    t = tables
+    online = analysis.filter_period(t, scope="online")
+    paper = analysis.filter_period(t, scope="paper")
+    assert online["matches"].empty and len(paper["matches"]) == len(t["matches"])
+    with pytest.raises(ValueError):
+        analysis.filter_period(t, scope="moon")
+    comp = analysis.scope_comparison(t).set_index("archetype")
+    assert comp.loc["Red Madness", "online_matches"] == 0
+    assert comp.loc["Red Madness", "paper_matches"] == comp.loc["Red Madness", "combined_matches"]
+    assert not comp["skew"].any()

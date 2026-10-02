@@ -1,6 +1,6 @@
 # Pauper metagame report
 
-Period: **2026-07-01 to 2026-09-30**
+Period: **2026-07-01 to 2026-09-30** · scope: **combined** (all sources)
 · 311 events · 9294 decklists · 11660 matches with results
 
 ## Data coverage
@@ -68,3 +68,28 @@ Row deck's match win rate against the column deck, with the number of matches.
 
 Even at 30 matches, a matchup's 95% interval is about ±17 points wide. Full
 long-form data with intervals: `matchups.csv`.
+
+## Online vs paper
+
+The same archetypes measured on each scope. Online win rates come almost
+entirely from MTGO top-8 brackets, so they compare strong decks against each
+other and have small samples. **Skew = yes** means the online and paper 95%
+intervals don't overlap: the two scenes clearly disagree about that deck.
+
+| Archetype | Online share | Paper share | Online WR (n) | Paper WR (n) | Combined WR (n) | Skew |
+|---|---|---|---|---|---|---|
+| Red Madness | 13% | 8% | 50% (170) | 48% (1651) | 48% (1821) |  |
+| Mono Blue Terror | 10% | 5% | 48% (113) | 50% (965) | 50% (1078) |  |
+| Grixis Affinity | 4% | 8% | 45% (73) | 51% (1673) | 51% (1746) |  |
+| Red Rally | 5% | 5% | 51% (41) | 52% (938) | 52% (979) |  |
+| Tron | 5% | 4% | 39% (66) | 50% (851) | 49% (917) |  |
+| Jund Midrange | 5% | 4% | 48% (67) | 48% (950) | 48% (1017) |  |
+| Elves | 5% | 4% | 47% (60) | 53% (814) | 53% (874) |  |
+| White Aggro | 3% | 4% | 58% (43) | 49% (724) | 49% (767) |  |
+| Dimir Faeries | 4% | 3% | 48% (40) | 52% (720) | 52% (760) |  |
+| Gates | 3% | 4% | 58% (38) | 55% (942) | 55% (980) |  |
+| Spy Combo | 4% | 3% | 37% (19) | 59% (687) | 58% (706) |  |
+| Jeskai Ephemerate | 4% | 3% | 53% (45) | 51% (525) | 51% (570) |  |
+| Mono Blue Faeries | 4% | 3% | 57% (54) | 52% (525) | 53% (579) |  |
+| Gruul Ponza | 4% | 2% | 50% (58) | 55% (351) | 55% (409) |  |
+| Rakdos Madness | 1% | 4% | 57% (7) | 45% (694) | 45% (701) |  |

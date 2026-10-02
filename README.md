@@ -21,9 +21,25 @@ pip install -e ".[dev]"
 python -m pauper_research fetch           # download / update raw data (~900 MB, into data/raw)
 python -m pauper_research build           # parse into tables (data/processed/tables.pkl)
 python -m pauper_research report --since 2026-07-01            # -> reports/latest/
-python -m pauper_research report --since 2026-07-01 --sources MTGmelee CardsRealm
-python -m pauper_research cards "Red Madness" --since 2026-07-01   # card-level comparison
+python -m pauper_research report --since 2026-07-01 --scope paper   # online | paper | combined | all
+python -m pauper_research cards "Red Madness" --since 2026-07-01 --scope all   # card-level comparison
 ```
+
+### Online vs paper
+
+Online and paper data differ a lot (see limitations), so every command takes
+`--scope`:
+
+| Scope | Sources | Good for |
+|---|---|---|
+| `online` | MTGO | Meta share among winning MTGO decks; top-8 matchups only |
+| `paper` | Melee, CardsRealm, Topdeck | Matchups and card analysis: every round, lists for nearly every player |
+| `combined` (default) | all | Largest sample |
+| `all` | each of the above | Writes one subfolder per scope |
+
+Every report also has an **Online vs paper** table that shows each archetype's
+share and win rate on both scopes, and flags archetypes where the two clearly
+disagree. `--sources` still narrows further, e.g. `--sources MTGmelee`.
 
 `report` writes:
 
@@ -38,7 +54,8 @@ python -m pauper_research cards "Red Madness" --since 2026-07-01   # card-level 
 those that don't (win rate with / without, difference and 95% CI), and lists play
 rates and average copies.
 
-A snapshot for July to September 2026 is in [reports/2026-Q3](reports/2026-Q3/README.md).
+A snapshot for July to September 2026 is in [reports/2026-Q3](reports/2026-Q3/combined/README.md)
+(also [online](reports/2026-Q3/online/README.md) and [paper](reports/2026-Q3/paper/README.md)).
 
 ## How the numbers are computed
 
