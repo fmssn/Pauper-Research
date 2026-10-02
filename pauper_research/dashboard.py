@@ -123,6 +123,17 @@ def build_data(all_tables: dict[str, pd.DataFrame]) -> dict:
             "thresholds": {"overall": OVERALL_MIN, "matchup": MATCHUP_MIN, "matchupTotal": MATCHUP_MIN_TOTAL}}
 
 
+def card_names(data: dict) -> list[str]:
+    """Every card shown on the page, grouped by deck in popularity order."""
+    names: dict[str, None] = {}
+    for period in data["periods"].values():
+        for block in period["scopes"].values():
+            for i in sorted(block["cards"], key=int):
+                for board in ("main", "side"):
+                    names.update((r[0], None) for r in block["cards"][i][board])
+    return list(names)
+
+
 def render(data: dict, standalone: bool = True) -> str:
     """Fill the template. `standalone=False` leaves out the document skeleton
     (doctype, html/head/body), for hosts that add their own."""
@@ -135,7 +146,19 @@ def render(data: dict, standalone: bool = True) -> str:
             '</head>\n<body>\n' + page + '\n</body>\n</html>\n')
 
 
-def write(all_tables: dict[str, pd.DataFrame], out: Path, standalone: bool = True) -> Path:
+def write(all_tables: dict[str, pd.DataFrame], out: Path, standalone: bool = True,
+          images: str | None = "url") -> Path:
+    """Write the page. `images`: "url" links to Scryfall, "sheets" writes image
+    sheets to <out dir>/cards/ (for hosts that block other sites), None: no images."""
+    from . import scryfall
+
+    data = build_data(all_tables)
+    if images == "url":
+        data["images"] = scryfall.url_index(card_names(data))
+    elif images == "sheets":
+        index = scryfall.build_sheets(card_names(data), out.parent / "cards")
+        index["base"] = "cards/"
+        data["images"] = index
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(render(build_data(all_tables), standalone), encoding="utf-8")
+    out.write_text(render(data, standalone), encoding="utf-8")
     return out

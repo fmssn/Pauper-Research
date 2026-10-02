@@ -246,6 +246,41 @@ dialog.sheet::backdrop { background: rgba(10, 12, 15, 0.45); }
   height: 48px; border: 0; border-radius: 12px; background: var(--ink); color: var(--surface);
   font: 800 16px var(--font-display); font-stretch: 106%; cursor: pointer;
 }
+/* Card images */
+.eye {
+  flex: none; width: 36px; height: 36px; margin: -6px 0 -6px -6px; border: 0; border-radius: 18px;
+  background: transparent; display: inline-grid; place-items: center; cursor: pointer;
+}
+.eye:hover { background: var(--line); }
+.eye svg, .chip svg { width: 18px; height: 18px; stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.cardname { display: flex; align-items: center; gap: 4px; min-width: 0; }
+button.chip { border: 0; color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; }
+button.chip:hover { background: var(--line); }
+dialog.viewer {
+  border: 0; padding: 0; margin: 0; width: 100%; height: 100%; max-width: none; max-height: none;
+  background: rgba(8, 9, 11, 0.94); color: #f2f3f5;
+}
+dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
+.viewer-body {
+  height: 100%; display: grid; place-items: center; align-content: center; gap: 14px;
+  padding: calc(56px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px));
+}
+.cardimg {
+  width: min(92vw, calc((100vh - 170px) * 488 / 680), 520px); aspect-ratio: 488 / 680; max-width: 100%;
+  border-radius: 4.6% / 3.3%; background-color: #1b1d21; background-repeat: no-repeat;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6); display: grid; place-items: center;
+  color: #9aa0a8; font-size: 14px; text-align: center; padding: 16px;
+}
+.viewer-cap { display: grid; justify-items: center; gap: 6px; text-align: center; }
+.viewer-cap b { font: 800 20px/1.2 var(--font-display); font-stretch: 106%; }
+.viewer-cap a { color: #9cc4f2; font-size: 14px; }
+.viewer-cap small { color: #8b919b; font-size: 12px; }
+.viewer-close {
+  position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); right: 8px;
+  width: 48px; height: 48px; border-radius: 24px; border: 0; background: rgba(255, 255, 255, 0.12); cursor: pointer;
+  display: grid; place-items: center;
+}
+.viewer-close svg { width: 22px; height: 22px; stroke: #fff; fill: none; stroke-width: 2.4; stroke-linecap: round; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
 </style>
 
@@ -308,6 +343,20 @@ dialog.sheet::backdrop { background: rgba(10, 12, 15, 0.45); }
     <div class="cov" id="sheetCov"></div>
     <button class="primary" value="close">Show results</button>
   </form>
+</dialog>
+
+<dialog class="viewer" id="viewer" aria-label="Card image">
+  <button class="viewer-close" id="viewerClose" type="button" aria-label="Close card image">
+    <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+  <div class="viewer-body">
+    <div class="cardimg" id="viewerImg" role="img"></div>
+    <div class="viewer-cap">
+      <b id="viewerName"></b>
+      <a id="viewerLink" href="#" target="_blank" rel="noopener">Open on Scryfall</a>
+      <small>Card image via Scryfall. Card art and text © Wizards of the Coast.</small>
+    </div>
+  </div>
 </dialog>
 
 <script id="data" type="application/json">/*__DATA__*/null</script>
@@ -438,6 +487,58 @@ dialog.sheet::backdrop { background: rgba(10, 12, 15, 0.45); }
     });
   }
 
+  // ---------- card images ----------
+  const IMAGES = DATA.images || null;
+  const hasImage = (name) => !!(IMAGES && IMAGES.cards[name]);
+  function eyeIcon() {
+    const s = document.createElementNS(SVGNS, "svg"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("aria-hidden", "true");
+    const p1 = document.createElementNS(SVGNS, "path"); p1.setAttribute("d", "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z");
+    const c = document.createElementNS(SVGNS, "circle"); c.setAttribute("cx", "12"); c.setAttribute("cy", "12"); c.setAttribute("r", "3");
+    s.append(p1, c); return s;
+  }
+  function eyeButton(name) {
+    if (!hasImage(name)) return null;
+    return h("button", { class: "eye", type: "button", "aria-label": "Show card image: " + name, onclick: (e) => { e.stopPropagation(); showCard(name); } }, eyeIcon());
+  }
+  function showCard(name) {
+    const img = $("#viewerImg"), ref = IMAGES.cards[name];
+    let src, size = "100% 100%", position = "0 0";
+    if (IMAGES.mode === "sheet") {
+      const [sheet, cell] = ref, info = IMAGES.sheets[sheet], cols = IMAGES.cols, rows = info.rows;
+      const col = cell % cols, row = Math.floor(cell / cols);
+      src = IMAGES.base + info.file;
+      size = cols * 100 + "% " + rows * 100 + "%";
+      position = (cols > 1 ? col / (cols - 1) * 100 : 0) + "% " + (rows > 1 ? row / (rows - 1) * 100 : 0) + "%";
+    } else {
+      src = ref;
+    }
+    img.style.backgroundImage = "none";
+    img.textContent = "Loading card…";
+    img.setAttribute("aria-label", name);
+    const probe = new Image();
+    probe.onload = () => {
+      if ($("#viewerName").textContent !== name) return;
+      img.textContent = "";
+      img.style.backgroundImage = `url("${src}")`;
+      img.style.backgroundSize = size;
+      img.style.backgroundPosition = position;
+    };
+    probe.onerror = () => { img.textContent = "The card image couldn't be loaded."; };
+    probe.src = src;
+    $("#viewerName").textContent = name;
+    $("#viewerLink").href = "https://scryfall.com/search?q=" + encodeURIComponent('!"' + name + '"');
+    const d = $("#viewer");
+    if (typeof d.showModal === "function") d.showModal(); else d.setAttribute("open", "");
+  }
+  const closeViewer = () => { const d = $("#viewer"); if (d.open) d.close(); };
+  $("#viewerClose").addEventListener("click", closeViewer);
+  // Tapping anywhere but the link closes the viewer.
+  $("#viewer").addEventListener("click", (e) => { if (!e.target.closest("a")) closeViewer(); });
+  function cardChip(name, ...content) {
+    if (!hasImage(name)) return h("span", { class: "chip" }, ...content);
+    return h("button", { class: "chip", type: "button", "aria-label": "Show card image: " + name, onclick: () => showCard(name) }, ...content, eyeIcon());
+  }
+
   // ---------- navigation ----------
   function go(view, deck, opp, push = true) {
     state.view = view; state.deck = deck || null; state.opp = opp || null;
@@ -539,7 +640,7 @@ dialog.sheet::backdrop { background: rgba(10, 12, 15, 0.45); }
   function cardRow(r, context) {
     const good = r.delta >= 0, sure = r.lo > 0 || r.hi < 0;
     return h("div", { class: "row" },
-      h("div", null, h("div", { class: "rname" }, r.card), h("div", { class: "rsub num" }, context)),
+      h("div", { style: "min-width:0" }, h("div", { class: "cardname" }, eyeButton(r.card), h("span", { class: "rname" }, r.card)), h("div", { class: "rsub num" }, context)),
       h("div", { class: "rval" }, tag(sure, good), h("b", { class: "num" }, pts(r.delta))),
       h("div", { class: "rbar" }, dbar(r.delta, r.lo, r.hi, 0, 0.3)),
       h("div", { class: "compare num" }, "With it " + pct(r.wrW) + " in " + fmt(r.nW) + " matches (" + r.dW + " lists) · without " + pct(r.wrWo) + " in " + fmt(r.nWo) + " (" + r.dWo + " lists)"));
@@ -567,9 +668,9 @@ dialog.sheet::backdrop { background: rgba(10, 12, 15, 0.45); }
       effectGroups(body, compared, (r) => "In " + pct(r.play) + " of lists · " + r.copies.toFixed(1) + " copies on average", "");
       if (core.length) body.append(h("div", { class: "group" }, h("div", { class: "subhead" }, h("h3", null, "Core cards")),
         h("p", { class: "note" }, "In almost every list, so there's nothing to compare them against."),
-        h("div", { class: "chips" }, core.map((r) => h("span", { class: "chip" }, h("b", null, Math.round(r.copies)), r.card)))));
+        h("div", { class: "chips" }, core.map((r) => cardChip(r.card, h("b", null, Math.round(r.copies)), r.card)))));
       if (rare.length) body.append(h("details", { class: "more" }, h("summary", null, rare.length + " more cards in too few lists to compare"),
-        h("div", { class: "chips", style: "margin-top:8px" }, rare.map((r) => h("span", { class: "chip" }, r.card + " · " + pct(r.play))))));
+        h("div", { class: "chips", style: "margin-top:8px" }, rare.map((r) => cardChip(r.card, r.card + " · " + pct(r.play))))));
     };
     draw();
     return h("section", { class: "card" }, h("header", null, h("h2", null, "Cards that move the win rate"),

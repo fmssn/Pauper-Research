@@ -160,3 +160,23 @@ def test_card_effects_by_opponent(tables):
     # Only deck c plays Bolt: it lost to d. Deck a (no Bolt) beat b and drew d.
     row = bolt.loc["Mono Blue Affinity"]
     assert (row.matches_with, row.wins_with, row.matches_without, row.wins_without) == (1, 0.0, 2, 1.5)
+
+
+def test_image_sheets(tmp_path, monkeypatch):
+    pytest.importorskip("PIL")
+    from PIL import Image
+    from pauper_research import scryfall
+    names = [f"Card {i}" for i in range(11)]
+    paths = {}
+    for i, n in enumerate(names):
+        p = tmp_path / f"{i}.jpg"
+        Image.new("RGB", (488, 680), (i * 20, 0, 0)).save(p)
+        paths[n] = p
+    monkeypatch.setattr(scryfall, "lookup", lambda ns: {n: {} for n in ns})
+    monkeypatch.setattr(scryfall, "download", lambda entries: {n: paths[n] for n in entries})
+    index = scryfall.build_sheets(names, tmp_path / "out")
+    per = scryfall.SHEET_COLS * scryfall.SHEET_ROWS
+    assert len(index["sheets"]) == -(-len(names) // per)
+    assert index["cards"]["Card 10"] == [10 // per, 10 % per]
+    last = Image.open(tmp_path / "out" / index["sheets"][-1]["file"])
+    assert last.size == (scryfall.SHEET_COLS * 488, index["sheets"][-1]["rows"] * 680)

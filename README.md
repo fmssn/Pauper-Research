@@ -58,6 +58,11 @@ see which cards move its win rate, overall and against a specific opponent.
   only matches against that opponent. Shown only when the sample allows it
   (25+ matches in the matchup, 3+ lists and 10+ matches on each side of a card).
 - Period (30 / 90 / 180 days) and events (all / paper / online) in the filter sheet.
+- **Card images:** the eye icon next to a card opens its Scryfall image full
+  screen. By default the page links to Scryfall's image server. For hosts that
+  block other sites, `--images sheets` (needs `pip install -e ".[images]"`)
+  downloads the images once into `data/raw/scryfall/` and writes them next to
+  the page as sheets of 9 cards in `cards/`.
 
 `report` writes:
 
