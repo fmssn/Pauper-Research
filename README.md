@@ -1,1 +1,88 @@
 # Pauper-Research
+
+Metagame, matchup and card analysis for Magic: The Gathering **Pauper**, built on
+public tournament data.
+
+- **Data:** decklists, round-by-round results and standings from
+  [fbettega/MTG_decklistcache](https://github.com/fbettega/MTG_decklistcache)
+  (MTGO, Melee, Topdeck.gg, CardsRealm), updated daily.
+- **Archetypes:** the community rules in
+  [Badaro/MTGOFormatData](https://github.com/Badaro/MTGOFormatData), applied by a
+  Python port of [MTGOArchetypeParser](https://github.com/Badaro/MTGOArchetypeParser).
+  About 99% of recent decks get a named archetype.
+
+See [SOURCES.md](SOURCES.md) for other data sources and what each is good for.
+
+## Usage
+
+```bash
+pip install -e ".[dev]"
+
+python -m pauper_research fetch           # download / update raw data (~900 MB, into data/raw)
+python -m pauper_research build           # parse into tables (data/processed/tables.pkl)
+python -m pauper_research report --since 2026-07-01            # -> reports/latest/
+python -m pauper_research report --since 2026-07-01 --sources MTGmelee CardsRealm
+python -m pauper_research cards "Red Madness" --since 2026-07-01   # card-level comparison
+```
+
+`report` writes:
+
+| File | Contents |
+|---|---|
+| `README.md` | Coverage, meta share and win rate per archetype, matchup matrix of the top archetypes |
+| `archetypes.csv` | All archetypes: decks, meta share, non-mirror wins/matches, win rate, 95% CI |
+| `matchups.csv` | Every archetype pair: wins, matches, win rate, 95% CI |
+| `matchup_matrix.csv` | Win-rate matrix of the top archetypes |
+
+`cards <archetype>` compares decks of one archetype that play each card against
+those that don't (win rate with / without, difference and 95% CI), and lists play
+rates and average copies.
+
+A snapshot for July to September 2026 is in [reports/2026-Q3](reports/2026-Q3/README.md).
+
+## How the numbers are computed
+
+- **Win rate** = non-mirror *match* win rate; draws count as half a win.
+  Matches against opponents without a published list count toward the deck's
+  overall win rate but not toward any matchup cell.
+- **Intervals** are 95% Wilson intervals. Pauper matchup samples are small: even
+  with 30 matches, a cell is only accurate to about ±17 points.
+- **Meta share** is the share of *published* decklists, so for MTGO it means
+  "share among the top 32 and 5-0 lists", not share of the whole field.
+
+## Known limitations
+
+- **MTGO gives few matches.** Since mid-2024 mtgo.com only publishes Challenge
+  top-8 brackets and a curated sample of 5-0 League lists. Most match data comes
+  from paper events on Melee (mostly Italy) and CardsRealm (mostly Brazil), so
+  win rates reflect those scenes more than the MTGO field.
+- **Card comparisons are descriptive, not causal.** Decks that play a card differ
+  in other ways too (pilot, event, date, other cards). Use them to find leads;
+  see the roadmap.
+- Archetype rules are only as current as MTGOFormatData. Check `is_fallback`,
+  `is_conflict` and `candidates` in the decks table when a new deck appears.
+
+## Tables
+
+`data/processed/tables.pkl` holds a dict of pandas DataFrames:
+
+| Table | One row per | Key columns |
+|---|---|---|
+| `events` | tournament | `event_id`, `date`, `source`, `event_type`, `uri` |
+| `decks` | decklist | `deck_id`, `event_id`, `player`, `archetype`, `color`, `is_fallback`, `is_conflict` |
+| `deck_cards` | deck × card × board | `deck_id`, `card`, `board` (`main`/`side`), `count` |
+| `matches` | match, from each player's side | `deck_id`, `opp_deck_id`, `archetype`, `opp_archetype`, `score`, games |
+
+## Roadmap: card performance
+
+The goal is to measure how much an archetype gains or loses from playing,
+cutting or swapping specific cards. Planned on top of the current tables:
+
+1. **Adjust for confounders.** A logistic regression on match results
+   within an archetype, with card counts as features plus opponent archetype,
+   event and time as controls, ideally with a player-strength term.
+2. **Swap analysis.** Compare lists that differ by a specific swap (card A
+   instead of card B), and see how the effect depends on the number of copies.
+3. **Per-matchup effects.** Does a sideboard card actually move its target
+   matchup?
+4. **Join Scryfall data** for card types, mana value and prices.
