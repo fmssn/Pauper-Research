@@ -1,0 +1,754 @@
+<title>Pauper Meta Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+/* Layout: one column of three working panels (archetypes, matchups, cards) under a single
+   filter row. Monochrome "common rarity" chrome so the data colors carry all the meaning. */
+:root {
+  --bg: #f3f4f5;
+  --surface: #fcfcfb;
+  --ink: #111214;
+  --ink-2: #4b4e55;
+  --muted: #80838a;
+  --line: #e1e2e5;
+  --line-strong: #c4c6cb;
+  --focus: #2a78d6;
+  --pos: #2a78d6;      /* row deck wins */
+  --neg: #e34948;      /* row deck loses */
+  --mid: #f0efec;
+  --bar: #9aa0aa;
+  --font-display: "Barlow Semi Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  --font-body: "Source Sans 3", "Source Sans Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --pip-W: #f2ebcc; --pip-U: #a8cbe6; --pip-B: #b9aea6; --pip-R: #eba083; --pip-G: #9fc49b; --pip-C: #d6d6d6;
+  --pip-ink: #1d1d1b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1012; --surface: #18191b; --ink: #f4f4f5; --ink-2: #c3c5ca; --muted: #8b8e95;
+    --line: #2a2c30; --line-strong: #3d4046; --focus: #5598e7;
+    --pos: #3987e5; --neg: #e66767; --mid: #383835; --bar: #6b717c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1012; --surface: #18191b; --ink: #f4f4f5; --ink-2: #c3c5ca; --muted: #8b8e95;
+  --line: #2a2c30; --line-strong: #3d4046; --focus: #5598e7;
+  --pos: #3987e5; --neg: #e66767; --mid: #383835; --bar: #6b717c;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 15px/1.45 var(--font-body);
+  padding-block: 0 48px; padding-inline: 16px;
+}
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 20px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: 0.01em; }
+h1 { font-size: 30px; font-weight: 700; line-height: 1.1; }
+h2 { font-size: 21px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow, .label, th {
+  font-family: var(--font-display); font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.07em; font-size: 12px; color: var(--muted);
+}
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+
+header.top { display: grid; gap: 6px; padding-top: 28px; }
+header.top .sub { color: var(--ink-2); }
+
+.filters {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end;
+  background: var(--bg); padding-block: 10px; border-bottom: 1px solid var(--line);
+}
+.filter { display: grid; gap: 4px; }
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.seg button {
+  font: 600 14px/1 var(--font-display); letter-spacing: 0.03em;
+  padding: 8px 12px; border: 0; background: transparent; color: var(--ink-2); cursor: pointer;
+}
+.seg button + button { border-left: 1px solid var(--line-strong); }
+.seg button:hover { background: var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+button:focus-visible, select:focus-visible, tr:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 2px;
+}
+select {
+  font: 15px var(--font-body); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 8px; max-width: 100%;
+}
+.coverage { display: flex; flex-wrap: wrap; gap: 4px 18px; color: var(--ink-2); font-size: 14px; }
+.coverage b { color: var(--ink); font-weight: 600; }
+
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 18px; display: grid; gap: 14px; min-width: 0;
+}
+.panel-head { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: end; justify-content: space-between; }
+.panel-head > div { display: grid; gap: 4px; min-width: 0; }
+.note { color: var(--ink-2); font-size: 14px; }
+.scroll { overflow-x: auto; min-width: 0; }
+
+table { border-collapse: collapse; width: 100%; }
+th { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--ink); }
+th[aria-sort="descending"]::after { content: " ↓"; }
+th[aria-sort="ascending"]::after { content: " ↑"; }
+td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+td.r, th.r { text-align: right; }
+tbody tr { cursor: default; }
+#archTable tbody tr { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.num { white-space: nowrap; }
+#archTable tbody tr:hover, #cardTable tbody tr:hover { background: color-mix(in srgb, var(--line) 55%, transparent); }
+#archTable tbody tr.selected { background: color-mix(in srgb, var(--focus) 12%, transparent); }
+
+.arch { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-weight: 600; }
+.pips { display: inline-flex; gap: 2px; }
+.pip {
+  width: 15px; height: 15px; border-radius: 50%; display: inline-grid; place-items: center;
+  font: 700 9px/1 var(--font-display); color: var(--pip-ink);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18);
+}
+.sharebar { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+.sharebar .track { flex: 1; height: 8px; background: var(--line); border-radius: 0 4px 4px 0; }
+.sharebar .fill { height: 100%; background: var(--bar); border-radius: 0 4px 4px 0; }
+.sharebar span { width: 3.2em; text-align: right; }
+svg text { fill: var(--muted); font: 11px var(--font-body); }
+.pill {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px;
+  font: 600 12px/1.4 var(--font-display); letter-spacing: 0.03em; white-space: nowrap;
+  border: 1px solid var(--line-strong); color: var(--ink-2);
+}
+.pill.skew { border-color: var(--ink); color: var(--ink); }
+
+/* Matchup matrix */
+.matrix { display: grid; gap: 2px; font-variant-numeric: tabular-nums; width: max-content; }
+.matrix .rowlab {
+  display: flex; align-items: center; gap: 6px; padding-right: 8px; white-space: nowrap;
+  font-size: 13px; font-weight: 600; justify-content: flex-end;
+}
+.matrix .rowlab .idx, .matrix .collab { color: var(--muted); font: 600 12px var(--font-display); }
+.matrix .collab { display: grid; place-items: end center; padding-bottom: 4px; }
+.cell {
+  width: 46px; height: 34px; border-radius: 3px; display: grid; place-items: center;
+  font-size: 12px; cursor: default; position: relative;
+}
+.cell.self { background: transparent; color: var(--line-strong); }
+.cell.few { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+.cell.sig { font-weight: 600; }
+.cell:hover, .cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 0; z-index: 1; }
+.matrix.dim .cell:not(.hl) { opacity: 0.55; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; font-size: 13px; color: var(--ink-2); }
+.legend .ramp { display: inline-flex; align-items: center; gap: 6px; }
+.legend .ramp i { width: 160px; height: 10px; border-radius: 2px; display: inline-block; }
+.swatch { width: 16px; height: 12px; border-radius: 2px; display: inline-block; vertical-align: -1px; }
+
+/* Card lab */
+.cardctl { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: end; }
+.caveat { border-left: 3px solid var(--line-strong); padding: 4px 0 4px 12px; color: var(--ink-2); font-size: 14px; }
+td.card { font-weight: 600; white-space: nowrap; }
+.na { color: var(--muted); font-size: 13px; }
+
+#tip {
+  position: fixed; z-index: 20; pointer-events: none; max-width: 280px;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong);
+  border-radius: 8px; padding: 8px 10px; font-size: 13px; box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+}
+.info {
+  flex: none; width: 26px; height: 26px; padding: 0; border-radius: 50%;
+  display: inline-grid; place-items: center; cursor: pointer;
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2);
+  font: italic 700 13px/1 Georgia, "Times New Roman", serif;
+}
+.info:hover, .info[aria-expanded="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+/* With a mouse the hover tooltip does the job, so the (i) only appears on the row being looked at. */
+@media (hover: hover) and (pointer: fine) {
+  .info { opacity: 0; }
+  tr:hover .info, .info:focus-visible, .info[aria-expanded="true"] { opacity: 1; }
+}
+.cell.pinned { outline: 2px solid var(--ink); outline-offset: 0; z-index: 1; }
+#tip .v { font-size: 18px; font-weight: 600; font-family: var(--font-display); }
+#tip .k { color: var(--ink-2); }
+
+.method { display: grid; gap: 8px; color: var(--ink-2); font-size: 14px; }
+.method ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; max-width: 80ch; }
+
+@media (max-width: 640px) {
+  h1 { font-size: 25px; }
+  .panel { padding: 14px; }
+  .cell { width: 40px; height: 30px; font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <span class="eyebrow">MTG Pauper · tournament data</span>
+    <h1>Pauper Meta Lab</h1>
+    <p class="sub" id="subline"></p>
+  </header>
+
+  <div class="filters" role="group" aria-label="Filters">
+    <div class="filter">
+      <span class="label" id="periodLab">Period</span>
+      <div class="seg" id="periodSeg" aria-labelledby="periodLab"></div>
+    </div>
+    <div class="filter">
+      <span class="label" id="scopeLab">Data</span>
+      <div class="seg" id="scopeSeg" aria-labelledby="scopeLab"></div>
+    </div>
+    <div class="coverage" id="coverage" aria-live="polite"></div>
+  </div>
+
+  <section class="panel" id="archetypes" aria-labelledby="archH">
+    <div class="panel-head">
+      <div>
+        <h2 id="archH">Archetypes</h2>
+        <p class="note">Meta share of published decklists and non-mirror match win rate, with its 95% interval.
+          Pick a row to open its cards.</p>
+      </div>
+    </div>
+    <div class="scroll">
+      <table id="archTable">
+        <thead><tr>
+          <th class="r">#</th>
+          <th>Archetype</th>
+          <th class="sortable" data-sort="share" aria-sort="descending">Meta share</th>
+          <th>Weekly share</th>
+          <th class="sortable" data-sort="wr">Win rate · 95% interval</th>
+          <th class="sortable r" data-sort="matches">Matches</th>
+          <th title="Compares online (MTGO) and paper win rates">Online vs paper</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="matchups" aria-labelledby="muH">
+    <div class="panel-head">
+      <div>
+        <h2 id="muH">Matchups</h2>
+        <p class="note">Row deck's match win rate against the column deck. Hover or tap a cell for the sample and interval.</p>
+      </div>
+      <div class="filter">
+        <span class="label" id="sizeLab">Decks</span>
+        <div class="seg" id="sizeSeg" aria-labelledby="sizeLab"></div>
+      </div>
+    </div>
+    <div class="legend" id="muLegend"></div>
+    <div class="scroll"><div class="matrix" id="matrix"></div></div>
+  </section>
+
+  <section class="panel" id="cards" aria-labelledby="cardH">
+    <div class="panel-head">
+      <div>
+        <h2 id="cardH">Cards</h2>
+        <p class="note">How often each card shows up in an archetype, and how decks with it did against decks without it.</p>
+      </div>
+    </div>
+    <div class="cardctl">
+      <label class="filter"><span class="label">Archetype</span><select id="cardArch"></select></label>
+      <div class="filter">
+        <span class="label" id="boardLab">Board</span>
+        <div class="seg" id="boardSeg" aria-labelledby="boardLab"></div>
+      </div>
+      <label class="filter"><span class="label">Sort by</span>
+        <select id="cardSort">
+          <option value="play">Play rate</option>
+          <option value="delta">Win rate difference</option>
+          <option value="name">Card name</option>
+        </select>
+      </label>
+    </div>
+    <p class="caveat">These are comparisons, not proof. Decks that run a card also differ in pilot, event and the rest
+      of the list. A difference whose interval crosses 0 could be noise. Cards in nearly every list (or almost none) have no
+      comparison group, so they show no difference.</p>
+    <p class="small muted" id="cardMeta"></p>
+    <div class="scroll">
+      <table id="cardTable">
+        <thead><tr>
+          <th>Card</th>
+          <th>Play rate</th>
+          <th class="r">Avg copies</th>
+          <th class="r">Win rate with</th>
+          <th class="r">Without</th>
+          <th>Difference · 95% interval</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="method" aria-labelledby="mH">
+    <h2 id="mH">How to read this</h2>
+    <ul>
+      <li><b>Data</b>: <i>Online</i> is MTGO. It publishes only Challenge top-8 brackets and a sample of 5-0 League lists,
+        so it has many decklists but few matches, all between strong decks. <i>Paper</i> is Melee, CardsRealm and Topdeck,
+        which publish every round. Most paper events are in Italy and Brazil.</li>
+      <li><b>Win rate</b> counts matches, not games, excludes mirrors, and counts draws as half a win.</li>
+      <li><b>Intervals</b> are 95% Wilson intervals. Two decks whose intervals overlap a lot can't be told apart yet.</li>
+      <li><b>Online vs paper</b> is flagged when the two intervals don't overlap, so the scenes clearly disagree.</li>
+      <li>Archetypes come from the community rules in MTGOFormatData. Source data: fbettega/MTG_decklistcache.</li>
+    </ul>
+    <p class="small muted" id="generated"></p>
+  </section>
+</div>
+<div id="tip" role="status" aria-live="polite" hidden></div>
+
+<script id="data" type="application/json">/*__DATA__*/null</script>
+<script>
+(function () {
+  "use strict";
+  const DATA = JSON.parse(document.getElementById("data").textContent);
+  const MIN_N = 8;
+  const SCOPES = [["combined", "Combined"], ["paper", "Paper"], ["online", "Online"]];
+  const PERIOD_LABELS = { "30d": "30 days", "90d": "90 days", "180d": "180 days" };
+  const SIZES = [10, 15, 20, 25];
+
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem("pml." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem("pml." + k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
+  };
+  const state = {
+    period: store.get("period", DATA.default_period),
+    scope: store.get("scope", "combined"),
+    size: store.get("size", 15),
+    sort: store.get("sort", "share"),
+    sortDir: -1,
+    board: store.get("board", "main"),
+    cardSort: store.get("cardSort", "play"),
+    arch: store.get("arch", null),
+  };
+  if (!DATA.periods[state.period]) state.period = DATA.default_period;
+
+  const $ = (s) => document.querySelector(s);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const pct = (x, d = 0) => x == null ? "–" : (x * 100).toFixed(d) + "%";
+  const signed = (x) => x == null ? "–" : (x > 0 ? "+" : x < 0 ? "−" : "±") + Math.abs(x * 100).toFixed(0) + " pts";
+  const fmt = (n) => n.toLocaleString("en-US");
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const svg = (tag, attrs) => { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  // ---- color: OKLab interpolation for the diverging matchup ramp ----
+  function hexToRgb(h) { h = h.replace("#", ""); if (h.length === 3) h = h.split("").map((c) => c + c).join(""); const n = parseInt(h, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+  const toLin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const fromLin = (c) => { const v = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; return Math.round(Math.min(1, Math.max(0, v)) * 255); };
+  function rgbToOklab([r, g, b]) {
+    r = toLin(r); g = toLin(g); b = toLin(b);
+    const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+    const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+    const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+    return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s];
+  }
+  function oklabToRgb([L, a, b]) {
+    const l = Math.pow(L + 0.3963377774 * a + 0.2158037573 * b, 3);
+    const m = Math.pow(L - 0.1055613458 * a - 0.0638541728 * b, 3);
+    const s = Math.pow(L - 0.0894841775 * a - 1.291485548 * b, 3);
+    return [fromLin(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s), fromLin(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s), fromLin(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s)];
+  }
+  let ramp = null;
+  function buildRamp() {
+    ramp = { pos: rgbToOklab(hexToRgb(css("--pos"))), neg: rgbToOklab(hexToRgb(css("--neg"))), mid: rgbToOklab(hexToRgb(css("--mid"))) };
+  }
+  // Win rate -> color. 50% is neutral gray, 25% / 75% are the full poles.
+  function cellColor(wr, strength) {
+    const t = Math.min(1, Math.abs(wr - 0.5) / 0.25) * strength;
+    const pole = wr >= 0.5 ? ramp.pos : ramp.neg;
+    const lab = ramp.mid.map((v, i) => v + (pole[i] - v) * t);
+    return { rgb: oklabToRgb(lab), L: lab[0] };
+  }
+
+  // ---- Wilson interval, used for matchup cells ----
+  function wilson(w, n) {
+    if (!n) return [NaN, NaN];
+    const z = 1.959964, p = w / n, d = 1 + z * z / n;
+    const c = (p + z * z / (2 * n)) / d, h = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d;
+    return [Math.max(0, c - h), Math.min(1, c + h)];
+  }
+
+  // ---- tooltip ----
+  const tip = $("#tip");
+  // Two ways to open it: hover with a mouse (follows the pointer), or tap/click an
+  // anchor such as an (i) button or a matrix cell (pinned until tapped again).
+  let pinned = null;
+  function fillTip(build) { tip.replaceChildren(); build(tip); tip.hidden = false; }
+  function placeAt(x, y, offset) {
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    let left = x + offset, top = y + offset;
+    if (left + tw > window.innerWidth - 8) left = x - tw - offset;
+    if (top + th > window.innerHeight - 8) top = y - th - offset;
+    tip.style.left = Math.max(8, left) + "px"; tip.style.top = Math.max(8, top) + "px";
+  }
+  function placeBelow(anchor) {
+    const r = anchor.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+    const left = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), window.innerWidth - tw - 8);
+    let top = r.bottom + 6;
+    if (top + th > window.innerHeight - 8) top = r.top - th - 6;
+    tip.style.left = left + "px"; tip.style.top = Math.max(8, top) + "px";
+  }
+  function showTip(evt, build) {
+    if (pinned || evt.pointerType === "touch") return;
+    fillTip(build); placeAt(evt.clientX, evt.clientY, 14);
+  }
+  function showTipAt(anchor, build) {
+    if (pinned) return;
+    fillTip(build); placeBelow(anchor);
+  }
+  function hideTip() { if (!pinned) tip.hidden = true; }
+  function unpin() {
+    if (!pinned) return;
+    const p = pinned; pinned = null; tip.hidden = true;
+    p.anchor.setAttribute("aria-expanded", "false");
+    if (p.onClose) p.onClose();
+  }
+  function togglePin(anchor, build, onOpen, onClose) {
+    const same = pinned && pinned.anchor === anchor;
+    unpin();
+    if (same) return;
+    if (onOpen) onOpen();
+    fillTip(build); placeBelow(anchor);
+    pinned = { anchor, onClose };
+    anchor.setAttribute("aria-expanded", "true");
+  }
+  function infoButton(build, label) {
+    const b = el("button", "info", "i");
+    b.type = "button";
+    b.setAttribute("aria-label", label || "Show details");
+    b.setAttribute("aria-expanded", "false");
+    b.addEventListener("click", (e) => { e.stopPropagation(); togglePin(b, build); });
+    return b;
+  }
+  document.addEventListener("click", (e) => {
+    if (pinned && !pinned.anchor.contains(e.target) && !tip.contains(e.target)) unpin();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") unpin(); });
+  window.addEventListener("scroll", unpin, { capture: true, passive: true });
+  window.addEventListener("resize", unpin);
+  function tipLine(parent, cls, text) { parent.appendChild(el("div", cls, text)); }
+
+  function pips(color) {
+    const box = el("span", "pips");
+    const letters = !color || color === "C" ? ["C"] : color.split("");
+    letters.forEach((c) => {
+      const p = el("span", "pip", c);
+      p.style.background = "var(--pip-" + c + ")";
+      p.setAttribute("aria-hidden", "true");
+      box.appendChild(p);
+    });
+    box.title = color || "Colorless";
+    return box;
+  }
+  function archLabel(a) {
+    const s = el("span", "arch"); s.appendChild(pips(a.color)); s.appendChild(el("span", null, a.name)); return s;
+  }
+
+  // ---- filters ----
+  function segmented(container, options, current, onPick) {
+    container.replaceChildren();
+    options.forEach(([value, label]) => {
+      const b = el("button", null, label);
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(value === current));
+      b.addEventListener("click", () => onPick(value));
+      container.appendChild(b);
+    });
+  }
+  function renderFilters() {
+    segmented($("#periodSeg"), Object.keys(DATA.periods).map((k) => [k, PERIOD_LABELS[k] || k]), state.period,
+      (v) => { state.period = v; store.set("period", v); renderAll(); });
+    segmented($("#scopeSeg"), SCOPES, state.scope, (v) => { state.scope = v; store.set("scope", v); renderAll(); });
+    segmented($("#sizeSeg"), SIZES.map((n) => [n, "Top " + n]), state.size,
+      (v) => { state.size = v; store.set("size", v); renderFilters(); renderMatrix(); });
+    segmented($("#boardSeg"), [["main", "Main"], ["side", "Sideboard"]], state.board,
+      (v) => { state.board = v; store.set("board", v); renderFilters(); renderCards(); });
+  }
+
+  const period = () => DATA.periods[state.period];
+  const scopeData = (s) => period().scopes[s || state.scope];
+
+  function renderHeader() {
+    const p = period();
+    $("#subline").textContent = "Metagame, matchups and card choices from " + p.since + " to " + p.until +
+      ". Online (MTGO) and paper events can be viewed separately because they publish very different data.";
+    const cov = scopeData().coverage;
+    const box = $("#coverage"); box.replaceChildren();
+    const add = (n, label) => { const s = el("span"); const b = el("b", "num", fmt(n)); s.append(b, " " + label); box.appendChild(s); };
+    add(cov.events, "events"); add(cov.decks, "decklists"); add(cov.matches, "matches with results");
+    const src = cov.by_source.map((s) => s.source + " " + fmt(s.matches)).join(" · ");
+    box.appendChild(el("span", "muted", "Matches by source: " + (src || "none")));
+    $("#generated").textContent = "Data built " + DATA.generated + ".";
+  }
+
+  // ---- archetype table ----
+  function sparkline(values) {
+    const w = 96, h = 24, pad = 2;
+    const s = svg("svg", { width: w, height: h, viewBox: `0 0 ${w} ${h}`, role: "img" });
+    const pts = values.map((v, i) => [i, v]).filter((p) => p[1] != null);
+    if (pts.length < 2) return s;
+    const max = Math.max(...pts.map((p) => p[1]), 0.01);
+    const x = (i) => pad + (i / Math.max(1, values.length - 1)) * (w - pad * 2 - 3);
+    const y = (v) => h - pad - (v / max) * (h - pad * 2);
+    const line = pts.map((p, k) => (k ? "L" : "M") + x(p[0]).toFixed(1) + " " + y(p[1]).toFixed(1)).join(" ");
+    const last = pts[pts.length - 1];
+    const ink = css("--ink-2");
+    s.appendChild(svg("path", { d: line + ` L${x(last[0]).toFixed(1)} ${h - pad} L${x(pts[0][0]).toFixed(1)} ${h - pad} Z`, fill: ink, "fill-opacity": "0.12", stroke: "none" }));
+    s.appendChild(svg("path", { d: line, fill: "none", stroke: ink, "stroke-width": "1.5", "stroke-linejoin": "round" }));
+    s.appendChild(svg("circle", { cx: x(last[0]), cy: y(last[1]), r: 2.5, fill: css("--ink"), stroke: css("--surface"), "stroke-width": "1.5" }));
+    s.setAttribute("aria-label", "Weekly share, latest " + pct(last[1], 1));
+    return s;
+  }
+  // Forest-plot style: dot at the win rate, line across the interval, 50% reference.
+  function intervalPlot(v, lo, hi, axisLo, axisHi, w, refLabel) {
+    const h = 26;
+    const s = svg("svg", { width: w, height: h, viewBox: `0 0 ${w} ${h}` });
+    const x = (t) => 6 + ((Math.min(axisHi, Math.max(axisLo, t)) - axisLo) / (axisHi - axisLo)) * (w - 12);
+    const mid = (axisLo + axisHi) / 2;
+    s.appendChild(svg("line", { x1: x(mid), x2: x(mid), y1: 2, y2: h - 2, stroke: css("--line-strong"), "stroke-width": "1" }));
+    if (v == null) return s;
+    const crosses = lo <= mid && hi >= mid;
+    const color = crosses ? css("--muted") : (v > mid ? css("--pos") : css("--neg"));
+    s.appendChild(svg("line", { x1: x(lo), x2: x(hi), y1: h / 2, y2: h / 2, stroke: color, "stroke-width": "2", "stroke-linecap": "round" }));
+    s.appendChild(svg("circle", { cx: x(v), cy: h / 2, r: 4.5, fill: color, stroke: css("--surface"), "stroke-width": "2" }));
+    return s;
+  }
+
+  function skewInfo(name) {
+    const on = scopeData("online").archetypes.find((a) => a.name === name);
+    const pa = scopeData("paper").archetypes.find((a) => a.name === name);
+    if (!on || !pa || !on.matches || !pa.matches) return null;
+    return { on, pa, skew: on.lo > pa.hi || pa.lo > on.hi };
+  }
+
+  function renderArchetypes() {
+    unpin();  // the pinned anchor is about to be replaced
+    const rows = scopeData().archetypes.slice();
+    const key = state.sort;
+    rows.sort((a, b) => ((b[key] ?? -1) - (a[key] ?? -1)) * -state.sortDir);
+    document.querySelectorAll("#archTable th.sortable").forEach((th) => {
+      th.setAttribute("aria-sort", th.dataset.sort === key ? (state.sortDir < 0 ? "descending" : "ascending") : "none");
+    });
+    const maxShare = Math.max(...rows.map((r) => r.share || 0), 0.01);
+    const tbody = $("#archTable tbody"); tbody.replaceChildren();
+    const cardArchs = new Set(Object.keys(period().cards));
+    rows.forEach((a, i) => {
+      const tr = el("tr");
+      tr.tabIndex = 0;
+      if (a.name === state.arch) tr.classList.add("selected");
+      tr.appendChild(el("td", "r num muted", String(i + 1)));
+      const tdN = el("td"); tdN.appendChild(archLabel(a)); tr.appendChild(tdN);
+
+      const tdS = el("td"); const sb = el("div", "sharebar");
+      const track = el("div", "track"); const fill = el("div", "fill"); fill.style.width = (a.share / maxShare * 100) + "%";
+      track.appendChild(fill); sb.append(track, el("span", "num", pct(a.share, 1))); tdS.appendChild(sb); tr.appendChild(tdS);
+
+      const tdT = el("td"); tdT.appendChild(sparkline(a.weekly)); tr.appendChild(tdT);
+
+      const tdW = el("td"); const wrap = el("div"); wrap.style.cssText = "display:flex;align-items:center;gap:8px";
+      wrap.appendChild(intervalPlot(a.wr, a.lo, a.hi, 0.3, 0.7, 150));
+      wrap.appendChild(el("span", "num", a.matches ? pct(a.wr) + "  " + pct(a.lo) + "–" + pct(a.hi) : "no matches"));
+      const wrTip = (t) => {
+        tipLine(t, "v", a.matches ? pct(a.wr, 1) : "No matches");
+        tipLine(t, "k", a.name + " · non-mirror match win rate");
+        if (a.matches) tipLine(t, null, "95% interval " + pct(a.lo, 1) + " to " + pct(a.hi, 1) + " · " + fmt(a.matches) + " matches");
+      };
+      if (a.matches) wrap.appendChild(infoButton(wrTip, "Win rate details for " + a.name));
+      tdW.appendChild(wrap); tr.appendChild(tdW);
+      tdW.addEventListener("pointermove", (e) => showTip(e, wrTip));
+      tdW.addEventListener("pointerleave", hideTip);
+
+      tr.appendChild(el("td", "r num", fmt(a.matches)));
+
+      const tdK = el("td"); const sk = skewInfo(a.name);
+      if (sk) {
+        const diff = sk.on.wr - sk.pa.wr;
+        const p = el("span", "pill" + (sk.skew ? " skew" : ""),
+          sk.skew ? (diff > 0 ? "Better online" : "Better on paper") : "Agrees");
+        const skTip = (t) => {
+          tipLine(t, "v", signed(diff));
+          tipLine(t, "k", "Online minus paper win rate");
+          tipLine(t, null, "Online " + pct(sk.on.wr) + " (" + pct(sk.on.lo) + "–" + pct(sk.on.hi) + ", " + sk.on.matches + " matches)");
+          tipLine(t, null, "Paper " + pct(sk.pa.wr) + " (" + pct(sk.pa.lo) + "–" + pct(sk.pa.hi) + ", " + sk.pa.matches + " matches)");
+          tipLine(t, "k", sk.skew ? "The intervals don't overlap." : "The intervals overlap, so the difference could be noise.");
+        };
+        const skWrap = el("div"); skWrap.style.cssText = "display:flex;align-items:center;gap:6px";
+        skWrap.append(p, infoButton(skTip, "Online vs paper details for " + a.name));
+        tdK.appendChild(skWrap);
+        tdK.addEventListener("pointermove", (e) => showTip(e, skTip));
+        tdK.addEventListener("pointerleave", hideTip);
+      } else {
+        tdK.appendChild(el("span", "na", "Too few matches"));
+      }
+      tr.appendChild(tdK);
+
+      const pick = () => {
+        if (!cardArchs.has(a.name)) return;
+        state.arch = a.name; store.set("arch", a.name);
+        renderArchetypes(); renderMatrix(); renderCards();
+        $("#cards").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+      };
+      tr.addEventListener("click", pick);
+      tr.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+      if (!cardArchs.has(a.name)) tr.title = "No card breakdown for this archetype in this period";
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ---- matchup matrix ----
+  function renderMatrix() {
+    unpin();  // the pinned anchor is about to be replaced
+    const sd = scopeData();
+    const names = sd.matrix.slice(0, state.size);
+    const n = names.length;
+    const lookup = new Map(sd.matchups.map(([a, b, w, m]) => [a + "," + b, [w, m]]));
+    const byName = new Map(sd.archetypes.map((a) => [a.name, a]));
+    const box = $("#matrix"); box.replaceChildren();
+    box.style.gridTemplateColumns = `max-content repeat(${n}, min-content)`;
+    box.appendChild(el("div"));
+    names.forEach((nm, j) => { const c = el("div", "collab", String(j + 1)); c.title = nm; box.appendChild(c); });
+    const cells = [];
+    names.forEach((rowName, i) => {
+      const lab = el("div", "rowlab");
+      const a = byName.get(rowName);
+      lab.append(el("span", null, rowName), pips(a ? a.color : ""), el("span", "idx", String(i + 1)));
+      box.appendChild(lab);
+      names.forEach((colName, j) => {
+        const c = el("div", "cell");
+        c.dataset.r = i; c.dataset.c = j;
+        if (i === j) { c.classList.add("self"); c.textContent = "—"; box.appendChild(c); return; }
+        const rec = lookup.get(i + "," + j);
+        const w = rec ? rec[0] : 0, m = rec ? rec[1] : 0;
+        const wr = m ? w / m : null;
+        const [lo, hi] = wilson(w, m);
+        if (m < MIN_N) {
+          c.classList.add("few"); c.textContent = "·";
+        } else {
+          const sig = lo > 0.5 || hi < 0.5;
+          const col = cellColor(wr, sig ? 1 : 0.5);
+          c.style.background = `rgb(${col.rgb.join(",")})`;
+          c.style.color = col.L < 0.62 ? "#ffffff" : "#111214";
+          c.textContent = Math.round(wr * 100);
+          if (sig) c.classList.add("sig");
+        }
+        c.tabIndex = 0;
+        c.setAttribute("role", "button");
+        c.setAttribute("aria-expanded", "false");
+        c.setAttribute("aria-label", rowName + " vs " + colName + (m ? ": " + pct(wr) + " in " + m + " matches" : ": no matches"));
+        const highlight = () => {
+          box.classList.add("dim");
+          cells.forEach((x) => x.classList.toggle("hl", x.dataset.r == i || x.dataset.c == j));
+        };
+        const unhighlight = () => { box.classList.remove("dim"); cells.forEach((x) => x.classList.remove("hl")); };
+        const cellTip = (t) => {
+            tipLine(t, "v", m ? pct(wr) : "No matches");
+            tipLine(t, "k", rowName + " vs " + colName);
+            if (m) {
+              tipLine(t, null, (Number.isInteger(w) ? w : w.toFixed(1)) + " wins in " + m + " matches");
+              tipLine(t, null, "95% interval " + pct(lo) + " to " + pct(hi));
+              if (m < MIN_N) tipLine(t, "k", "Fewer than " + MIN_N + " matches, so no color.");
+              else if (lo <= 0.5 && hi >= 0.5) tipLine(t, "k", "The interval includes 50%, so this could be an even matchup.");
+            }
+        };
+        c.addEventListener("pointermove", (e) => { if (pinned || e.pointerType === "touch") return; highlight(); showTip(e, cellTip); });
+        c.addEventListener("focus", () => { if (pinned) return; highlight(); showTipAt(c, cellTip); });
+        const leave = () => { if (pinned) return; unhighlight(); hideTip(); };
+        c.addEventListener("pointerleave", leave);
+        c.addEventListener("blur", leave);
+        const pin = () => togglePin(c, cellTip,
+          () => { highlight(); c.classList.add("pinned"); },
+          () => { c.classList.remove("pinned"); unhighlight(); });
+        c.addEventListener("click", pin);
+        c.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pin(); } });
+        cells.push(c); box.appendChild(c);
+      });
+    });
+
+    const leg = $("#muLegend"); leg.replaceChildren();
+    const rampEl = el("span", "ramp");
+    const stops = [0.25, 0.375, 0.5, 0.625, 0.75].map((v) => `rgb(${cellColor(v, 1).rgb.join(",")})`);
+    const bar = el("i"); bar.style.background = `linear-gradient(90deg, ${stops.join(",")})`;
+    rampEl.append(el("span", "num", "25%"), bar, el("span", "num", "75%"));
+    const strong = el("span"); const sw1 = el("span", "swatch"); sw1.style.background = `rgb(${cellColor(0.68, 1).rgb.join(",")})`;
+    strong.append(sw1, " Strong color and bold: the interval excludes 50%");
+    const faint = el("span"); const sw2 = el("span", "swatch"); sw2.style.background = `rgb(${cellColor(0.68, 0.5).rgb.join(",")})`;
+    faint.append(sw2, " Faint: could still be even");
+    leg.append(rampEl, strong, faint, el("span", null, "· = fewer than " + MIN_N + " matches"));
+    if (state.scope === "online") leg.appendChild(el("span", null, "Online matchups come only from top-8 brackets."));
+  }
+
+  // ---- card lab ----
+  function renderCards() {
+    unpin();  // the pinned anchor is about to be replaced
+    const p = period();
+    const archs = Object.keys(p.cards);
+    if (!archs.includes(state.arch)) state.arch = archs[0] || null;
+    const sel = $("#cardArch");
+    sel.replaceChildren();
+    archs.forEach((a) => { const o = el("option", null, a); o.value = a; if (a === state.arch) o.selected = true; sel.appendChild(o); });
+    $("#cardSort").value = state.cardSort;
+    const tbody = $("#cardTable tbody"); tbody.replaceChildren();
+    if (!state.arch) return;
+    const block = p.cards[state.arch][state.scope];
+    let rows = (block[state.board] || []).slice();
+    const withData = rows.filter((r) => r[7] != null).length;
+    $("#cardMeta").textContent = fmt(block.decks) + " " + state.arch + " decklists in this view · " +
+      rows.length + " cards in at least 5% of lists · " + withData + " with enough decks on both sides to compare.";
+    if (state.cardSort === "delta") rows.sort((a, b) => (b[7] ?? -9) - (a[7] ?? -9));
+    else if (state.cardSort === "name") rows.sort((a, b) => a[0].localeCompare(b[0]));
+    else rows.sort((a, b) => b[1] - a[1]);
+    if (!rows.length) {
+      const tr = el("tr"); const td = el("td", "na", "No cards for this archetype, board and data selection."); td.colSpan = 6; tr.appendChild(td); tbody.appendChild(tr); return;
+    }
+    rows.forEach(([name, play, copies, nWith, wrWith, nWithout, wrWithout, delta, lo, hi]) => {
+      const tr = el("tr");
+      tr.appendChild(el("td", "card", name));
+      const tdP = el("td"); const sb = el("div", "sharebar"); const tr2 = el("div", "track"); const f = el("div", "fill");
+      f.style.width = (play * 100) + "%"; tr2.appendChild(f); sb.append(tr2, el("span", "num", pct(play))); tdP.appendChild(sb); tr.appendChild(tdP);
+      tr.appendChild(el("td", "r num", copies.toFixed(1)));
+      tr.appendChild(el("td", "r num", wrWith == null ? "–" : pct(wrWith) + " (" + nWith + ")"));
+      tr.appendChild(el("td", "r num", wrWithout == null ? "–" : pct(wrWithout) + " (" + nWithout + ")"));
+      const tdD = el("td");
+      if (delta == null) {
+        tdD.appendChild(el("span", "na", play > 0.5 ? "In almost every list" : "Too few lists"));
+      } else {
+        const wrap = el("div"); wrap.style.cssText = "display:flex;align-items:center;gap:8px";
+        wrap.appendChild(intervalPlot(delta, lo, hi, -0.3, 0.3, 150));
+        wrap.appendChild(el("span", "num", signed(delta)));
+        const dTip = (t) => {
+          tipLine(t, "v", signed(delta));
+          tipLine(t, "k", "Win rate with " + name + " minus without");
+          tipLine(t, null, "95% interval " + signed(lo) + " to " + signed(hi));
+          tipLine(t, null, "With: " + pct(wrWith) + " in " + nWith + " matches · Without: " + pct(wrWithout) + " in " + nWithout);
+          if (lo <= 0 && hi >= 0) tipLine(t, "k", "The interval crosses 0, so this could be noise.");
+        };
+        wrap.appendChild(infoButton(dTip, "Difference details for " + name));
+        tdD.appendChild(wrap);
+        tdD.addEventListener("pointermove", (e) => showTip(e, dTip));
+        tdD.addEventListener("pointerleave", hideTip);
+      }
+      tr.appendChild(tdD);
+      tbody.appendChild(tr);
+    });
+  }
+
+  $("#cardArch").addEventListener("change", (e) => { state.arch = e.target.value; store.set("arch", state.arch); renderArchetypes(); renderCards(); });
+  $("#cardSort").addEventListener("change", (e) => { state.cardSort = e.target.value; store.set("cardSort", state.cardSort); renderCards(); });
+  document.querySelectorAll("#archTable th.sortable").forEach((th) => {
+    th.addEventListener("click", () => {
+      if (state.sort === th.dataset.sort) state.sortDir *= -1; else { state.sort = th.dataset.sort; state.sortDir = -1; }
+      store.set("sort", state.sort); renderArchetypes();
+    });
+  });
+
+  function renderAll() { unpin(); buildRamp(); renderFilters(); renderHeader(); renderArchetypes(); renderMatrix(); renderCards(); }
+  // Redraw when the viewer's theme changes, since chart colors come from the theme tokens.
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+  new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  renderAll();
+})();
+</script>
