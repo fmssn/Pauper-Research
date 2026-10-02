@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import analysis
+from . import analysis, dashboard
 from .archetypes import Classifier
 from .loader import load
 from .sources import DECKLIST_DIR, FORMAT_DIR, fetch_all
@@ -178,6 +178,10 @@ def main(argv: list[str] | None = None) -> None:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("fetch", help="download or update the raw data")
     sub.add_parser("build", help="parse raw data into tables")
+    dash = sub.add_parser("dashboard", help="write the interactive HTML dashboard")
+    dash.add_argument("--out", type=Path, default=REPORTS / "dashboard" / "index.html")
+    dash.add_argument("--fragment", action="store_true",
+                      help="leave out the html/head/body skeleton (for hosts that add their own)")
 
     default_since = (date.today() - timedelta(days=90)).isoformat()
     for name in ("report", "cards"):
@@ -200,6 +204,9 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.command == "build":
         build()
+        return
+    if args.command == "dashboard":
+        print(f"Wrote {dashboard.write(_tables(), args.out, standalone=not args.fragment)}")
         return
     scopes = list(analysis.SCOPES) if args.scope == "all" else [args.scope]
     for scope in scopes:

@@ -130,3 +130,13 @@ def test_scopes(tables):
     assert comp.loc["Red Madness", "online_matches"] == 0
     assert comp.loc["Red Madness", "paper_matches"] == comp.loc["Red Madness", "combined_matches"]
     assert not comp["skew"].any()
+
+
+def test_dashboard_renders(tables):
+    from pauper_research import dashboard
+    data = dashboard.build_data(tables)
+    block = data["periods"]["30d"]["scopes"]["paper"]
+    assert {a["name"] for a in block["archetypes"]} == {"Red Madness", "Mono Blue Affinity"}
+    html = dashboard.render(data, standalone=False)
+    assert "/*__DATA__*/" not in html and "<!doctype" not in html
+    assert dashboard.render(data).startswith("<!doctype html>")

@@ -41,6 +41,22 @@ Every report also has an **Online vs paper** table that shows each archetype's
 share and win rate on both scopes, and flags archetypes where the two clearly
 disagree. `--sources` still narrows further, e.g. `--sources MTGmelee`.
 
+### Dashboard
+
+```bash
+python -m pauper_research dashboard      # -> reports/dashboard/index.html
+```
+
+One self-contained HTML page (open it in a browser, no server needed) with a
+period switch (30 / 90 / 180 days) and an online / paper / combined switch:
+
+- **Archetypes:** meta share, weekly share trend, win rate with its interval,
+  and whether online and paper data disagree. Sortable; pick a row to open its cards.
+- **Matchups:** heatmap of the top 10–25 archetypes. Strong colors mean the
+  interval excludes 50%; hover a cell for the sample size and interval.
+- **Cards:** play rate, average copies, and win rate with vs without each card,
+  for main deck or sideboard.
+
 `report` writes:
 
 | File | Contents |
