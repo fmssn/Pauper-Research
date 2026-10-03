@@ -136,7 +136,47 @@ def test_dashboard_renders(tables):
     from pauper_research import dashboard
     data = dashboard.build_data(tables)
     block = data["periods"]["30d"]["scopes"]["paper"]
-    assert {a["name"] for a in block["archetypes"]} == {"Red Madness", "Mono Blue Affinity"}
+    names = [a[0] for a in block["archetypes"]]
+    assert set(names) == {"Red Madness", "Mono Blue Affinity"}
+    # Both decks have each other as a matchup, stored by index.
+    rm = names.index("Red Madness")
+    assert [m[0] for m in block["mu"][rm]] == [names.index("Mono Blue Affinity")]
+    assert set(block["cards"][rm]) == {"main", "side", "decks"}
     html = dashboard.render(data, standalone=False)
     assert "/*__DATA__*/" not in html and "<!doctype" not in html
     assert dashboard.render(data).startswith("<!doctype html>")
+
+
+def test_newcombe():
+    # Newcombe (1998), example (a): 56/70 vs 48/80 -> 0.0524 to 0.3339
+    lo, hi = analysis.newcombe(56, 70, 48, 80)
+    assert lo == pytest.approx(0.0524, abs=1e-3) and hi == pytest.approx(0.3339, abs=1e-3)
+
+
+def test_card_effects_by_opponent(tables):
+    eff = analysis.card_effects(tables["decks"], tables["deck_cards"], tables["matches"], "Red Madness",
+                                by_opponent=True, min_decks=1)
+    bolt = eff[eff.card == "Lightning Bolt"].set_index("opponent")
+    # Only deck c plays Bolt: it lost to d. Deck a (no Bolt) beat b and drew d.
+    row = bolt.loc["Mono Blue Affinity"]
+    assert (row.matches_with, row.wins_with, row.matches_without, row.wins_without) == (1, 0.0, 2, 1.5)
+
+
+def test_image_sheets(tmp_path, monkeypatch):
+    pytest.importorskip("PIL")
+    from PIL import Image
+    from pauper_research import scryfall
+    names = [f"Card {i}" for i in range(11)]
+    paths = {}
+    for i, n in enumerate(names):
+        p = tmp_path / f"{i}.jpg"
+        Image.new("RGB", (488, 680), (i * 20, 0, 0)).save(p)
+        paths[n] = p
+    monkeypatch.setattr(scryfall, "lookup", lambda ns: {n: {} for n in ns})
+    monkeypatch.setattr(scryfall, "download", lambda entries: {n: paths[n] for n in entries})
+    index = scryfall.build_sheets(names, tmp_path / "out")
+    per = scryfall.SHEET_COLS * scryfall.SHEET_ROWS
+    assert len(index["sheets"]) == -(-len(names) // per)
+    assert index["cards"]["Card 10"] == [10 // per, 10 % per]
+    last = Image.open(tmp_path / "out" / index["sheets"][-1]["file"])
+    assert last.size == (scryfall.SHEET_COLS * 488, index["sheets"][-1]["rows"] * 680)

@@ -47,15 +47,22 @@ disagree. `--sources` still narrows further, e.g. `--sources MTGmelee`.
 python -m pauper_research dashboard      # -> reports/dashboard/index.html
 ```
 
-One self-contained HTML page (open it in a browser, no server needed) with a
-period switch (30 / 90 / 180 days) and an online / paper / combined switch:
+One self-contained, mobile-first HTML page (open it in a browser, no server
+needed). The flow is: pick a deck, see what it's good and bad against, then
+see which cards move its win rate, overall and against a specific opponent.
 
-- **Archetypes:** meta share, weekly share trend, win rate with its interval,
-  and whether online and paper data disagree. Sortable; pick a row to open its cards.
-- **Matchups:** heatmap of the top 10–25 archetypes. Strong colors mean the
-  interval excludes 50%; hover a cell for the sample size and interval.
-- **Cards:** play rate, average copies, and win rate with vs without each card,
-  for main deck or sideboard.
+- **Decks:** every top archetype with meta share and win rate. Search and sort.
+- **Deck page:** good and bad matchups, most certain first, each with its 95%
+  interval and a Clear / Lean label; then the cards whose lists win more or less.
+- **Matchup page:** the head-to-head record, plus card comparisons counting
+  only matches against that opponent. Shown only when the sample allows it
+  (25+ matches in the matchup, 3+ lists and 10+ matches on each side of a card).
+- Period (30 / 90 / 180 days) and events (all / paper / online) in the filter sheet.
+- **Card images:** the eye icon next to a card opens its Scryfall image full
+  screen. By default the page links to Scryfall's image server. For hosts that
+  block other sites, `--images sheets` (needs `pip install -e ".[images]"`)
+  downloads the images once into `data/raw/scryfall/` and writes them next to
+  the page as sheets of 9 cards in `cards/`.
 
 `report` writes:
 

@@ -1,754 +1,798 @@
 <title>Pauper Meta Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..800&family=Public+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: one column of three working panels (archetypes, matchups, cards) under a single
-   filter row. Monochrome "common rarity" chrome so the data colors carry all the meaning. */
+/* Layout: mobile-first scouting app. One column of stacked views (decks -> deck -> matchup);
+   from 960px the deck list stays docked on the left and the selected deck fills the right. */
 :root {
-  --bg: #f3f4f5;
-  --surface: #fcfcfb;
-  --ink: #111214;
-  --ink-2: #4b4e55;
-  --muted: #80838a;
-  --line: #e1e2e5;
-  --line-strong: #c4c6cb;
+  --bg: #eef0f3;
+  --surface: #ffffff;
+  --sunken: #f6f7f9;
+  --ink: #14161a;
+  --ink-2: #464b54;
+  --muted: #767c86;
+  --line: #e2e5ea;
+  --line-strong: #c9cdd4;
+  --good: #2a78d6;
+  --bad: #e34948;
   --focus: #2a78d6;
-  --pos: #2a78d6;      /* row deck wins */
-  --neg: #e34948;      /* row deck loses */
-  --mid: #f0efec;
-  --bar: #9aa0aa;
-  --font-display: "Barlow Semi Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
-  --font-body: "Source Sans 3", "Source Sans Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --pip-W: #f2ebcc; --pip-U: #a8cbe6; --pip-B: #b9aea6; --pip-R: #eba083; --pip-G: #9fc49b; --pip-C: #d6d6d6;
-  --pip-ink: #1d1d1b;
+  --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mana-W: #f4eed2; --mana-U: #a9cdea; --mana-B: #b7aca3; --mana-R: #ec9f80; --mana-G: #9cc598; --mana-C: #d3d5d9;
+  --mana-ink: #1c1c1a;
+  --shadow: 0 1px 2px rgba(20, 22, 26, 0.06), 0 4px 16px rgba(20, 22, 26, 0.06);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0f1012; --surface: #18191b; --ink: #f4f4f5; --ink-2: #c3c5ca; --muted: #8b8e95;
-    --line: #2a2c30; --line-strong: #3d4046; --focus: #5598e7;
-    --pos: #3987e5; --neg: #e66767; --mid: #383835; --bar: #6b717c;
+    --bg: #0d0f12; --surface: #171a1f; --sunken: #1f232a; --ink: #f2f3f5; --ink-2: #c2c6cd; --muted: #8b919b;
+    --line: #2a2f37; --line-strong: #3b414b; --good: #4b93ea; --bad: #ec6b6a;
+    --focus: #5598e7; --shadow: none;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0f1012; --surface: #18191b; --ink: #f4f4f5; --ink-2: #c3c5ca; --muted: #8b8e95;
-  --line: #2a2c30; --line-strong: #3d4046; --focus: #5598e7;
-  --pos: #3987e5; --neg: #e66767; --mid: #383835; --bar: #6b717c;
+  --bg: #0d0f12; --surface: #171a1f; --sunken: #1f232a; --ink: #f2f3f5; --ink-2: #c2c6cd; --muted: #8b919b;
+  --line: #2a2f37; --line-strong: #3b414b; --good: #4b93ea; --bad: #ec6b6a;
+  --focus: #5598e7; --shadow: none;
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
 body {
-  background: var(--bg); color: var(--ink);
-  font: 15px/1.45 var(--font-body);
-  padding-block: 0 48px; padding-inline: 16px;
+  background: var(--bg); color: var(--ink); margin: 0;
+  font: 16px/1.45 var(--font-body);
+  padding-inline: 0; padding-block: 0 40px;
+  -webkit-tap-highlight-color: transparent;
 }
-.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 20px; }
-h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: 0.01em; }
-h1 { font-size: 30px; font-weight: 700; line-height: 1.1; }
-h2 { font-size: 21px; font-weight: 600; }
-p { margin: 0; max-width: 68ch; }
-.eyebrow, .label, th {
-  font-family: var(--font-display); font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.07em; font-size: 12px; color: var(--muted);
-}
+button { font: inherit; color: inherit; }
+button, a, input { touch-action: manipulation; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+p { margin: 0; }
 .num { font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
-.small { font-size: 13px; }
-
-header.top { display: grid; gap: 6px; padding-top: 28px; }
-header.top .sub { color: var(--ink-2); }
-
-.filters {
-  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
-  display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end;
-  background: var(--bg); padding-block: 10px; border-bottom: 1px solid var(--line);
+.eyebrow {
+  font: 700 12px/1.2 var(--font-display); font-stretch: 112%; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted);
 }
-.filter { display: grid; gap: 4px; }
-.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; background: var(--surface); }
+
+/* App bar */
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
+  display: flex; align-items: center; gap: 8px; min-height: 56px;
+  padding-inline: 8px 12px; padding-block: 6px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px); -webkit-backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.bar-title { flex: 1; min-width: 0; display: grid; padding-left: 8px; }
+.bar-title b {
+  font: 800 18px/1.15 var(--font-display); font-stretch: 108%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bar-title span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.iconbtn {
+  width: 44px; height: 44px; border-radius: 22px; border: 0; background: transparent;
+  display: grid; place-items: center; cursor: pointer; flex: none;
+}
+.iconbtn:hover { background: var(--line); }
+.iconbtn svg { width: 22px; height: 22px; stroke: var(--ink); fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.chipbtn {
+  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; flex: none;
+  border-radius: 18px; border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer;
+  font: 700 13px/1 var(--font-display); font-stretch: 105%;
+}
+.chipbtn .short { display: none; }
+@media (max-width: 520px) { .chipbtn .long { display: none; } .chipbtn .short { display: inline; } }
+.chipbtn svg { width: 16px; height: 16px; stroke: var(--ink-2); fill: none; stroke-width: 2.2; stroke-linecap: round; }
+
+/* Views */
+.app { max-width: 1200px; margin: 0 auto; }
+.view { padding-inline: 16px; padding-block: 16px 0; display: grid; gap: 16px; align-content: start; min-width: 0; }
+body[data-view="list"] #deckView, body[data-view="list"] #matchView,
+body[data-view="deck"] #listView, body[data-view="deck"] #matchView,
+body[data-view="match"] #listView, body[data-view="match"] #deckView { display: none; }
+#emptyDetail { display: none; }
+
+@media (min-width: 960px) {
+  .app { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 0 24px; padding-inline: 16px; }
+  .view { padding-inline: 0; }
+  body[data-view] #listView { display: grid; }
+  #listView { position: sticky; top: 64px; max-height: calc(100vh - 64px); overflow-y: auto; padding-right: 6px; padding-bottom: 24px; }
+  body[data-view="list"] #emptyDetail { display: grid; place-items: center; min-height: 60vh; color: var(--muted); text-align: center; }
+  body[data-view="deck"] .bar .iconbtn { visibility: hidden; }
+}
+
+/* Deck list */
+.intro { display: grid; gap: 6px; }
+.intro h1 { font-size: 30px; font-weight: 800; font-stretch: 110%; line-height: 1.05; letter-spacing: -0.01em; }
+.intro p { color: var(--ink-2); max-width: 46ch; }
+.search { position: relative; display: block; }
+.search input {
+  width: 100%; height: 46px; border-radius: 12px; border: 1px solid var(--line-strong);
+  background: var(--surface); color: var(--ink); font: 16px var(--font-body); padding: 0 14px 0 40px;
+}
+.search svg { position: absolute; left: 13px; top: 14px; width: 18px; height: 18px; stroke: var(--muted); fill: none; stroke-width: 2.2; stroke-linecap: round; }
+.seg { display: inline-flex; padding: 3px; border-radius: 12px; background: var(--line); gap: 2px; }
 .seg button {
-  font: 600 14px/1 var(--font-display); letter-spacing: 0.03em;
-  padding: 8px 12px; border: 0; background: transparent; color: var(--ink-2); cursor: pointer;
+  border: 0; background: transparent; border-radius: 9px; padding: 0 14px; height: 36px; cursor: pointer;
+  font: 700 14px/1 var(--font-display); font-stretch: 105%; color: var(--ink-2);
 }
-.seg button + button { border-left: 1px solid var(--line-strong); }
-.seg button:hover { background: var(--line); }
-.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
-button:focus-visible, select:focus-visible, tr:focus-visible, [tabindex]:focus-visible {
-  outline: 2px solid var(--focus); outline-offset: 2px;
-}
-select {
-  font: 15px var(--font-body); color: var(--ink); background: var(--surface);
-  border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 8px; max-width: 100%;
-}
-.coverage { display: flex; flex-wrap: wrap; gap: 4px 18px; color: var(--ink-2); font-size: 14px; }
-.coverage b { color: var(--ink); font-weight: 600; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.listhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 
-.panel {
-  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-  padding: 18px; display: grid; gap: 14px; min-width: 0;
+.decks { display: grid; background: var(--surface); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+.deckrow {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  min-height: 64px; padding: 10px 14px 10px 8px; border: 0; border-top: 1px solid var(--line);
+  background: transparent; text-align: left; cursor: pointer; width: 100%;
 }
-.panel-head { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: end; justify-content: space-between; }
-.panel-head > div { display: grid; gap: 4px; min-width: 0; }
-.note { color: var(--ink-2); font-size: 14px; }
-.scroll { overflow-x: auto; min-width: 0; }
+.deckrow:first-child { border-top: 0; }
+.deckrow:hover { background: var(--sunken); }
+.deckrow[aria-current="true"] { background: color-mix(in srgb, var(--focus) 12%, var(--surface)); }
+.deckrow .name { font: 700 16px/1.2 var(--font-display); font-stretch: 104%; }
+.deckrow .meta { font-size: 13px; color: var(--muted); }
+.deckrow .wr { display: grid; justify-items: end; gap: 4px; }
+.deckrow .wr b { font: 800 18px/1 var(--font-display); }
+.rank { font: 700 13px var(--font-display); color: var(--muted); width: 1.7em; text-align: right; }
 
-table { border-collapse: collapse; width: 100%; }
-th { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
-th.sortable { cursor: pointer; user-select: none; }
-th.sortable:hover { color: var(--ink); }
-th[aria-sort="descending"]::after { content: " ↓"; }
-th[aria-sort="ascending"]::after { content: " ↑"; }
-td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-td.r, th.r { text-align: right; }
-tbody tr { cursor: default; }
-#archTable tbody tr { cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.num { white-space: nowrap; }
-#archTable tbody tr:hover, #cardTable tbody tr:hover { background: color-mix(in srgb, var(--line) 55%, transparent); }
-#archTable tbody tr.selected { background: color-mix(in srgb, var(--focus) 12%, transparent); }
+/* Mana symbols */
+.mana { display: inline-flex; gap: 3px; flex: none; }
+.mana i {
+  width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; font-style: normal;
+  font: 800 10px/1 var(--font-display); color: var(--mana-ink); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+.mana.lg i { width: 26px; height: 26px; font-size: 13px; }
+.deckcell { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.deckcell > div { min-width: 0; }
 
-.arch { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-weight: 600; }
-.pips { display: inline-flex; gap: 2px; }
-.pip {
-  width: 15px; height: 15px; border-radius: 50%; display: inline-grid; place-items: center;
-  font: 700 9px/1 var(--font-display); color: var(--pip-ink);
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18);
-}
-.sharebar { display: flex; align-items: center; gap: 8px; min-width: 120px; }
-.sharebar .track { flex: 1; height: 8px; background: var(--line); border-radius: 0 4px 4px 0; }
-.sharebar .fill { height: 100%; background: var(--bar); border-radius: 0 4px 4px 0; }
-.sharebar span { width: 3.2em; text-align: right; }
-svg text { fill: var(--muted); font: 11px var(--font-body); }
-.pill {
-  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px;
-  font: 600 12px/1.4 var(--font-display); letter-spacing: 0.03em; white-space: nowrap;
-  border: 1px solid var(--line-strong); color: var(--ink-2);
-}
-.pill.skew { border-color: var(--ink); color: var(--ink); }
+/* Surfaces */
+.card { background: var(--surface); border-radius: 16px; box-shadow: var(--shadow); padding: 16px; display: grid; gap: 14px; min-width: 0; }
+.card > header { display: grid; gap: 4px; }
+.card h2 { font-size: 21px; font-weight: 800; font-stretch: 106%; }
+.note { font-size: 14px; color: var(--ink-2); }
 
-/* Matchup matrix */
-.matrix { display: grid; gap: 2px; font-variant-numeric: tabular-nums; width: max-content; }
-.matrix .rowlab {
-  display: flex; align-items: center; gap: 6px; padding-right: 8px; white-space: nowrap;
-  font-size: 13px; font-weight: 600; justify-content: flex-end;
-}
-.matrix .rowlab .idx, .matrix .collab { color: var(--muted); font: 600 12px var(--font-display); }
-.matrix .collab { display: grid; place-items: end center; padding-bottom: 4px; }
-.cell {
-  width: 46px; height: 34px; border-radius: 3px; display: grid; place-items: center;
-  font-size: 12px; cursor: default; position: relative;
-}
-.cell.self { background: transparent; color: var(--line-strong); }
-.cell.few { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
-.cell.sig { font-weight: 600; }
-.cell:hover, .cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 0; z-index: 1; }
-.matrix.dim .cell:not(.hl) { opacity: 0.55; }
-.legend { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; font-size: 13px; color: var(--ink-2); }
-.legend .ramp { display: inline-flex; align-items: center; gap: 6px; }
-.legend .ramp i { width: 160px; height: 10px; border-radius: 2px; display: inline-block; }
-.swatch { width: 16px; height: 12px; border-radius: 2px; display: inline-block; vertical-align: -1px; }
+/* Deck hero */
+.hero { position: relative; overflow: hidden; padding-top: 22px; }
+.hero::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 6px; background: var(--hero-band, var(--line)); }
+.hero h1 { font-size: 30px; font-weight: 800; font-stretch: 110%; line-height: 1.05; letter-spacing: -0.01em; }
+.hero .title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stat { background: var(--sunken); border-radius: 12px; padding: 10px 12px; display: grid; gap: 2px; min-width: 0; align-content: start; }
+.stat b { font: 800 22px/1.1 var(--font-display); font-stretch: 104%; white-space: nowrap; }
+.stat span { font-size: 12px; color: var(--muted); }
+.verdict { font-size: 15px; color: var(--ink-2); }
+.verdict b { color: var(--ink); }
+.vs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vs b { font: 800 20px/1.2 var(--font-display); font-stretch: 106%; }
 
-/* Card lab */
-.cardctl { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: end; }
-.caveat { border-left: 3px solid var(--line-strong); padding: 4px 0 4px 12px; color: var(--ink-2); font-size: 14px; }
-td.card { font-weight: 600; white-space: nowrap; }
-.na { color: var(--muted); font-size: 13px; }
+/* Rows with bars (matchups, cards) */
+.rows { display: grid; }
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; align-items: center;
+  padding: 12px 0; border: 0; border-top: 1px solid var(--line); text-align: left; width: 100%; background: transparent;
+}
+.row:first-child { border-top: 0; }
+button.row { cursor: pointer; }
+button.row:hover .rname { text-decoration: underline; text-underline-offset: 3px; }
+.rname { font: 700 15px/1.25 var(--font-display); font-stretch: 103%; min-width: 0; }
+.rsub { font-size: 13px; color: var(--muted); }
+.rval { display: flex; align-items: center; gap: 8px; justify-self: end; }
+.rval b { font: 800 20px/1 var(--font-display); min-width: 2.4em; text-align: right; }
+.rbar { grid-column: 1 / -1; }
+.chev { width: 18px; height: 18px; stroke: var(--muted); fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.tag {
+  font: 700 11px/1 var(--font-display); font-stretch: 108%; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 4px 7px; border-radius: 6px; white-space: nowrap;
+}
+.tag.clear.good { background: var(--good); color: #fff; }
+.tag.clear.bad { background: var(--bad); color: #fff; }
+.tag.lean { box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--muted); }
 
-#tip {
-  position: fixed; z-index: 20; pointer-events: none; max-width: 280px;
-  background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong);
-  border-radius: 8px; padding: 8px 10px; font-size: 13px; box-shadow: 0 6px 24px rgba(0,0,0,0.18);
-}
-.info {
-  flex: none; width: 26px; height: 26px; padding: 0; border-radius: 50%;
-  display: inline-grid; place-items: center; cursor: pointer;
-  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2);
-  font: italic 700 13px/1 Georgia, "Times New Roman", serif;
-}
-.info:hover, .info[aria-expanded="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
-/* With a mouse the hover tooltip does the job, so the (i) only appears on the row being looked at. */
-@media (hover: hover) and (pointer: fine) {
-  .info { opacity: 0; }
-  tr:hover .info, .info:focus-visible, .info[aria-expanded="true"] { opacity: 1; }
-}
-.cell.pinned { outline: 2px solid var(--ink); outline-offset: 0; z-index: 1; }
-#tip .v { font-size: 18px; font-weight: 600; font-family: var(--font-display); }
-#tip .k { color: var(--ink-2); }
+/* Diverging bar: centre line = 50% (or 0 pts), fill to the value, whisker = 95% interval */
+.dbar { position: relative; height: 18px; }
+.dbar .track { position: absolute; left: 0; right: 0; top: 7px; height: 4px; border-radius: 2px; background: var(--line); }
+.dbar .mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--line-strong); }
+.dbar .fill { position: absolute; top: 5px; height: 8px; border-radius: 4px; }
+.dbar .ci { position: absolute; top: 8px; height: 2px; background: currentColor; opacity: 0.6; }
+.dbar .ci::before, .dbar .ci::after { content: ""; position: absolute; top: -4px; width: 2px; height: 10px; background: currentColor; }
+.dbar .ci::before { left: 0; } .dbar .ci::after { right: 0; }
+.dbar.good { color: var(--good); } .dbar.good .fill { background: var(--good); }
+.dbar.bad { color: var(--bad); } .dbar.bad .fill { background: var(--bad); }
+.dbar.unsure .fill { opacity: 0.45; }
+.scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
 
-.method { display: grid; gap: 8px; color: var(--ink-2); font-size: 14px; }
-.method ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; max-width: 80ch; }
-
-@media (max-width: 640px) {
-  h1 { font-size: 25px; }
-  .panel { padding: 14px; }
-  .cell { width: 40px; height: 30px; font-size: 11px; }
+.empty { padding: 14px; border-radius: 12px; background: var(--sunken); color: var(--ink-2); font-size: 14px; display: grid; gap: 10px; justify-items: start; }
+.linkbtn {
+  border: 0; background: none; padding: 6px 0; color: var(--good); font-weight: 600; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px; text-align: left; justify-self: start;
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+details.more > summary {
+  list-style: none; cursor: pointer; padding: 10px 0 0; color: var(--ink-2); font-weight: 600; font-size: 14px;
+}
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary::before { content: "+ "; }
+details.more[open] > summary::before { content: "− "; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 5px 10px; border-radius: 8px; background: var(--sunken); font-size: 13px; }
+.chip b { font-variant-numeric: tabular-nums; margin-right: 4px; }
+.subhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.subhead h3 { font-size: 14px; font-weight: 800; font-stretch: 110%; text-transform: uppercase; letter-spacing: 0.06em; }
+.subhead h3.good { color: var(--good); } .subhead h3.bad { color: var(--bad); }
+.subhead .count { font-size: 13px; color: var(--muted); }
+.group { display: grid; gap: 4px; }
+.group + .group { margin-top: 8px; }
+.compare { font-size: 13px; color: var(--ink-2); grid-column: 1 / -1; }
+
+.howto { gap: 8px; font-size: 14px; color: var(--ink-2); }
+.howto ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+
+/* Filter sheet */
+dialog.sheet {
+  border: 0; padding: 0; width: 100%; max-width: 520px; margin: auto auto 0; border-radius: 20px 20px 0 0;
+  background: var(--surface); color: var(--ink); max-height: 90vh;
+}
+dialog.sheet::backdrop { background: rgba(10, 12, 15, 0.45); }
+@media (min-width: 600px) { dialog.sheet { margin: auto; border-radius: 20px; } }
+.sheet-body { padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 18px; }
+.sheet-body h2 { font-size: 22px; font-weight: 800; font-stretch: 108%; }
+.field { display: grid; gap: 8px; }
+.field .seg { display: flex; }
+.field .seg button { flex: 1; }
+.cov { font-size: 14px; color: var(--ink-2); display: grid; gap: 4px; }
+.primary {
+  height: 48px; border: 0; border-radius: 12px; background: var(--ink); color: var(--surface);
+  font: 800 16px var(--font-display); font-stretch: 106%; cursor: pointer;
+}
+/* Card images */
+.eye {
+  flex: none; width: 36px; height: 36px; margin: -6px 0 -6px -6px; border: 0; border-radius: 18px;
+  background: transparent; display: inline-grid; place-items: center; cursor: pointer;
+}
+.eye:hover { background: var(--line); }
+.eye svg, .chip svg { width: 18px; height: 18px; stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.cardname { display: flex; align-items: center; gap: 4px; min-width: 0; }
+button.chip { border: 0; color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; }
+button.chip:hover { background: var(--line); }
+dialog.viewer {
+  border: 0; padding: 0; margin: 0; width: 100%; height: 100%; max-width: none; max-height: none;
+  background: rgba(8, 9, 11, 0.94); color: #f2f3f5;
+}
+dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
+.viewer-body {
+  height: 100%; display: grid; place-items: center; align-content: center; gap: 14px;
+  padding: calc(56px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px));
+}
+.cardimg {
+  width: min(92vw, calc((100vh - 170px) * 488 / 680), 520px); aspect-ratio: 488 / 680; max-width: 100%;
+  border-radius: 4.6% / 3.3%; background-color: #1b1d21; background-repeat: no-repeat;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6); display: grid; place-items: center;
+  color: #9aa0a8; font-size: 14px; text-align: center; padding: 16px;
+}
+.viewer-cap { display: grid; justify-items: center; gap: 6px; text-align: center; }
+.viewer-cap b { font: 800 20px/1.2 var(--font-display); font-stretch: 106%; }
+.viewer-cap a { color: #9cc4f2; font-size: 14px; }
+.viewer-cap small { color: #8b919b; font-size: 12px; }
+.viewer-close {
+  position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); right: 8px;
+  width: 48px; height: 48px; border-radius: 24px; border: 0; background: rgba(255, 255, 255, 0.12); cursor: pointer;
+  display: grid; place-items: center;
+}
+.viewer-close svg { width: 22px; height: 22px; stroke: #fff; fill: none; stroke-width: 2.4; stroke-linecap: round; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
 </style>
 
-<div class="wrap">
-  <header class="top">
-    <span class="eyebrow">MTG Pauper · tournament data</span>
-    <h1>Pauper Meta Lab</h1>
-    <p class="sub" id="subline"></p>
-  </header>
-
-  <div class="filters" role="group" aria-label="Filters">
-    <div class="filter">
-      <span class="label" id="periodLab">Period</span>
-      <div class="seg" id="periodSeg" aria-labelledby="periodLab"></div>
-    </div>
-    <div class="filter">
-      <span class="label" id="scopeLab">Data</span>
-      <div class="seg" id="scopeSeg" aria-labelledby="scopeLab"></div>
-    </div>
-    <div class="coverage" id="coverage" aria-live="polite"></div>
-  </div>
-
-  <section class="panel" id="archetypes" aria-labelledby="archH">
-    <div class="panel-head">
-      <div>
-        <h2 id="archH">Archetypes</h2>
-        <p class="note">Meta share of published decklists and non-mirror match win rate, with its 95% interval.
-          Pick a row to open its cards.</p>
-      </div>
-    </div>
-    <div class="scroll">
-      <table id="archTable">
-        <thead><tr>
-          <th class="r">#</th>
-          <th>Archetype</th>
-          <th class="sortable" data-sort="share" aria-sort="descending">Meta share</th>
-          <th>Weekly share</th>
-          <th class="sortable" data-sort="wr">Win rate · 95% interval</th>
-          <th class="sortable r" data-sort="matches">Matches</th>
-          <th title="Compares online (MTGO) and paper win rates">Online vs paper</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="panel" id="matchups" aria-labelledby="muH">
-    <div class="panel-head">
-      <div>
-        <h2 id="muH">Matchups</h2>
-        <p class="note">Row deck's match win rate against the column deck. Hover or tap a cell for the sample and interval.</p>
-      </div>
-      <div class="filter">
-        <span class="label" id="sizeLab">Decks</span>
-        <div class="seg" id="sizeSeg" aria-labelledby="sizeLab"></div>
-      </div>
-    </div>
-    <div class="legend" id="muLegend"></div>
-    <div class="scroll"><div class="matrix" id="matrix"></div></div>
-  </section>
-
-  <section class="panel" id="cards" aria-labelledby="cardH">
-    <div class="panel-head">
-      <div>
-        <h2 id="cardH">Cards</h2>
-        <p class="note">How often each card shows up in an archetype, and how decks with it did against decks without it.</p>
-      </div>
-    </div>
-    <div class="cardctl">
-      <label class="filter"><span class="label">Archetype</span><select id="cardArch"></select></label>
-      <div class="filter">
-        <span class="label" id="boardLab">Board</span>
-        <div class="seg" id="boardSeg" aria-labelledby="boardLab"></div>
-      </div>
-      <label class="filter"><span class="label">Sort by</span>
-        <select id="cardSort">
-          <option value="play">Play rate</option>
-          <option value="delta">Win rate difference</option>
-          <option value="name">Card name</option>
-        </select>
-      </label>
-    </div>
-    <p class="caveat">These are comparisons, not proof. Decks that run a card also differ in pilot, event and the rest
-      of the list. A difference whose interval crosses 0 could be noise. Cards in nearly every list (or almost none) have no
-      comparison group, so they show no difference.</p>
-    <p class="small muted" id="cardMeta"></p>
-    <div class="scroll">
-      <table id="cardTable">
-        <thead><tr>
-          <th>Card</th>
-          <th>Play rate</th>
-          <th class="r">Avg copies</th>
-          <th class="r">Win rate with</th>
-          <th class="r">Without</th>
-          <th>Difference · 95% interval</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="method" aria-labelledby="mH">
-    <h2 id="mH">How to read this</h2>
-    <ul>
-      <li><b>Data</b>: <i>Online</i> is MTGO. It publishes only Challenge top-8 brackets and a sample of 5-0 League lists,
-        so it has many decklists but few matches, all between strong decks. <i>Paper</i> is Melee, CardsRealm and Topdeck,
-        which publish every round. Most paper events are in Italy and Brazil.</li>
-      <li><b>Win rate</b> counts matches, not games, excludes mirrors, and counts draws as half a win.</li>
-      <li><b>Intervals</b> are 95% Wilson intervals. Two decks whose intervals overlap a lot can't be told apart yet.</li>
-      <li><b>Online vs paper</b> is flagged when the two intervals don't overlap, so the scenes clearly disagree.</li>
-      <li>Archetypes come from the community rules in MTGOFormatData. Source data: fbettega/MTG_decklistcache.</li>
-    </ul>
-    <p class="small muted" id="generated"></p>
-  </section>
+<div class="bar" role="banner">
+  <button class="iconbtn" id="backBtn" type="button" aria-label="Back" hidden>
+    <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+  </button>
+  <div class="bar-title"><b id="barTitle">Pauper Meta Lab</b><span id="barSub"></span></div>
+  <button class="chipbtn" id="filterBtn" type="button" aria-haspopup="dialog">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg><span id="filterLabel" class="long"></span><span id="filterShort" class="short"></span>
+  </button>
 </div>
-<div id="tip" role="status" aria-live="polite" hidden></div>
+
+<main class="app">
+  <section class="view" id="listView" aria-label="Decks">
+    <div class="intro">
+      <span class="eyebrow">MTG Pauper · tournament results</span>
+      <h1>Pick a deck</h1>
+      <p>See what it beats, what beats it, and which cards move its win rate.</p>
+    </div>
+    <label class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+      <input id="search" type="search" placeholder="Search decks" autocomplete="off" aria-label="Search decks">
+    </label>
+    <div class="listhead">
+      <span class="eyebrow" id="listCount"></span>
+      <div class="seg" id="sortSeg" role="group" aria-label="Sort decks"></div>
+    </div>
+    <div class="decks" id="deckList"></div>
+    <div class="card howto">
+      <h2>How to read this</h2>
+      <ul>
+        <li><b>Win rate</b> is match wins excluding mirrors, with draws as half a win.</li>
+        <li>On every bar the centre line is 50% (or no difference). The whisker is the 95% interval: the range the true value most likely sits in.</li>
+        <li><b>Clear</b> means the whole interval is on one side of the line. <b>Lean</b> means it could still be even.</li>
+        <li><b>Card effects</b> compare lists of the same deck with and without a card. They show what winning lists play, which isn't always what makes them win. With dozens of cards, about 1 in 20 can look Clear by chance.</li>
+        <li><b>Online</b> is MTGO: many lists, but match results only from Challenge top 8s. <b>Paper</b> is Melee, CardsRealm and Topdeck, with every round, mostly from Italy and Brazil.</li>
+      </ul>
+      <p class="muted" id="generated" style="font-size:13px"></p>
+    </div>
+  </section>
+
+  <section class="view" id="deckView" aria-live="polite"></section>
+  <section class="view" id="matchView" aria-live="polite"></section>
+  <section class="view" id="emptyDetail"><p>Pick a deck to see its matchups and cards.</p></section>
+</main>
+
+<dialog class="sheet" id="filterSheet" aria-labelledby="sheetTitle">
+  <form method="dialog" class="sheet-body">
+    <h2 id="sheetTitle">Data</h2>
+    <div class="field">
+      <span class="eyebrow">Period</span>
+      <div class="seg" id="periodSeg" role="group" aria-label="Period"></div>
+    </div>
+    <div class="field">
+      <span class="eyebrow">Events</span>
+      <div class="seg" id="scopeSeg" role="group" aria-label="Events"></div>
+      <p class="note" id="scopeNote"></p>
+    </div>
+    <div class="cov" id="sheetCov"></div>
+    <button class="primary" value="close">Show results</button>
+  </form>
+</dialog>
+
+<dialog class="viewer" id="viewer" aria-label="Card image">
+  <button class="viewer-close" id="viewerClose" type="button" aria-label="Close card image">
+    <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+  <div class="viewer-body">
+    <div class="cardimg" id="viewerImg" role="img"></div>
+    <div class="viewer-cap">
+      <b id="viewerName"></b>
+      <a id="viewerLink" href="#" target="_blank" rel="noopener">Open on Scryfall</a>
+      <small>Card image via Scryfall. Card art and text © Wizards of the Coast.</small>
+    </div>
+  </div>
+</dialog>
 
 <script id="data" type="application/json">/*__DATA__*/null</script>
 <script>
 (function () {
   "use strict";
   const DATA = JSON.parse(document.getElementById("data").textContent);
-  const MIN_N = 8;
-  const SCOPES = [["combined", "Combined"], ["paper", "Paper"], ["online", "Online"]];
-  const PERIOD_LABELS = { "30d": "30 days", "90d": "90 days", "180d": "180 days" };
-  const SIZES = [10, 15, 20, 25];
+  const T = DATA.thresholds;
+  const MIN_MU = 8;
+  const PERIODS = { "30d": "30 days", "90d": "90 days", "180d": "180 days" };
+  const SCOPES = { combined: "All events", paper: "Paper", online: "Online" };
+  const SCOPE_NOTES = {
+    combined: "MTGO and paper events together. The largest sample.",
+    paper: "Melee, CardsRealm and Topdeck. Every round is published, so most match results come from here.",
+    online: "MTGO only. Lots of decklists, but match results only from Challenge top 8s, so matchups are thin.",
+  };
 
   const store = {
-    get(k, d) { try { const v = localStorage.getItem("pml." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
-    set(k, v) { try { localStorage.setItem("pml." + k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
+    get(k, d) { try { const v = localStorage.getItem("pml2." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem("pml2." + k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
   };
   const state = {
-    period: store.get("period", DATA.default_period),
-    scope: store.get("scope", "combined"),
-    size: store.get("size", 15),
-    sort: store.get("sort", "share"),
-    sortDir: -1,
-    board: store.get("board", "main"),
-    cardSort: store.get("cardSort", "play"),
-    arch: store.get("arch", null),
+    period: store.get("period", DATA.default_period), scope: store.get("scope", "combined"),
+    sort: store.get("sort", "share"), board: store.get("board", "main"), q: "",
+    view: "list", deck: null, opp: null,
   };
   if (!DATA.periods[state.period]) state.period = DATA.default_period;
+  if (!SCOPES[state.scope]) state.scope = "combined";
 
+  // ---------- helpers ----------
   const $ = (s) => document.querySelector(s);
-  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-  const pct = (x, d = 0) => x == null ? "–" : (x * 100).toFixed(d) + "%";
-  const signed = (x) => x == null ? "–" : (x > 0 ? "+" : x < 0 ? "−" : "±") + Math.abs(x * 100).toFixed(0) + " pts";
-  const fmt = (n) => n.toLocaleString("en-US");
+  function h(tag, attrs, ...kids) {
+    const e = document.createElement(tag);
+    if (attrs) for (const k in attrs) {
+      const v = attrs[k];
+      if (v == null || v === false) continue;
+      if (k === "class") e.className = v;
+      else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+      else if (k === "style") e.style.cssText = v;
+      else e.setAttribute(k, v === true ? "" : v);
+    }
+    for (const kid of kids.flat()) if (kid != null && kid !== false) e.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+    return e;
+  }
   const SVGNS = "http://www.w3.org/2000/svg";
-  const svg = (tag, attrs) => { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
-  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  function chevron() {
+    const s = document.createElementNS(SVGNS, "svg"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("class", "chev"); s.setAttribute("aria-hidden", "true");
+    const p = document.createElementNS(SVGNS, "path"); p.setAttribute("d", "M9 5l7 7-7 7"); s.appendChild(p); return s;
+  }
+  const fmt = (n) => Number(n).toLocaleString("en-US");
+  const pct = (x, d = 0) => x == null || isNaN(x) ? "–" : (x * 100).toFixed(d) + "%";
+  const pts = (x) => x == null || isNaN(x) ? "–" : (x > 0.0005 ? "+" : x < -0.0005 ? "−" : "±") + Math.abs(x * 100).toFixed(0);
+  const ci = (lo, hi) => isNaN(lo) ? "–" : Math.round(lo * 100) + "–" + Math.round(hi * 100) + "%";
+  const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const record = (w, n) => { const f = (x) => Number.isInteger(x) ? x : x.toFixed(1); return f(w) + "–" + f(n - w); };
 
-  // ---- color: OKLab interpolation for the diverging matchup ramp ----
-  function hexToRgb(h) { h = h.replace("#", ""); if (h.length === 3) h = h.split("").map((c) => c + c).join(""); const n = parseInt(h, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
-  const toLin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
-  const fromLin = (c) => { const v = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; return Math.round(Math.min(1, Math.max(0, v)) * 255); };
-  function rgbToOklab([r, g, b]) {
-    r = toLin(r); g = toLin(g); b = toLin(b);
-    const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
-    const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
-    const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
-    return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s];
-  }
-  function oklabToRgb([L, a, b]) {
-    const l = Math.pow(L + 0.3963377774 * a + 0.2158037573 * b, 3);
-    const m = Math.pow(L - 0.1055613458 * a - 0.0638541728 * b, 3);
-    const s = Math.pow(L - 0.0894841775 * a - 1.291485548 * b, 3);
-    return [fromLin(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s), fromLin(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s), fromLin(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s)];
-  }
-  let ramp = null;
-  function buildRamp() {
-    ramp = { pos: rgbToOklab(hexToRgb(css("--pos"))), neg: rgbToOklab(hexToRgb(css("--neg"))), mid: rgbToOklab(hexToRgb(css("--mid"))) };
-  }
-  // Win rate -> color. 50% is neutral gray, 25% / 75% are the full poles.
-  function cellColor(wr, strength) {
-    const t = Math.min(1, Math.abs(wr - 0.5) / 0.25) * strength;
-    const pole = wr >= 0.5 ? ramp.pos : ramp.neg;
-    const lab = ramp.mid.map((v, i) => v + (pole[i] - v) * t);
-    return { rgb: oklabToRgb(lab), L: lab[0] };
-  }
-
-  // ---- Wilson interval, used for matchup cells ----
   function wilson(w, n) {
     if (!n) return [NaN, NaN];
     const z = 1.959964, p = w / n, d = 1 + z * z / n;
-    const c = (p + z * z / (2 * n)) / d, h = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d;
-    return [Math.max(0, c - h), Math.min(1, c + h)];
+    const c = (p + z * z / (2 * n)) / d, hw = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d;
+    return [Math.max(0, c - hw), Math.min(1, c + hw)];
+  }
+  // Newcombe's interval for the difference of two proportions (same as the Python side).
+  function newcombe(w1, n1, w2, n2) {
+    const p1 = w1 / n1, p2 = w2 / n2, [l1, u1] = wilson(w1, n1), [l2, u2] = wilson(w2, n2), d = p1 - p2;
+    return [d - Math.sqrt((p1 - l1) ** 2 + (u2 - p2) ** 2), d + Math.sqrt((u1 - p1) ** 2 + (p2 - l2) ** 2)];
   }
 
-  // ---- tooltip ----
-  const tip = $("#tip");
-  // Two ways to open it: hover with a mouse (follows the pointer), or tap/click an
-  // anchor such as an (i) button or a matrix cell (pinned until tapped again).
-  let pinned = null;
-  function fillTip(build) { tip.replaceChildren(); build(tip); tip.hidden = false; }
-  function placeAt(x, y, offset) {
-    const tw = tip.offsetWidth, th = tip.offsetHeight;
-    let left = x + offset, top = y + offset;
-    if (left + tw > window.innerWidth - 8) left = x - tw - offset;
-    if (top + th > window.innerHeight - 8) top = y - th - offset;
-    tip.style.left = Math.max(8, left) + "px"; tip.style.top = Math.max(8, top) + "px";
-  }
-  function placeBelow(anchor) {
-    const r = anchor.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
-    const left = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), window.innerWidth - tw - 8);
-    let top = r.bottom + 6;
-    if (top + th > window.innerHeight - 8) top = r.top - th - 6;
-    tip.style.left = left + "px"; tip.style.top = Math.max(8, top) + "px";
-  }
-  function showTip(evt, build) {
-    if (pinned || evt.pointerType === "touch") return;
-    fillTip(build); placeAt(evt.clientX, evt.clientY, 14);
-  }
-  function showTipAt(anchor, build) {
-    if (pinned) return;
-    fillTip(build); placeBelow(anchor);
-  }
-  function hideTip() { if (!pinned) tip.hidden = true; }
-  function unpin() {
-    if (!pinned) return;
-    const p = pinned; pinned = null; tip.hidden = true;
-    p.anchor.setAttribute("aria-expanded", "false");
-    if (p.onClose) p.onClose();
-  }
-  function togglePin(anchor, build, onOpen, onClose) {
-    const same = pinned && pinned.anchor === anchor;
-    unpin();
-    if (same) return;
-    if (onOpen) onOpen();
-    fillTip(build); placeBelow(anchor);
-    pinned = { anchor, onClose };
-    anchor.setAttribute("aria-expanded", "true");
-  }
-  function infoButton(build, label) {
-    const b = el("button", "info", "i");
-    b.type = "button";
-    b.setAttribute("aria-label", label || "Show details");
-    b.setAttribute("aria-expanded", "false");
-    b.addEventListener("click", (e) => { e.stopPropagation(); togglePin(b, build); });
-    return b;
-  }
-  document.addEventListener("click", (e) => {
-    if (pinned && !pinned.anchor.contains(e.target) && !tip.contains(e.target)) unpin();
-  });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") unpin(); });
-  window.addEventListener("scroll", unpin, { capture: true, passive: true });
-  window.addEventListener("resize", unpin);
-  function tipLine(parent, cls, text) { parent.appendChild(el("div", cls, text)); }
-
-  function pips(color) {
-    const box = el("span", "pips");
-    const letters = !color || color === "C" ? ["C"] : color.split("");
-    letters.forEach((c) => {
-      const p = el("span", "pip", c);
-      p.style.background = "var(--pip-" + c + ")";
-      p.setAttribute("aria-hidden", "true");
-      box.appendChild(p);
+  function mana(color, large) {
+    const box = h("span", { class: "mana" + (large ? " lg" : ""), title: color && color !== "C" ? color : "Colorless", "aria-hidden": "true" });
+    (!color || color === "C" ? ["C"] : color.split("")).forEach((c) => {
+      const i = h("i", null, c); i.style.background = `var(--mana-${c})`; box.appendChild(i);
     });
-    box.title = color || "Colorless";
     return box;
   }
-  function archLabel(a) {
-    const s = el("span", "arch"); s.appendChild(pips(a.color)); s.appendChild(el("span", null, a.name)); return s;
+  function band(color) {
+    const cs = !color || color === "C" ? ["C"] : color.split("");
+    if (cs.length === 1) return `var(--mana-${cs[0]})`;
+    return "linear-gradient(90deg," + cs.map((c, i) => `var(--mana-${c}) ${i / cs.length * 100}% ${(i + 1) / cs.length * 100}%`).join(",") + ")";
   }
 
-  // ---- filters ----
-  function segmented(container, options, current, onPick) {
-    container.replaceChildren();
-    options.forEach(([value, label]) => {
-      const b = el("button", null, label);
-      b.type = "button";
-      b.setAttribute("aria-pressed", String(value === current));
-      b.addEventListener("click", () => onPick(value));
-      container.appendChild(b);
+  // Diverging bar: value/lo/hi in the bar's own units, centred on `center`, clamped to center ± span.
+  function dbar(value, lo, hi, center, span, label) {
+    const pos = (x) => 50 + Math.max(-1, Math.min(1, (x - center) / span)) * 50;
+    const good = value >= center, sure = lo > center || hi < center;
+    const wrap = h("div", { class: "dbar " + (good ? "good" : "bad") + (sure ? "" : " unsure"), role: label ? "img" : null, "aria-label": label || null, "aria-hidden": label ? null : "true" });
+    wrap.append(h("div", { class: "track" }), h("div", { class: "mid" }));
+    const a = pos(center), b = pos(value);
+    wrap.append(h("div", { class: "fill", style: `left:${Math.min(a, b)}%;width:${Math.max(1.5, Math.abs(b - a))}%` }));
+    if (!isNaN(lo)) wrap.append(h("div", { class: "ci", style: `left:${pos(lo)}%;width:${Math.max(0.5, pos(hi) - pos(lo))}%` }));
+    return wrap;
+  }
+  const tag = (sure, good) => h("span", { class: "tag " + (sure ? "clear " + (good ? "good" : "bad") : "lean") }, sure ? "Clear" : "Lean");
+
+  // ---------- data access ----------
+  const scope = () => DATA.periods[state.period].scopes[state.scope];
+  function decks() {
+    return scope().archetypes.map(([name, color, nd, share, wins, matches], i) => {
+      const [lo, hi] = wilson(wins, matches);
+      return { i, name, color, decks: nd, share, wins, matches, wr: matches ? wins / matches : null, lo, hi };
     });
   }
-  function renderFilters() {
-    segmented($("#periodSeg"), Object.keys(DATA.periods).map((k) => [k, PERIOD_LABELS[k] || k]), state.period,
-      (v) => { state.period = v; store.set("period", v); renderAll(); });
-    segmented($("#scopeSeg"), SCOPES, state.scope, (v) => { state.scope = v; store.set("scope", v); renderAll(); });
-    segmented($("#sizeSeg"), SIZES.map((n) => [n, "Top " + n]), state.size,
-      (v) => { state.size = v; store.set("size", v); renderFilters(); renderMatrix(); });
-    segmented($("#boardSeg"), [["main", "Main"], ["side", "Sideboard"]], state.board,
-      (v) => { state.board = v; store.set("board", v); renderFilters(); renderCards(); });
-  }
-
-  const period = () => DATA.periods[state.period];
-  const scopeData = (s) => period().scopes[s || state.scope];
-
-  function renderHeader() {
-    const p = period();
-    $("#subline").textContent = "Metagame, matchups and card choices from " + p.since + " to " + p.until +
-      ". Online (MTGO) and paper events can be viewed separately because they publish very different data.";
-    const cov = scopeData().coverage;
-    const box = $("#coverage"); box.replaceChildren();
-    const add = (n, label) => { const s = el("span"); const b = el("b", "num", fmt(n)); s.append(b, " " + label); box.appendChild(s); };
-    add(cov.events, "events"); add(cov.decks, "decklists"); add(cov.matches, "matches with results");
-    const src = cov.by_source.map((s) => s.source + " " + fmt(s.matches)).join(" · ");
-    box.appendChild(el("span", "muted", "Matches by source: " + (src || "none")));
-    $("#generated").textContent = "Data built " + DATA.generated + ".";
-  }
-
-  // ---- archetype table ----
-  function sparkline(values) {
-    const w = 96, h = 24, pad = 2;
-    const s = svg("svg", { width: w, height: h, viewBox: `0 0 ${w} ${h}`, role: "img" });
-    const pts = values.map((v, i) => [i, v]).filter((p) => p[1] != null);
-    if (pts.length < 2) return s;
-    const max = Math.max(...pts.map((p) => p[1]), 0.01);
-    const x = (i) => pad + (i / Math.max(1, values.length - 1)) * (w - pad * 2 - 3);
-    const y = (v) => h - pad - (v / max) * (h - pad * 2);
-    const line = pts.map((p, k) => (k ? "L" : "M") + x(p[0]).toFixed(1) + " " + y(p[1]).toFixed(1)).join(" ");
-    const last = pts[pts.length - 1];
-    const ink = css("--ink-2");
-    s.appendChild(svg("path", { d: line + ` L${x(last[0]).toFixed(1)} ${h - pad} L${x(pts[0][0]).toFixed(1)} ${h - pad} Z`, fill: ink, "fill-opacity": "0.12", stroke: "none" }));
-    s.appendChild(svg("path", { d: line, fill: "none", stroke: ink, "stroke-width": "1.5", "stroke-linejoin": "round" }));
-    s.appendChild(svg("circle", { cx: x(last[0]), cy: y(last[1]), r: 2.5, fill: css("--ink"), stroke: css("--surface"), "stroke-width": "1.5" }));
-    s.setAttribute("aria-label", "Weekly share, latest " + pct(last[1], 1));
-    return s;
-  }
-  // Forest-plot style: dot at the win rate, line across the interval, 50% reference.
-  function intervalPlot(v, lo, hi, axisLo, axisHi, w, refLabel) {
-    const h = 26;
-    const s = svg("svg", { width: w, height: h, viewBox: `0 0 ${w} ${h}` });
-    const x = (t) => 6 + ((Math.min(axisHi, Math.max(axisLo, t)) - axisLo) / (axisHi - axisLo)) * (w - 12);
-    const mid = (axisLo + axisHi) / 2;
-    s.appendChild(svg("line", { x1: x(mid), x2: x(mid), y1: 2, y2: h - 2, stroke: css("--line-strong"), "stroke-width": "1" }));
-    if (v == null) return s;
-    const crosses = lo <= mid && hi >= mid;
-    const color = crosses ? css("--muted") : (v > mid ? css("--pos") : css("--neg"));
-    s.appendChild(svg("line", { x1: x(lo), x2: x(hi), y1: h / 2, y2: h / 2, stroke: color, "stroke-width": "2", "stroke-linecap": "round" }));
-    s.appendChild(svg("circle", { cx: x(v), cy: h / 2, r: 4.5, fill: color, stroke: css("--surface"), "stroke-width": "2" }));
-    return s;
-  }
-
-  function skewInfo(name) {
-    const on = scopeData("online").archetypes.find((a) => a.name === name);
-    const pa = scopeData("paper").archetypes.find((a) => a.name === name);
-    if (!on || !pa || !on.matches || !pa.matches) return null;
-    return { on, pa, skew: on.lo > pa.hi || pa.lo > on.hi };
-  }
-
-  function renderArchetypes() {
-    unpin();  // the pinned anchor is about to be replaced
-    const rows = scopeData().archetypes.slice();
-    const key = state.sort;
-    rows.sort((a, b) => ((b[key] ?? -1) - (a[key] ?? -1)) * -state.sortDir);
-    document.querySelectorAll("#archTable th.sortable").forEach((th) => {
-      th.setAttribute("aria-sort", th.dataset.sort === key ? (state.sortDir < 0 ? "descending" : "ascending") : "none");
+  const deckByName = (name) => decks().find((d) => d.name === name);
+  function matchups(deck) {
+    const all = decks();
+    return (scope().mu[deck.i] || []).map(([o, w, n]) => {
+      const [lo, hi] = wilson(w, n);
+      return { opp: all[o], wins: w, n, wr: w / n, lo, hi };
     });
-    const maxShare = Math.max(...rows.map((r) => r.share || 0), 0.01);
-    const tbody = $("#archTable tbody"); tbody.replaceChildren();
-    const cardArchs = new Set(Object.keys(period().cards));
-    rows.forEach((a, i) => {
-      const tr = el("tr");
-      tr.tabIndex = 0;
-      if (a.name === state.arch) tr.classList.add("selected");
-      tr.appendChild(el("td", "r num muted", String(i + 1)));
-      const tdN = el("td"); tdN.appendChild(archLabel(a)); tr.appendChild(tdN);
-
-      const tdS = el("td"); const sb = el("div", "sharebar");
-      const track = el("div", "track"); const fill = el("div", "fill"); fill.style.width = (a.share / maxShare * 100) + "%";
-      track.appendChild(fill); sb.append(track, el("span", "num", pct(a.share, 1))); tdS.appendChild(sb); tr.appendChild(tdS);
-
-      const tdT = el("td"); tdT.appendChild(sparkline(a.weekly)); tr.appendChild(tdT);
-
-      const tdW = el("td"); const wrap = el("div"); wrap.style.cssText = "display:flex;align-items:center;gap:8px";
-      wrap.appendChild(intervalPlot(a.wr, a.lo, a.hi, 0.3, 0.7, 150));
-      wrap.appendChild(el("span", "num", a.matches ? pct(a.wr) + "  " + pct(a.lo) + "–" + pct(a.hi) : "no matches"));
-      const wrTip = (t) => {
-        tipLine(t, "v", a.matches ? pct(a.wr, 1) : "No matches");
-        tipLine(t, "k", a.name + " · non-mirror match win rate");
-        if (a.matches) tipLine(t, null, "95% interval " + pct(a.lo, 1) + " to " + pct(a.hi, 1) + " · " + fmt(a.matches) + " matches");
-      };
-      if (a.matches) wrap.appendChild(infoButton(wrTip, "Win rate details for " + a.name));
-      tdW.appendChild(wrap); tr.appendChild(tdW);
-      tdW.addEventListener("pointermove", (e) => showTip(e, wrTip));
-      tdW.addEventListener("pointerleave", hideTip);
-
-      tr.appendChild(el("td", "r num", fmt(a.matches)));
-
-      const tdK = el("td"); const sk = skewInfo(a.name);
-      if (sk) {
-        const diff = sk.on.wr - sk.pa.wr;
-        const p = el("span", "pill" + (sk.skew ? " skew" : ""),
-          sk.skew ? (diff > 0 ? "Better online" : "Better on paper") : "Agrees");
-        const skTip = (t) => {
-          tipLine(t, "v", signed(diff));
-          tipLine(t, "k", "Online minus paper win rate");
-          tipLine(t, null, "Online " + pct(sk.on.wr) + " (" + pct(sk.on.lo) + "–" + pct(sk.on.hi) + ", " + sk.on.matches + " matches)");
-          tipLine(t, null, "Paper " + pct(sk.pa.wr) + " (" + pct(sk.pa.lo) + "–" + pct(sk.pa.hi) + ", " + sk.pa.matches + " matches)");
-          tipLine(t, "k", sk.skew ? "The intervals don't overlap." : "The intervals overlap, so the difference could be noise.");
-        };
-        const skWrap = el("div"); skWrap.style.cssText = "display:flex;align-items:center;gap:6px";
-        skWrap.append(p, infoButton(skTip, "Online vs paper details for " + a.name));
-        tdK.appendChild(skWrap);
-        tdK.addEventListener("pointermove", (e) => showTip(e, skTip));
-        tdK.addEventListener("pointerleave", hideTip);
-      } else {
-        tdK.appendChild(el("span", "na", "Too few matches"));
+  }
+  function cardRows(deck, board) {
+    const block = scope().cards[deck.i];
+    if (!block) return null;
+    return (block[board] || []).map(([card, play, copies, dW, wW, nW, dWo, wWo, nWo]) => {
+      const row = { card, play, copies };
+      if (nW != null) {
+        Object.assign(row, { dW, nW, dWo, nWo, wrW: wW / nW, wrWo: wWo / nWo, delta: wW / nW - wWo / nWo });
+        [row.lo, row.hi] = newcombe(wW, nW, wWo, nWo);
       }
-      tr.appendChild(tdK);
-
-      const pick = () => {
-        if (!cardArchs.has(a.name)) return;
-        state.arch = a.name; store.set("arch", a.name);
-        renderArchetypes(); renderMatrix(); renderCards();
-        $("#cards").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
-      };
-      tr.addEventListener("click", pick);
-      tr.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
-      if (!cardArchs.has(a.name)) tr.title = "No card breakdown for this archetype in this period";
-      tbody.appendChild(tr);
+      return row;
+    });
+  }
+  function matchupCards(deck, opp, board) {
+    const b = board === "main" ? 0 : 1;
+    return ((scope().cardMu[deck.i] || {})[opp.i] || []).filter((r) => r[1] === b).map(([card, , dW, wW, nW, dWo, wWo, nWo]) => {
+      const [lo, hi] = newcombe(wW, nW, wWo, nWo);
+      return { card, dW, nW, dWo, nWo, wrW: wW / nW, wrWo: wWo / nWo, delta: wW / nW - wWo / nWo, lo, hi };
     });
   }
 
-  // ---- matchup matrix ----
-  function renderMatrix() {
-    unpin();  // the pinned anchor is about to be replaced
-    const sd = scopeData();
-    const names = sd.matrix.slice(0, state.size);
-    const n = names.length;
-    const lookup = new Map(sd.matchups.map(([a, b, w, m]) => [a + "," + b, [w, m]]));
-    const byName = new Map(sd.archetypes.map((a) => [a.name, a]));
-    const box = $("#matrix"); box.replaceChildren();
-    box.style.gridTemplateColumns = `max-content repeat(${n}, min-content)`;
-    box.appendChild(el("div"));
-    names.forEach((nm, j) => { const c = el("div", "collab", String(j + 1)); c.title = nm; box.appendChild(c); });
-    const cells = [];
-    names.forEach((rowName, i) => {
-      const lab = el("div", "rowlab");
-      const a = byName.get(rowName);
-      lab.append(el("span", null, rowName), pips(a ? a.color : ""), el("span", "idx", String(i + 1)));
-      box.appendChild(lab);
-      names.forEach((colName, j) => {
-        const c = el("div", "cell");
-        c.dataset.r = i; c.dataset.c = j;
-        if (i === j) { c.classList.add("self"); c.textContent = "—"; box.appendChild(c); return; }
-        const rec = lookup.get(i + "," + j);
-        const w = rec ? rec[0] : 0, m = rec ? rec[1] : 0;
-        const wr = m ? w / m : null;
-        const [lo, hi] = wilson(w, m);
-        if (m < MIN_N) {
-          c.classList.add("few"); c.textContent = "·";
-        } else {
-          const sig = lo > 0.5 || hi < 0.5;
-          const col = cellColor(wr, sig ? 1 : 0.5);
-          c.style.background = `rgb(${col.rgb.join(",")})`;
-          c.style.color = col.L < 0.62 ? "#ffffff" : "#111214";
-          c.textContent = Math.round(wr * 100);
-          if (sig) c.classList.add("sig");
-        }
-        c.tabIndex = 0;
-        c.setAttribute("role", "button");
-        c.setAttribute("aria-expanded", "false");
-        c.setAttribute("aria-label", rowName + " vs " + colName + (m ? ": " + pct(wr) + " in " + m + " matches" : ": no matches"));
-        const highlight = () => {
-          box.classList.add("dim");
-          cells.forEach((x) => x.classList.toggle("hl", x.dataset.r == i || x.dataset.c == j));
-        };
-        const unhighlight = () => { box.classList.remove("dim"); cells.forEach((x) => x.classList.remove("hl")); };
-        const cellTip = (t) => {
-            tipLine(t, "v", m ? pct(wr) : "No matches");
-            tipLine(t, "k", rowName + " vs " + colName);
-            if (m) {
-              tipLine(t, null, (Number.isInteger(w) ? w : w.toFixed(1)) + " wins in " + m + " matches");
-              tipLine(t, null, "95% interval " + pct(lo) + " to " + pct(hi));
-              if (m < MIN_N) tipLine(t, "k", "Fewer than " + MIN_N + " matches, so no color.");
-              else if (lo <= 0.5 && hi >= 0.5) tipLine(t, "k", "The interval includes 50%, so this could be an even matchup.");
-            }
-        };
-        c.addEventListener("pointermove", (e) => { if (pinned || e.pointerType === "touch") return; highlight(); showTip(e, cellTip); });
-        c.addEventListener("focus", () => { if (pinned) return; highlight(); showTipAt(c, cellTip); });
-        const leave = () => { if (pinned) return; unhighlight(); hideTip(); };
-        c.addEventListener("pointerleave", leave);
-        c.addEventListener("blur", leave);
-        const pin = () => togglePin(c, cellTip,
-          () => { highlight(); c.classList.add("pinned"); },
-          () => { c.classList.remove("pinned"); unhighlight(); });
-        c.addEventListener("click", pin);
-        c.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pin(); } });
-        cells.push(c); box.appendChild(c);
-      });
-    });
-
-    const leg = $("#muLegend"); leg.replaceChildren();
-    const rampEl = el("span", "ramp");
-    const stops = [0.25, 0.375, 0.5, 0.625, 0.75].map((v) => `rgb(${cellColor(v, 1).rgb.join(",")})`);
-    const bar = el("i"); bar.style.background = `linear-gradient(90deg, ${stops.join(",")})`;
-    rampEl.append(el("span", "num", "25%"), bar, el("span", "num", "75%"));
-    const strong = el("span"); const sw1 = el("span", "swatch"); sw1.style.background = `rgb(${cellColor(0.68, 1).rgb.join(",")})`;
-    strong.append(sw1, " Strong color and bold: the interval excludes 50%");
-    const faint = el("span"); const sw2 = el("span", "swatch"); sw2.style.background = `rgb(${cellColor(0.68, 0.5).rgb.join(",")})`;
-    faint.append(sw2, " Faint: could still be even");
-    leg.append(rampEl, strong, faint, el("span", null, "· = fewer than " + MIN_N + " matches"));
-    if (state.scope === "online") leg.appendChild(el("span", null, "Online matchups come only from top-8 brackets."));
+  // ---------- card images ----------
+  const IMAGES = DATA.images || null;
+  const hasImage = (name) => !!(IMAGES && IMAGES.cards[name]);
+  function eyeIcon() {
+    const s = document.createElementNS(SVGNS, "svg"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("aria-hidden", "true");
+    const p1 = document.createElementNS(SVGNS, "path"); p1.setAttribute("d", "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z");
+    const c = document.createElementNS(SVGNS, "circle"); c.setAttribute("cx", "12"); c.setAttribute("cy", "12"); c.setAttribute("r", "3");
+    s.append(p1, c); return s;
   }
-
-  // ---- card lab ----
-  function renderCards() {
-    unpin();  // the pinned anchor is about to be replaced
-    const p = period();
-    const archs = Object.keys(p.cards);
-    if (!archs.includes(state.arch)) state.arch = archs[0] || null;
-    const sel = $("#cardArch");
-    sel.replaceChildren();
-    archs.forEach((a) => { const o = el("option", null, a); o.value = a; if (a === state.arch) o.selected = true; sel.appendChild(o); });
-    $("#cardSort").value = state.cardSort;
-    const tbody = $("#cardTable tbody"); tbody.replaceChildren();
-    if (!state.arch) return;
-    const block = p.cards[state.arch][state.scope];
-    let rows = (block[state.board] || []).slice();
-    const withData = rows.filter((r) => r[7] != null).length;
-    $("#cardMeta").textContent = fmt(block.decks) + " " + state.arch + " decklists in this view · " +
-      rows.length + " cards in at least 5% of lists · " + withData + " with enough decks on both sides to compare.";
-    if (state.cardSort === "delta") rows.sort((a, b) => (b[7] ?? -9) - (a[7] ?? -9));
-    else if (state.cardSort === "name") rows.sort((a, b) => a[0].localeCompare(b[0]));
-    else rows.sort((a, b) => b[1] - a[1]);
-    if (!rows.length) {
-      const tr = el("tr"); const td = el("td", "na", "No cards for this archetype, board and data selection."); td.colSpan = 6; tr.appendChild(td); tbody.appendChild(tr); return;
+  function eyeButton(name) {
+    if (!hasImage(name)) return null;
+    return h("button", { class: "eye", type: "button", "aria-label": "Show card image: " + name, onclick: (e) => { e.stopPropagation(); showCard(name); } }, eyeIcon());
+  }
+  function showCard(name) {
+    const img = $("#viewerImg"), ref = IMAGES.cards[name];
+    let src, size = "100% 100%", position = "0 0";
+    if (IMAGES.mode === "sheet") {
+      const [sheet, cell] = ref, info = IMAGES.sheets[sheet], cols = IMAGES.cols, rows = info.rows;
+      const col = cell % cols, row = Math.floor(cell / cols);
+      src = IMAGES.base + info.file;
+      size = cols * 100 + "% " + rows * 100 + "%";
+      position = (cols > 1 ? col / (cols - 1) * 100 : 0) + "% " + (rows > 1 ? row / (rows - 1) * 100 : 0) + "%";
+    } else {
+      src = ref;
     }
-    rows.forEach(([name, play, copies, nWith, wrWith, nWithout, wrWithout, delta, lo, hi]) => {
-      const tr = el("tr");
-      tr.appendChild(el("td", "card", name));
-      const tdP = el("td"); const sb = el("div", "sharebar"); const tr2 = el("div", "track"); const f = el("div", "fill");
-      f.style.width = (play * 100) + "%"; tr2.appendChild(f); sb.append(tr2, el("span", "num", pct(play))); tdP.appendChild(sb); tr.appendChild(tdP);
-      tr.appendChild(el("td", "r num", copies.toFixed(1)));
-      tr.appendChild(el("td", "r num", wrWith == null ? "–" : pct(wrWith) + " (" + nWith + ")"));
-      tr.appendChild(el("td", "r num", wrWithout == null ? "–" : pct(wrWithout) + " (" + nWithout + ")"));
-      const tdD = el("td");
-      if (delta == null) {
-        tdD.appendChild(el("span", "na", play > 0.5 ? "In almost every list" : "Too few lists"));
-      } else {
-        const wrap = el("div"); wrap.style.cssText = "display:flex;align-items:center;gap:8px";
-        wrap.appendChild(intervalPlot(delta, lo, hi, -0.3, 0.3, 150));
-        wrap.appendChild(el("span", "num", signed(delta)));
-        const dTip = (t) => {
-          tipLine(t, "v", signed(delta));
-          tipLine(t, "k", "Win rate with " + name + " minus without");
-          tipLine(t, null, "95% interval " + signed(lo) + " to " + signed(hi));
-          tipLine(t, null, "With: " + pct(wrWith) + " in " + nWith + " matches · Without: " + pct(wrWithout) + " in " + nWithout);
-          if (lo <= 0 && hi >= 0) tipLine(t, "k", "The interval crosses 0, so this could be noise.");
-        };
-        wrap.appendChild(infoButton(dTip, "Difference details for " + name));
-        tdD.appendChild(wrap);
-        tdD.addEventListener("pointermove", (e) => showTip(e, dTip));
-        tdD.addEventListener("pointerleave", hideTip);
-      }
-      tr.appendChild(tdD);
-      tbody.appendChild(tr);
-    });
+    img.style.backgroundImage = "none";
+    img.textContent = "Loading card…";
+    img.setAttribute("aria-label", name);
+    const probe = new Image();
+    probe.onload = () => {
+      if ($("#viewerName").textContent !== name) return;
+      img.textContent = "";
+      img.style.backgroundImage = `url("${src}")`;
+      img.style.backgroundSize = size;
+      img.style.backgroundPosition = position;
+    };
+    probe.onerror = () => { img.textContent = "The card image couldn't be loaded."; };
+    probe.src = src;
+    $("#viewerName").textContent = name;
+    $("#viewerLink").href = "https://scryfall.com/search?q=" + encodeURIComponent('!"' + name + '"');
+    const d = $("#viewer");
+    if (typeof d.showModal === "function") d.showModal(); else d.setAttribute("open", "");
+  }
+  const closeViewer = () => { const d = $("#viewer"); if (d.open) d.close(); };
+  $("#viewerClose").addEventListener("click", closeViewer);
+  // Tapping anywhere but the link closes the viewer.
+  $("#viewer").addEventListener("click", (e) => { if (!e.target.closest("a")) closeViewer(); });
+  function cardChip(name, ...content) {
+    if (!hasImage(name)) return h("span", { class: "chip" }, ...content);
+    return h("button", { class: "chip", type: "button", "aria-label": "Show card image: " + name, onclick: () => showCard(name) }, ...content, eyeIcon());
   }
 
-  $("#cardArch").addEventListener("change", (e) => { state.arch = e.target.value; store.set("arch", state.arch); renderArchetypes(); renderCards(); });
-  $("#cardSort").addEventListener("change", (e) => { state.cardSort = e.target.value; store.set("cardSort", state.cardSort); renderCards(); });
-  document.querySelectorAll("#archTable th.sortable").forEach((th) => {
-    th.addEventListener("click", () => {
-      if (state.sort === th.dataset.sort) state.sortDir *= -1; else { state.sort = th.dataset.sort; state.sortDir = -1; }
-      store.set("sort", state.sort); renderArchetypes();
-    });
-  });
+  // ---------- navigation ----------
+  function go(view, deck, opp, push = true) {
+    state.view = view; state.deck = deck || null; state.opp = opp || null;
+    if (push) {
+      const hash = view === "deck" ? "#d-" + slug(deck) : view === "match" ? "#m-" + slug(deck) + "~" + slug(opp) : "#decks";
+      try { history.pushState(null, "", hash); } catch (e) { /* history unavailable in this frame */ }
+    }
+    render();
+    window.scrollTo(0, 0);
+  }
+  function fromHash() {
+    let hash = "";
+    try { hash = decodeURIComponent(location.hash.slice(1)); } catch (e) { hash = ""; }
+    const all = decks(), find = (s) => (all.find((d) => slug(d.name) === s) || {}).name;
+    if (hash.startsWith("d-") && find(hash.slice(2))) return go("deck", find(hash.slice(2)), null, false);
+    if (hash.startsWith("m-")) {
+      const [a, b] = hash.slice(2).split("~");
+      if (find(a) && find(b)) return go("match", find(a), find(b), false);
+    }
+    go("list", null, null, false);
+  }
+  window.addEventListener("popstate", fromHash);
+  $("#backBtn").addEventListener("click", () => { if (state.view === "match") go("deck", state.deck); else go("list"); });
 
-  function renderAll() { unpin(); buildRamp(); renderFilters(); renderHeader(); renderArchetypes(); renderMatrix(); renderCards(); }
-  // Redraw when the viewer's theme changes, since chart colors come from the theme tokens.
-  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
-  new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-  renderAll();
+  // ---------- filters ----------
+  function seg(container, options, current, onPick) {
+    container.replaceChildren(...options.map(([v, label]) =>
+      h("button", { type: "button", "aria-pressed": String(v === current), onclick: () => onPick(v) }, label)));
+  }
+  function setPeriod(v) { state.period = v; store.set("period", v); }
+  function setScope(v) { state.scope = v; store.set("scope", v); }
+  function renderSheet() {
+    seg($("#periodSeg"), Object.keys(DATA.periods).map((k) => [k, PERIODS[k] || k]), state.period, (v) => { setPeriod(v); renderSheet(); render(); });
+    seg($("#scopeSeg"), Object.entries(SCOPES), state.scope, (v) => { setScope(v); renderSheet(); render(); });
+    $("#scopeNote").textContent = SCOPE_NOTES[state.scope];
+    const p = DATA.periods[state.period], c = scope().coverage;
+    $("#sheetCov").replaceChildren(
+      h("div", null, h("b", { class: "num" }, fmt(c.matches)), " matches with results · ", h("b", { class: "num" }, fmt(c.decks)), " decklists · ", fmt(c.events), " events"),
+      h("div", { class: "muted" }, p.since + " to " + p.until + ". Matches by source: " + (c.by_source.map((s) => s.source + " " + fmt(s.matches)).join(", ") || "none") + "."));
+  }
+  $("#filterBtn").addEventListener("click", () => {
+    renderSheet();
+    const d = $("#filterSheet");
+    if (typeof d.showModal === "function") d.showModal(); else d.setAttribute("open", "");
+  });
+  $("#filterSheet").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+  $("#search").addEventListener("input", (e) => { state.q = e.target.value.trim().toLowerCase(); renderList(); });
+
+  // ---------- list view ----------
+  function renderList() {
+    const all = decks();
+    let rows = all.slice();
+    seg($("#sortSeg"), [["share", "Most played"], ["wr", "Win rate"]], state.sort, (v) => { state.sort = v; store.set("sort", v); renderList(); });
+    // Win-rate sort puts decks with a usable sample (30+ matches) first.
+    if (state.sort === "wr") rows.sort((a, b) => (b.matches >= 30) - (a.matches >= 30) || (b.wr ?? 0) - (a.wr ?? 0));
+    if (state.q) rows = rows.filter((d) => d.name.toLowerCase().includes(state.q));
+    $("#listCount").textContent = rows.length + (rows.length === 1 ? " deck" : " decks");
+    const list = $("#deckList");
+    if (!rows.length) { list.replaceChildren(h("div", { class: "empty", style: "margin:12px" }, "No deck matches “" + state.q + "”.")); return; }
+    list.replaceChildren(...rows.map((d) => {
+      const wr = h("div", { class: "wr" }, h("b", { class: "num" }, d.matches ? pct(d.wr) : "–"));
+      if (d.matches) wr.append(h("div", { style: "width:72px" }, dbar(d.wr, d.lo, d.hi, 0.5, 0.2)));
+      return h("button", {
+        class: "deckrow", type: "button", "aria-current": String(d.name === state.deck),
+        "aria-label": d.name + ", " + pct(d.share, 1) + " of decks, win rate " + (d.matches ? pct(d.wr) : "unknown"),
+        onclick: () => go("deck", d.name),
+      },
+      h("span", { class: "rank num" }, d.i + 1),
+      h("div", { class: "deckcell" }, mana(d.color), h("div", null,
+        h("div", { class: "name" }, d.name),
+        h("div", { class: "meta num" }, pct(d.share, 1) + " of decks · " + fmt(d.matches) + " matches"))),
+      wr);
+    }));
+  }
+
+  // ---------- shared pieces ----------
+  function suggestMore(parent, why) {
+    const box = h("div", { class: "empty" }, h("span", null, why));
+    if (state.period !== "180d") box.append(h("button", { class: "linkbtn", type: "button", onclick: () => { setPeriod("180d"); render(); } }, "Use 180 days of data"));
+    if (state.scope === "online") box.append(h("button", { class: "linkbtn", type: "button", onclick: () => { setScope("combined"); render(); } }, "Include paper events"));
+    parent.append(box);
+  }
+  function boardToggle(onChange) {
+    const s = h("div", { class: "seg", role: "group", "aria-label": "Main deck or sideboard" });
+    const draw = () => seg(s, [["main", "Main deck"], ["side", "Sideboard"]], state.board, (v) => { state.board = v; store.set("board", v); draw(); onChange(); });
+    draw();
+    return s;
+  }
+  function matchupRow(deck, m) {
+    const good = m.wr >= 0.5, sure = m.lo > 0.5 || m.hi < 0.5;
+    return h("button", { class: "row", type: "button", onclick: () => go("match", deck.name, m.opp.name),
+      "aria-label": deck.name + " against " + m.opp.name + ": " + pct(m.wr) + " in " + m.n + " matches, " + (sure ? "clear" : "could be even") },
+      h("div", { class: "deckcell" }, mana(m.opp.color), h("div", null,
+        h("div", { class: "rname" }, m.opp.name),
+        h("div", { class: "rsub num" }, record(m.wins, m.n) + " in " + fmt(m.n) + " matches"))),
+      h("div", { class: "rval" }, tag(sure, good), h("b", { class: "num" }, pct(m.wr)), chevron()),
+      h("div", { class: "rbar" }, dbar(m.wr, m.lo, m.hi, 0.5, 0.35)));
+  }
+  function cardRow(r, context) {
+    const good = r.delta >= 0, sure = r.lo > 0 || r.hi < 0;
+    return h("div", { class: "row" },
+      h("div", { style: "min-width:0" }, h("div", { class: "cardname" }, eyeButton(r.card), h("span", { class: "rname" }, r.card)), h("div", { class: "rsub num" }, context)),
+      h("div", { class: "rval" }, tag(sure, good), h("b", { class: "num" }, pts(r.delta))),
+      h("div", { class: "rbar" }, dbar(r.delta, r.lo, r.hi, 0, 0.3)),
+      h("div", { class: "compare num" }, "With it " + pct(r.wrW) + " in " + fmt(r.nW) + " matches (" + r.dW + " lists) · without " + pct(r.wrWo) + " in " + fmt(r.nWo) + " (" + r.dWo + " lists)"));
+  }
+  function effectGroups(body, rows, ctx, suffix) {
+    const helps = rows.filter((r) => r.delta >= 0).sort((a, b) => b.delta - a.delta);
+    const hurts = rows.filter((r) => r.delta < 0).sort((a, b) => a.delta - b.delta);
+    if (helps.length) body.append(h("div", { class: "group" }, h("div", { class: "subhead" }, h("h3", { class: "good" }, "Lists with it win more" + suffix)),
+      h("div", { class: "rows" }, helps.map((r) => cardRow(r, ctx(r))))));
+    if (hurts.length) body.append(h("div", { class: "group" }, h("div", { class: "subhead" }, h("h3", { class: "bad" }, "Lists with it win less" + suffix)),
+      h("div", { class: "rows" }, hurts.map((r) => cardRow(r, ctx(r))))));
+  }
+
+  // ---------- deck view ----------
+  function cardSection(deck) {
+    const body = h("div", { style: "display:grid;gap:8px" });
+    const draw = () => {
+      body.replaceChildren();
+      const rows = cardRows(deck, state.board);
+      if (!rows) { body.append(h("div", { class: "empty" }, "Card breakdowns cover the 30 most played decks in this view.")); return; }
+      const compared = rows.filter((r) => r.delta != null);
+      const core = rows.filter((r) => r.delta == null && r.play >= 0.85);
+      const rare = rows.filter((r) => r.delta == null && r.play < 0.85);
+      if (!compared.length) suggestMore(body, "Not enough lists with and without each card (" + T.overall.min_decks + "+ lists and " + T.overall.min_matches + "+ matches on each side) to compare them yet.");
+      effectGroups(body, compared, (r) => "In " + pct(r.play) + " of lists · " + r.copies.toFixed(1) + " copies on average", "");
+      if (core.length) body.append(h("div", { class: "group" }, h("div", { class: "subhead" }, h("h3", null, "Core cards")),
+        h("p", { class: "note" }, "In almost every list, so there's nothing to compare them against."),
+        h("div", { class: "chips" }, core.map((r) => cardChip(r.card, h("b", null, Math.round(r.copies)), r.card)))));
+      if (rare.length) body.append(h("details", { class: "more" }, h("summary", null, rare.length + " more cards in too few lists to compare"),
+        h("div", { class: "chips", style: "margin-top:8px" }, rare.map((r) => cardChip(r.card, r.card + " · " + pct(r.play))))));
+    };
+    draw();
+    return h("section", { class: "card" }, h("header", null, h("h2", null, "Cards that move the win rate"),
+      h("p", { class: "note" }, "Win rate of " + deck.name + " lists with each card minus lists without it, in percentage points. Tap a matchup above for the same comparison against one opponent.")),
+      boardToggle(draw), body);
+  }
+
+  function renderDeck() {
+    const view = $("#deckView");
+    const deck = deckByName(state.deck);
+    if (!deck) {
+      view.replaceChildren(h("div", { class: "empty" }, h("span", null, state.deck + " isn't among the top decks in this view."),
+        h("button", { class: "linkbtn", type: "button", onclick: () => go("list") }, "Back to all decks")));
+      return;
+    }
+    const mus = matchups(deck);
+    const enough = mus.filter((m) => m.n >= MIN_MU), few = mus.filter((m) => m.n < MIN_MU);
+    const good = enough.filter((m) => m.wr >= 0.5).sort((a, b) => b.lo - a.lo);
+    const bad = enough.filter((m) => m.wr < 0.5).sort((a, b) => a.hi - b.hi);
+    const clearGood = good.filter((m) => m.lo > 0.5).length, clearBad = bad.filter((m) => m.hi < 0.5).length;
+
+    const hero = h("section", { class: "card hero" });
+    hero.style.setProperty("--hero-band", band(deck.color));
+    hero.append(
+      h("div", { class: "title" }, mana(deck.color, true), h("h1", null, deck.name)),
+      h("div", { class: "stats" },
+        h("div", { class: "stat" }, h("b", { class: "num" }, deck.matches ? pct(deck.wr) : "–"), h("span", null, deck.matches ? "win rate, " + ci(deck.lo, deck.hi) : "no matches")),
+        h("div", { class: "stat" }, h("b", { class: "num" }, pct(deck.share, 1)), h("span", null, "of decklists")),
+        h("div", { class: "stat" }, h("b", { class: "num" }, fmt(deck.matches)), h("span", null, "matches"))),
+      h("p", { class: "verdict" }, enough.length
+        ? ["Clearly ahead against ", h("b", null, String(clearGood)), clearGood === 1 ? " deck" : " decks", " and clearly behind against ", h("b", null, String(clearBad)), ". ",
+           String(enough.length - clearGood - clearBad), " more matchups lean one way but could still be even."]
+        : "Not enough matches against other top decks yet."));
+
+    const muSec = h("section", { class: "card" }, h("header", null, h("h2", null, "Matchups"),
+      h("p", { class: "note" }, "Most certain results first. Tap a matchup for the cards that matter in it.")));
+    if (!enough.length) suggestMore(muSec, "No matchup has " + MIN_MU + " or more matches in this view.");
+    const SHOW = 5;
+    const listGroup = (title, cls, items) => {
+      const g = h("div", { class: "group" },
+        h("div", { class: "subhead" }, h("h3", { class: cls }, title), h("span", { class: "count" }, items.length + (items.length === 1 ? " deck" : " decks"))),
+        h("div", { class: "rows" }, items.slice(0, SHOW).map((m) => matchupRow(deck, m))));
+      if (items.length > SHOW) g.append(h("details", { class: "more" },
+        h("summary", null, "Show " + (items.length - SHOW) + " more"),
+        h("div", { class: "rows" }, items.slice(SHOW).map((m) => matchupRow(deck, m)))));
+      return g;
+    };
+    if (good.length) muSec.append(listGroup("Good against", "good", good));
+    if (bad.length) muSec.append(listGroup("Bad against", "bad", bad));
+    if (enough.length) muSec.append(h("div", { class: "scale num", "aria-hidden": "true" }, h("span", null, "15%"), h("span", null, "50%"), h("span", null, "85%")));
+    if (few.length) muSec.append(h("details", { class: "more" }, h("summary", null, few.length + " matchups with fewer than " + MIN_MU + " matches"),
+      h("div", { class: "chips", style: "margin-top:8px" }, few.sort((a, b) => b.n - a.n).map((m) => h("span", { class: "chip" }, m.opp.name + " · " + record(m.wins, m.n))))));
+
+    view.replaceChildren(hero, muSec, cardSection(deck));
+  }
+
+  // ---------- matchup view ----------
+  function renderMatch() {
+    const view = $("#matchView");
+    const deck = deckByName(state.deck), opp = deckByName(state.opp);
+    const m = deck && opp ? matchups(deck).find((x) => x.opp.name === opp.name) : null;
+    if (!m) {
+      view.replaceChildren(h("div", { class: "empty" }, h("span", null, "No matches between " + state.deck + " and " + state.opp + " in this view."),
+        h("button", { class: "linkbtn", type: "button", onclick: () => (deck ? go("deck", state.deck) : go("list")) }, "Back")));
+      return;
+    }
+    const good = m.wr >= 0.5, sure = m.lo > 0.5 || m.hi < 0.5;
+    const verdict = sure ? (good ? "Clearly favored" : "Clearly behind") : (good ? "Leans favored, could be even" : "Leans behind, could be even");
+    const hero = h("section", { class: "card hero" });
+    hero.style.setProperty("--hero-band", band(deck.color));
+    hero.append(
+      h("span", { class: "eyebrow" }, "Matchup"),
+      h("div", { class: "title" }, mana(deck.color, true), h("h1", null, deck.name)),
+      h("div", { class: "vs" }, h("span", { class: "muted" }, "against"), mana(opp.color), h("b", null, opp.name)),
+      h("div", { class: "stats" },
+        h("div", { class: "stat" }, h("b", { class: "num" }, pct(m.wr)), h("span", null, "match win rate")),
+        h("div", { class: "stat" }, h("b", { class: "num" }, ci(m.lo, m.hi)), h("span", null, "95% interval")),
+        h("div", { class: "stat" }, h("b", { class: "num" }, record(m.wins, m.n)), h("span", null, "match record"))),
+      dbar(m.wr, m.lo, m.hi, 0.5, 0.35, verdict),
+      h("p", { class: "verdict" }, h("b", null, verdict + "."), " " + deck.name + " won " + record(m.wins, m.n) + " in " + m.n + " matches."),
+      h("button", { class: "linkbtn", type: "button", onclick: () => go("match", opp.name, deck.name) }, "See it from " + opp.name + "’s side"));
+
+    const body = h("div", { style: "display:grid;gap:8px" });
+    const draw = () => {
+      body.replaceChildren();
+      const overall = new Map((cardRows(deck, state.board) || []).map((r) => [r.card, r]));
+      const rows = matchupCards(deck, opp, state.board);
+      if (!rows.length) {
+        suggestMore(body, m.n < T.matchupTotal
+          ? "This matchup has " + m.n + " matches. Comparing cards in it needs at least " + T.matchupTotal + "."
+          : "No card is in enough lists on both sides (" + T.matchup.min_decks + "+ lists and " + T.matchup.min_matches + "+ matches each) to compare in this matchup.");
+        return;
+      }
+      effectGroups(body, rows, (r) => {
+        const o = overall.get(r.card);
+        return o && o.delta != null ? "Across all matchups: " + pts(o.delta) + " pts" : o ? "In " + pct(o.play) + " of lists" : "";
+      }, " here");
+    };
+    draw();
+    const sec = h("section", { class: "card" }, h("header", null, h("h2", null, "Cards in this matchup"),
+      h("p", { class: "note" }, deck.name + " lists with each card against lists without it, counting only matches against " + opp.name + ". Samples are small: trust big, Clear differences most.")),
+      boardToggle(draw), body);
+    view.replaceChildren(hero, sec);
+  }
+
+  // ---------- frame ----------
+  function render() {
+    const p = DATA.periods[state.period];
+    $("#filterLabel").textContent = (PERIODS[state.period] || state.period) + " · " + SCOPES[state.scope];
+    $("#filterShort").textContent = state.period + " · " + ({ combined: "All", paper: "Paper", online: "Online" })[state.scope];
+    $("#filterBtn").setAttribute("aria-label", "Data: " + $("#filterLabel").textContent);
+    document.body.dataset.view = state.view;
+    const back = $("#backBtn");
+    back.hidden = state.view === "list";
+    back.setAttribute("aria-label", state.view === "match" ? "Back to " + state.deck : "Back to all decks");
+    $("#barTitle").textContent = state.view === "list" ? "Pauper Meta Lab" : state.view === "deck" ? state.deck : state.deck + " vs " + state.opp;
+    $("#barSub").textContent = p.since + " to " + p.until;
+    $("#generated").textContent = "Data built " + DATA.generated + " from fbettega/MTG_decklistcache. Archetypes from MTGOFormatData.";
+    renderList();
+    if (state.view === "deck") renderDeck();
+    if (state.view === "match") renderMatch();
+  }
+  fromHash();
 })();
 </script>

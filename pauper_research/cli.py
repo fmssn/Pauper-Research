@@ -182,6 +182,8 @@ def main(argv: list[str] | None = None) -> None:
     dash.add_argument("--out", type=Path, default=REPORTS / "dashboard" / "index.html")
     dash.add_argument("--fragment", action="store_true",
                       help="leave out the html/head/body skeleton (for hosts that add their own)")
+    dash.add_argument("--images", choices=["url", "sheets", "none"], default="url",
+                      help="card images: link to Scryfall (default), bundle as image sheets next to the page, or none")
 
     default_since = (date.today() - timedelta(days=90)).isoformat()
     for name in ("report", "cards"):
@@ -206,7 +208,8 @@ def main(argv: list[str] | None = None) -> None:
         build()
         return
     if args.command == "dashboard":
-        print(f"Wrote {dashboard.write(_tables(), args.out, standalone=not args.fragment)}")
+        images = None if args.images == "none" else args.images
+        print(f"Wrote {dashboard.write(_tables(), args.out, standalone=not args.fragment, images=images)}")
         return
     scopes = list(analysis.SCOPES) if args.scope == "all" else [args.scope]
     for scope in scopes:
