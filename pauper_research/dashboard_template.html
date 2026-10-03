@@ -340,6 +340,11 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
       <div class="seg" id="scopeSeg" role="group" aria-label="Events"></div>
       <p class="note" id="scopeNote"></p>
     </div>
+    <div class="field">
+      <span class="eyebrow">Pilot skill</span>
+      <div class="seg" id="adjustSeg" role="group" aria-label="Pilot skill"></div>
+      <p class="note" id="adjustNote"></p>
+    </div>
     <div class="cov" id="sheetCov"></div>
     <button class="primary" value="close">Show results</button>
   </form>
@@ -380,7 +385,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
   };
   const state = {
     period: store.get("period", DATA.default_period), scope: store.get("scope", "combined"),
-    sort: store.get("sort", "share"), board: store.get("board", "main"), q: "",
+    sort: store.get("sort", "share"), board: store.get("board", "main"), adjust: store.get("adjust", true), q: "",
     view: "list", deck: null, opp: null,
   };
   if (!DATA.periods[state.period]) state.period = DATA.default_period;
@@ -425,6 +430,21 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     return [d - Math.sqrt((p1 - l1) ** 2 + (u2 - p2) ** 2), d + Math.sqrt((u1 - p1) ** 2 + (p2 - l2) ** 2)];
   }
 
+  // Pilot adjustment: subtract the average pilot lift and widen the interval by the lift's
+  // own uncertainty (bootstrap SD), in quadrature. Same as the Python side.
+  function rate(w, n, lift, sd) {
+    const p = w / n, [lo, hi] = wilson(w, n);
+    if (!state.adjust || lift == null) return [p, lo, hi];
+    const pa = p - lift, e = 1.959964 * (sd || 0);
+    return [pa, Math.max(0, pa - Math.hypot(p - lo, e)), Math.min(1, pa + Math.hypot(hi - p, e))];
+  }
+  function diff(wW, nW, wWo, nWo, liftW, liftWo, sd) {
+    const d = wW / nW - wWo / nWo, [lo, hi] = newcombe(wW, nW, wWo, nWo);
+    if (!state.adjust || liftW == null) return [d, lo, hi, wW / nW, wWo / nWo];
+    const da = d - (liftW - liftWo), e = 1.959964 * (sd || 0);
+    return [da, da - Math.hypot(d - lo, e), da + Math.hypot(hi - d, e), wW / nW - liftW, wWo / nWo - liftWo];
+  }
+
   function mana(color, large) {
     const box = h("span", { class: "mana" + (large ? " lg" : ""), title: color && color !== "C" ? color : "Colorless", "aria-hidden": "true" });
     (!color || color === "C" ? ["C"] : color.split("")).forEach((c) => {
@@ -454,36 +474,36 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
   // ---------- data access ----------
   const scope = () => DATA.periods[state.period].scopes[state.scope];
   function decks() {
-    return scope().archetypes.map(([name, color, nd, share, wins, matches], i) => {
-      const [lo, hi] = wilson(wins, matches);
-      return { i, name, color, decks: nd, share, wins, matches, wr: matches ? wins / matches : null, lo, hi };
+    return scope().archetypes.map(([name, color, nd, share, wins, matches, lift, sd], i) => {
+      const [wr, lo, hi] = matches ? rate(wins, matches, lift, sd) : [null, NaN, NaN];
+      return { i, name, color, decks: nd, share, wins, matches, wr, lo, hi, lift, raw: matches ? wins / matches : null };
     });
   }
   const deckByName = (name) => decks().find((d) => d.name === name);
   function matchups(deck) {
     const all = decks();
-    return (scope().mu[deck.i] || []).map(([o, w, n]) => {
-      const [lo, hi] = wilson(w, n);
-      return { opp: all[o], wins: w, n, wr: w / n, lo, hi };
+    return (scope().mu[deck.i] || []).map(([o, w, n, lift, sd]) => {
+      const [wr, lo, hi] = rate(w, n, lift, sd);
+      return { opp: all[o], wins: w, n, wr, lo, hi, lift, raw: w / n };
     });
   }
   function cardRows(deck, board) {
     const block = scope().cards[deck.i];
     if (!block) return null;
-    return (block[board] || []).map(([card, play, copies, dW, wW, nW, dWo, wWo, nWo]) => {
+    return (block[board] || []).map(([card, play, copies, dW, wW, nW, dWo, wWo, nWo, liftW, liftWo, sd]) => {
       const row = { card, play, copies };
       if (nW != null) {
-        Object.assign(row, { dW, nW, dWo, nWo, wrW: wW / nW, wrWo: wWo / nWo, delta: wW / nW - wWo / nWo });
-        [row.lo, row.hi] = newcombe(wW, nW, wWo, nWo);
+        Object.assign(row, { dW, nW, dWo, nWo });
+        [row.delta, row.lo, row.hi, row.wrW, row.wrWo] = diff(wW, nW, wWo, nWo, liftW, liftWo, sd);
       }
       return row;
     });
   }
   function matchupCards(deck, opp, board) {
     const b = board === "main" ? 0 : 1;
-    return ((scope().cardMu[deck.i] || {})[opp.i] || []).filter((r) => r[1] === b).map(([card, , dW, wW, nW, dWo, wWo, nWo]) => {
-      const [lo, hi] = newcombe(wW, nW, wWo, nWo);
-      return { card, dW, nW, dWo, nWo, wrW: wW / nW, wrWo: wWo / nWo, delta: wW / nW - wWo / nWo, lo, hi };
+    return ((scope().cardMu[deck.i] || {})[opp.i] || []).filter((r) => r[1] === b).map(([card, , dW, wW, nW, dWo, wWo, nWo, liftW, liftWo, sd]) => {
+      const [delta, lo, hi, wrW, wrWo] = diff(wW, nW, wWo, nWo, liftW, liftWo, sd);
+      return { card, dW, nW, dWo, nWo, wrW, wrWo, delta, lo, hi };
     });
   }
 
@@ -570,10 +590,16 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
   }
   function setPeriod(v) { state.period = v; store.set("period", v); }
   function setScope(v) { state.scope = v; store.set("scope", v); }
+  function setAdjust(v) { state.adjust = v; store.set("adjust", v); }
   function renderSheet() {
     seg($("#periodSeg"), Object.keys(DATA.periods).map((k) => [k, PERIODS[k] || k]), state.period, (v) => { setPeriod(v); renderSheet(); render(); });
     seg($("#scopeSeg"), Object.entries(SCOPES), state.scope, (v) => { setScope(v); renderSheet(); render(); });
     $("#scopeNote").textContent = SCOPE_NOTES[state.scope];
+    seg($("#adjustSeg"), [[true, "Adjusted"], [false, "Raw"]], state.adjust, (v) => { setAdjust(v); renderSheet(); render(); });
+    const pl = scope().pilot;
+    $("#adjustNote").textContent = state.adjust
+      ? "Win rates without the edge of stronger or weaker pilots. Player ratings come from the last 12 months of results (" + fmt(pl.rated) + " players with 10+ matches). Players are never shown."
+      : "Plain results. A deck favored by strong players looks better than it is.";
     const p = DATA.periods[state.period], c = scope().coverage;
     $("#sheetCov").replaceChildren(
       h("div", null, h("b", { class: "num" }, fmt(c.matches)), " matches with results · ", h("b", { class: "num" }, fmt(c.decks)), " decklists · ", fmt(c.events), " events"),
@@ -678,6 +704,15 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
       boardToggle(draw), body);
   }
 
+  function pilotNote(x) {
+    if (!state.adjust || x.lift == null || x.raw == null) return null;
+    const n = Math.round(Math.abs(x.lift * 100));
+    const size = n < 1 ? "less than 1 point" : n + (n === 1 ? " point" : " points");
+    const edge = Math.abs(x.lift) < 0.005 ? "about as strong as their opponents" : "stronger than their opponents, worth " + size;
+    const text = x.lift <= -0.005 ? "weaker than their opponents, costing " + size : edge;
+    return h("p", { class: "note" }, "Adjusted for pilot skill: its pilots were " + text + ". Raw win rate " + pct(x.raw) + ".");
+  }
+
   function renderDeck() {
     const view = $("#deckView");
     const deck = deckByName(state.deck);
@@ -700,6 +735,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
         h("div", { class: "stat" }, h("b", { class: "num" }, deck.matches ? pct(deck.wr) : "–"), h("span", null, deck.matches ? "win rate, " + ci(deck.lo, deck.hi) : "no matches")),
         h("div", { class: "stat" }, h("b", { class: "num" }, pct(deck.share, 1)), h("span", null, "of decklists")),
         h("div", { class: "stat" }, h("b", { class: "num" }, fmt(deck.matches)), h("span", null, "matches"))),
+      pilotNote(deck) || "",
       h("p", { class: "verdict" }, enough.length
         ? ["Clearly ahead against ", h("b", null, String(clearGood)), clearGood === 1 ? " deck" : " decks", " and clearly behind against ", h("b", null, String(clearBad)), ". ",
            String(enough.length - clearGood - clearBad), " more matchups lean one way but could still be even."]
@@ -750,6 +786,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
         h("div", { class: "stat" }, h("b", { class: "num" }, ci(m.lo, m.hi)), h("span", null, "95% interval")),
         h("div", { class: "stat" }, h("b", { class: "num" }, record(m.wins, m.n)), h("span", null, "match record"))),
       dbar(m.wr, m.lo, m.hi, 0.5, 0.35, verdict),
+      pilotNote(m) || "",
       h("p", { class: "verdict" }, h("b", null, verdict + "."), " " + deck.name + " won " + record(m.wins, m.n) + " in " + m.n + " matches."),
       h("button", { class: "linkbtn", type: "button", onclick: () => go("match", opp.name, deck.name) }, "See it from " + opp.name + "’s side"));
 
@@ -779,7 +816,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
   // ---------- frame ----------
   function render() {
     const p = DATA.periods[state.period];
-    $("#filterLabel").textContent = (PERIODS[state.period] || state.period) + " · " + SCOPES[state.scope];
+    $("#filterLabel").textContent = (PERIODS[state.period] || state.period) + " · " + SCOPES[state.scope] + (state.adjust ? "" : " · raw");
     $("#filterShort").textContent = state.period + " · " + ({ combined: "All", paper: "Paper", online: "Online" })[state.scope];
     $("#filterBtn").setAttribute("aria-label", "Data: " + $("#filterLabel").textContent);
     document.body.dataset.view = state.view;

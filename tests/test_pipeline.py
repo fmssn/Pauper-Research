@@ -180,3 +180,92 @@ def test_image_sheets(tmp_path, monkeypatch):
     assert index["cards"]["Card 10"] == [10 // per, 10 % per]
     last = Image.open(tmp_path / "out" / index["sheets"][-1]["file"])
     assert last.size == (scryfall.SHEET_COLS * 488, index["sheets"][-1]["rows"] * 680)
+
+
+def test_normalize_name():
+    from pauper_research.ratings import normalize_name
+    assert normalize_name(" Tim  Bunnik ") == normalize_name("tim bunnik") == "tim bunnik"
+    assert normalize_name("xXPeregrinoXx") == normalize_name("XxPeregrinoxX")
+    assert normalize_name(None) == ""
+
+
+def _confounded_matches(seed=3, n_players=200, n_events=120, per_event=16, rounds=4):
+    """Two equally strong decks, but the strongest players all register "Strong Pilots".
+    Lightning Bolt is played only by the strong players' lists."""
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    skill = rng.normal(0, 0.8, n_players)
+    strong = skill > np.quantile(skill, 0.75)
+    rows, decks, cards, did = [], [], [], 0
+    for e in range(n_events):
+        date = pd.Timestamp("2026-01-01") + pd.Timedelta(days=int(rng.integers(0, 240)))
+        players = rng.choice(n_players, per_event, replace=False)
+        deck = {}
+        for p in players:
+            arch = "Strong Pilots" if strong[p] or rng.random() < 0.15 else "Everyone"
+            deck[p] = (did, arch)
+            decks.append({"deck_id": did, "event_id": e, "date": date, "source": "MTGmelee", "player": f"P{p}",
+                          "archetype": arch})
+            cards.append({"deck_id": did, "card": "Lightning Bolt" if strong[p] else "Chain Lightning",
+                          "board": "main", "count": 4})
+            did += 1
+        for _ in range(rounds):
+            order = rng.permutation(players)
+            for a, b in zip(order[::2], order[1::2]):
+                s = float(rng.random() < 1 / (1 + np.exp(-(skill[a] - skill[b]))))
+                for me, opp, sc in ((a, b, s), (b, a, 1 - s)):
+                    rows.append({"event_id": e, "date": date, "source": "MTGmelee", "round": "R",
+                                 "player": f"P{me}", "opponent": f"P{opp}", "deck_id": deck[me][0],
+                                 "opp_deck_id": deck[opp][0], "score": sc,
+                                 "archetype": deck[me][1], "opp_archetype": deck[opp][1]})
+    return pd.DataFrame(rows), pd.DataFrame(decks), pd.DataFrame(cards)
+
+
+def test_pilot_adjustment_removes_pilot_edge():
+    from pauper_research import ratings
+    matches, decks, cards = _confounded_matches()
+    pilot = ratings.fit(matches, matches["date"].max(), bootstrap=5)
+    assert pilot.lam in ratings.LAMBDA_GRID and pilot.boot.shape == (len(matches), 5)
+    # Lifts are antisymmetric: every match's two sides cancel out.
+    assert pilot.lift.sum() == pytest.approx(0, abs=1e-6)
+
+    s = analysis.archetype_summary(decks, matches, pilot).set_index("archetype")
+    strong = s.loc["Strong Pilots"]
+    assert strong.win_rate > 0.55 and strong.pilot_lift > 0.03
+    # The decks are equally strong: adjusting moves the win rate towards 50%.
+    assert abs(strong.adj_win_rate - 0.5) < abs(strong.win_rate - 0.5)
+    assert s.loc["Everyone", "pilot_lift"] < 0
+    # The lift's own uncertainty makes the interval wider than the shifted Wilson interval.
+    assert strong.adj_ci_high - strong.adj_ci_low > strong.ci_high - strong.ci_low
+
+    mu = analysis.matchup_table(matches, pilot=pilot).set_index(["archetype", "opp_archetype"])
+    assert mu.loc[("Strong Pilots", "Everyone"), "pilot_lift"] == pytest.approx(
+        -mu.loc[("Everyone", "Strong Pilots"), "pilot_lift"])
+
+
+def test_card_effects_adjusted_for_pilots():
+    from pauper_research import ratings
+    matches, decks, cards = _confounded_matches()
+    pilot = ratings.fit(matches, matches["date"].max(), bootstrap=5)
+    eff = analysis.card_impact(decks, cards, matches, "Strong Pilots", min_decks=3, pilot=pilot).set_index("card")
+    bolt = eff.loc["Lightning Bolt"]
+    # Bolt "wins more" only because strong players play it; the adjustment shrinks that.
+    assert bolt.delta > 0.05 and bolt.lift_with > bolt.lift_without
+    assert bolt.delta_adj < bolt.delta
+    assert bolt.delta_adj_ci_low < bolt.delta_adj < bolt.delta_adj_ci_high
+    without_pilot = analysis.card_impact(decks, cards, matches, "Strong Pilots", min_decks=3)
+    assert "delta_adj" not in without_pilot.columns
+
+
+def test_dashboard_carries_pilot_lift():
+    from pauper_research import dashboard
+    matches, decks, cards = _confounded_matches()
+    events = decks.groupby("event_id").agg(date=("date", "first"), source=("source", "first")).reset_index()
+    decks = decks.assign(color="R")
+    tables = {"events": events, "decks": decks, "deck_cards": cards, "matches": matches}
+    data = dashboard.build_data(tables, bootstrap=3)
+    block = data["periods"]["180d"]["scopes"]["paper"]
+    by_name = {a[0]: a for a in block["archetypes"]}
+    assert by_name["Strong Pilots"][6] > 0 and by_name["Everyone"][6] < 0
+    assert block["pilot"]["rated"] > 0
+    assert all(len(m) == 5 for ms in block["mu"].values() for m in ms)

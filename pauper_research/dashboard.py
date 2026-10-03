@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import analysis
+from . import analysis, ratings
 from .archetypes import UNKNOWN
 
 TEMPLATE = Path(__file__).with_name("dashboard_template.html")
@@ -41,21 +41,26 @@ def _w(x: float):
     return int(x) if x.is_integer() else round(x, 1)
 
 
-def _scope_block(tables: dict[str, pd.DataFrame], colors: dict[str, str]) -> dict:
+def _scope_block(tables: dict[str, pd.DataFrame], colors: dict[str, str], pilot: ratings.PilotFit) -> dict:
+    """Every row carries the pilot lift (average, per match) and its bootstrap SD after the raw
+    counts, so the page can show raw or pilot-adjusted numbers. Card rows carry the lift with
+    and without the card and the SD of their difference."""
     decks, matches, events = tables["decks"], tables["matches"], tables["events"]
-    summary = analysis.archetype_summary(decks, matches)
+    summary = analysis.archetype_summary(decks, matches, pilot)
     summary = summary[summary["archetype"] != UNKNOWN].head(TOP_ARCHETYPES)
     names = list(summary["archetype"])
     idx = {n: i for i, n in enumerate(names)}
 
     archetypes = [[r.archetype, colors.get(r.archetype, ""), int(r.decks), _r(r.share),
-                   _w(0 if pd.isna(r.wins) else r.wins), int(r.matches)] for r in summary.itertuples()]
+                   _w(0 if pd.isna(r.wins) else r.wins), int(r.matches), _r(r.pilot_lift) or 0, _r(r.lift_sd) or 0]
+                  for r in summary.itertuples()]
 
     mu: dict[int, list] = {}
-    table = analysis.matchup_table(matches)
+    table = analysis.matchup_table(matches, pilot=pilot)
     table = table[table["archetype"].isin(idx) & table["opp_archetype"].isin(idx)]
     for r in table.itertuples():
-        mu.setdefault(idx[r.archetype], []).append([idx[r.opp_archetype], _w(r.wins), int(r.matches)])
+        mu.setdefault(idx[r.archetype], []).append([idx[r.opp_archetype], _w(r.wins), int(r.matches),
+                                                    _r(r.pilot_lift), _r(r.lift_sd)])
 
     cards: dict[int, dict] = {}
     card_mu: dict[int, dict] = {}
@@ -64,7 +69,7 @@ def _scope_block(tables: dict[str, pd.DataFrame], colors: dict[str, str]) -> dic
         plays = analysis.card_play_rates(decks, tables["deck_cards"], name)
         block = {}
         for b, board in enumerate(("main", "side")):
-            eff = analysis.card_effects(decks, tables["deck_cards"], matches, name, board, **OVERALL_MIN)
+            eff = analysis.card_effects(decks, tables["deck_cards"], matches, name, board, pilot=pilot, **OVERALL_MIN)
             eff = eff.set_index("card") if not eff.empty else pd.DataFrame()
             rows = []
             for p in plays[(plays["board"] == board) & (plays["play_rate"] >= MIN_PLAY_RATE)].itertuples():
@@ -72,12 +77,13 @@ def _scope_block(tables: dict[str, pd.DataFrame], colors: dict[str, str]) -> dic
                 if p.card in eff.index:
                     e = eff.loc[p.card]
                     row += [int(e.decks_with), _w(e.wins_with), int(e.matches_with),
-                            int(e.decks_without), _w(e.wins_without), int(e.matches_without)]
+                            int(e.decks_without), _w(e.wins_without), int(e.matches_without),
+                            _r(e.lift_with), _r(e.lift_without), _r(e.lift_sd)]
                 rows.append(row)
             block[board] = rows
 
             per_opp = analysis.card_effects(decks, tables["deck_cards"], matches, name, board,
-                                            by_opponent=True, **MATCHUP_MIN)
+                                            by_opponent=True, pilot=pilot, **MATCHUP_MIN)
             if per_opp.empty:
                 continue
             per_opp = per_opp[per_opp["opponent"].isin(idx)]
@@ -86,7 +92,8 @@ def _scope_block(tables: dict[str, pd.DataFrame], colors: dict[str, str]) -> dic
             for e in per_opp.itertuples():
                 card_mu.setdefault(i, {}).setdefault(idx[e.opponent], []).append([
                     e.card, b, int(e.decks_with), _w(e.wins_with), int(e.matches_with),
-                    int(e.decks_without), _w(e.wins_without), int(e.matches_without)])
+                    int(e.decks_without), _w(e.wins_without), int(e.matches_without),
+                    _r(e.lift_with), _r(e.lift_without), _r(e.lift_sd)])
         block["decks"] = int((decks["archetype"] == name).sum())
         cards[i] = block
 
@@ -98,15 +105,21 @@ def _scope_block(tables: dict[str, pd.DataFrame], colors: dict[str, str]) -> dic
         "coverage": {"events": len(events), "decks": len(decks), "matches": len(matches) // 2,
                      "by_source": by_source},
         "archetypes": archetypes, "mu": mu, "cards": cards, "cardMu": card_mu,
+        "pilot": {"players": pilot.players, "rated": pilot.rated},
     }
 
 
-def build_data(all_tables: dict[str, pd.DataFrame]) -> dict:
+def build_data(all_tables: dict[str, pd.DataFrame], bootstrap: int = ratings.BOOTSTRAP) -> dict:
     decks_all = all_tables["decks"]
     end = decks_all["date"].max().normalize()
     # Most common color per archetype, for the mana symbols.
     colors = decks_all.groupby("archetype")["color"].agg(lambda s: s.mode().iat[0] if not s.mode().empty else "")
     colors = colors.to_dict()
+
+    # All periods end on the same day, so one rating fit per scope serves all of them.
+    longest = end - timedelta(days=max(PERIODS.values()) - 1)
+    pilots = {s: ratings.fit_scope(all_tables, src, end, keep_since=longest, bootstrap=bootstrap)
+              for s, src in analysis.SCOPES.items()}
 
     periods = {}
     for key, days in PERIODS.items():
@@ -115,7 +128,7 @@ def build_data(all_tables: dict[str, pd.DataFrame]) -> dict:
                                                until=end.date().isoformat())
         periods[key] = {
             "since": since.date().isoformat(), "until": end.date().isoformat(),
-            "scopes": {s: _scope_block(analysis.filter_period(period_tables, scope=s), colors)
+            "scopes": {s: _scope_block(analysis.filter_period(period_tables, scope=s), colors, pilots[s])
                        for s in analysis.SCOPES},
         }
     return {"generated": pd.Timestamp.now(tz="UTC").strftime("%Y-%m-%d"), "periods": periods,
@@ -147,12 +160,12 @@ def render(data: dict, standalone: bool = True) -> str:
 
 
 def write(all_tables: dict[str, pd.DataFrame], out: Path, standalone: bool = True,
-          images: str | None = "url") -> Path:
+          images: str | None = "url", bootstrap: int = ratings.BOOTSTRAP) -> Path:
     """Write the page. `images`: "url" links to Scryfall, "sheets" writes image
     sheets to <out dir>/cards/ (for hosts that block other sites), None: no images."""
     from . import scryfall
 
-    data = build_data(all_tables)
+    data = build_data(all_tables, bootstrap)
     if images == "url":
         data["images"] = scryfall.url_index(card_names(data))
     elif images == "sheets":
