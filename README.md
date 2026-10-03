@@ -47,6 +47,10 @@ disagree. `--sources` still narrows further, e.g. `--sources MTGmelee`.
 python -m pauper_research dashboard      # -> reports/dashboard/index.html
 ```
 
+**Live version:** <https://fmssn.github.io/Pauper-Research/>, rebuilt daily from
+the latest data by [`.github/workflows/dashboard.yml`](.github/workflows/dashboard.yml)
+(also on every push to `main`, or by hand under Actions → Dashboard → Run workflow).
+
 One self-contained, mobile-first HTML page (open it in a browser, no server
 needed). The flow is: pick a deck, see what it's good and bad against, then
 see which cards move its win rate, overall and against a specific opponent.
