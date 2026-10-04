@@ -269,3 +269,24 @@ def test_dashboard_carries_pilot_lift():
     assert by_name["Strong Pilots"][6] > 0 and by_name["Everyone"][6] < 0
     assert block["pilot"]["rated"] > 0
     assert all(len(m) == 5 for ms in block["mu"].values() for m in ms)
+
+
+def test_methods_page_in_sync():
+    """Every value the methods page shows is filled by the page script, and every
+    model setting it documents comes from the build data."""
+    import re
+    from pauper_research import dashboard, ratings
+    template = dashboard.TEMPLATE.read_text(encoding="utf-8")
+    shown = set(re.findall(r'data-k="(\w+)"', template))
+    script = template[template.index("function renderMethods"):template.index("function typeset")]
+    filled = set(re.findall(r"(\w+):", script[script.index("const vals"):]))
+    assert shown and shown <= filled, f"methods page shows values nobody fills: {shown - filled}"
+    for section in ("m-results", "m-share", "m-winrate", "m-wilson", "m-labels", "m-cards", "m-pilot", "m-thresholds"):
+        assert f'id="{section}"' in template
+    matches, decks, cards = _confounded_matches(n_events=30)
+    events = decks.groupby("event_id").agg(date=("date", "first"), source=("source", "first")).reset_index()
+    data = dashboard.build_data({"events": events, "decks": decks.assign(color="R"), "deck_cards": cards,
+                                 "matches": matches}, bootstrap=0)
+    assert data["methods"]["lambda_grid"] == list(ratings.LAMBDA_GRID)
+    assert data["methods"]["half_life_days"] == ratings.HALF_LIFE_DAYS
+    assert data["periods"]["180d"]["scopes"]["paper"]["pilot"]["lam"] in ratings.LAMBDA_GRID
