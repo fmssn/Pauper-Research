@@ -51,11 +51,15 @@ python -m pauper_research dashboard      # -> reports/dashboard/index.html
 the latest data by [`.github/workflows/dashboard.yml`](.github/workflows/dashboard.yml)
 (also on every push to `main`, or by hand under Actions → Dashboard → Run workflow).
 
-One self-contained, mobile-first HTML page (open it in a browser, no server
-needed). The flow is: pick a deck, see what it's good and bad against, then
-see which cards move its win rate, overall and against a specific opponent.
+One self-contained HTML page (open it in a browser, no server needed). The
+flow is: pick a deck, see what it's good and bad against, then see which cards
+move its win rate, overall and against a specific opponent. On phones the views
+stack; from 1024px wide the deck list is a sidebar, the filters sit in the top
+bar and matchup and card rows fit on one line.
 
 - **Decks:** every top archetype with meta share and win rate. Search and sort.
+- **Metagame chart** (desktop): meta share (log scale) against win rate with
+  its 95% interval for every deck with 30+ matches. Click a dot to open the deck.
 - **Deck page:** good and bad matchups, most certain first, each with its 95%
   interval and a Clear / Lean label; then the cards whose lists win more or less.
 - **Matchup page:** the head-to-head record, plus card comparisons counting

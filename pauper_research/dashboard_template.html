@@ -1,40 +1,38 @@
 <title>Pauper Meta Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..800&family=Public+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: mobile-first scouting app. One column of stacked views (decks -> deck -> matchup);
-   from 960px the deck list stays docked on the left and the selected deck fills the right. */
+/* Layout: mobile-first. One column of stacked views (decks -> deck -> matchup).
+   From 1024px the deck list is a sidebar on the left, the filters sit in the top bar,
+   and the right side shows the metagame chart or the selected deck. */
 :root {
-  --bg: #eef0f3;
-  --surface: #ffffff;
-  --sunken: #f6f7f9;
-  --ink: #14161a;
-  --ink-2: #464b54;
-  --muted: #767c86;
-  --line: #e2e5ea;
-  --line-strong: #c9cdd4;
+  --bg: #ffffff;
+  --sunken: #f4f5f6;
+  --hover: #eef0f2;
+  --ink: #111316;
+  --ink-2: #454b54;
+  --muted: #6b717a;
+  --line: #e6e8eb;
+  --line-strong: #cfd3d8;
   --good: #2a78d6;
   --bad: #e34948;
+  --neutral: #9ba1a9;
   --focus: #2a78d6;
-  --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
-  --font-body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mana-W: #f4eed2; --mana-U: #a9cdea; --mana-B: #b7aca3; --mana-R: #ec9f80; --mana-G: #9cc598; --mana-C: #d3d5d9;
   --mana-ink: #1c1c1a;
-  --shadow: 0 1px 2px rgba(20, 22, 26, 0.06), 0 4px 16px rgba(20, 22, 26, 0.06);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0d0f12; --surface: #171a1f; --sunken: #1f232a; --ink: #f2f3f5; --ink-2: #c2c6cd; --muted: #8b919b;
-    --line: #2a2f37; --line-strong: #3b414b; --good: #4b93ea; --bad: #ec6b6a;
-    --focus: #5598e7; --shadow: none;
+    --bg: #141517; --sunken: #1d1f22; --hover: #24272b; --ink: #f1f2f3; --ink-2: #c3c7cd; --muted: #8d939c;
+    --line: #2a2d32; --line-strong: #3b3f46; --good: #3987e5; --bad: #e66767; --neutral: #6f757e; --focus: #5598e7;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0d0f12; --surface: #171a1f; --sunken: #1f232a; --ink: #f2f3f5; --ink-2: #c2c6cd; --muted: #8b919b;
-  --line: #2a2f37; --line-strong: #3b414b; --good: #4b93ea; --bad: #ec6b6a;
-  --focus: #5598e7; --shadow: none;
+  --bg: #141517; --sunken: #1d1f22; --hover: #24272b; --ink: #f1f2f3; --ink-2: #c3c7cd; --muted: #8d939c;
+  --line: #2a2d32; --line-strong: #3b3f46; --good: #3987e5; --bad: #e66767; --neutral: #6f757e; --focus: #5598e7;
   color-scheme: dark;
 }
 
@@ -42,55 +40,62 @@
 html { -webkit-text-size-adjust: 100%; }
 body {
   background: var(--bg); color: var(--ink); margin: 0;
-  font: 16px/1.45 var(--font-body);
-  padding-inline: 0; padding-block: 0 40px;
+  font: 16px/1.45 var(--font);
+  padding-block: 0 40px;
   -webkit-tap-highlight-color: transparent;
 }
 button { font: inherit; color: inherit; }
 button, a, input { touch-action: manipulation; }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
-h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+h1, h2, h3 { font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: -0.005em; }
 p { margin: 0; }
 .num { font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
-.eyebrow {
-  font: 700 12px/1.2 var(--font-display); font-stretch: 112%; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--muted);
-}
+.label { font-size: 13px; font-weight: 500; color: var(--muted); }
 
 /* App bar */
 .bar {
   position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10;
   display: flex; align-items: center; gap: 8px; min-height: 56px;
   padding-inline: 8px 12px; padding-block: 6px;
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: saturate(1.4) blur(10px); -webkit-backdrop-filter: saturate(1.4) blur(10px);
-  border-bottom: 1px solid var(--line);
+  background: var(--bg); border-bottom: 1px solid var(--line);
 }
 .bar-title { flex: 1; min-width: 0; display: grid; padding-left: 8px; }
-.bar-title b {
-  font: 800 18px/1.15 var(--font-display); font-stretch: 108%;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+.bar-title b { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bar-title span { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .iconbtn {
-  width: 44px; height: 44px; border-radius: 22px; border: 0; background: transparent;
+  width: 40px; height: 40px; border-radius: 6px; border: 0; background: transparent;
   display: grid; place-items: center; cursor: pointer; flex: none;
 }
-.iconbtn:hover { background: var(--line); }
-.iconbtn svg { width: 22px; height: 22px; stroke: var(--ink); fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.iconbtn[hidden] { display: none; }
+.iconbtn:hover { background: var(--hover); }
+.iconbtn svg { width: 20px; height: 20px; stroke: var(--ink); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .chipbtn {
-  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; flex: none;
-  border-radius: 18px; border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer;
-  font: 700 13px/1 var(--font-display); font-stretch: 105%;
+  display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; flex: none;
+  border-radius: 6px; border: 1px solid var(--line-strong); background: var(--bg); cursor: pointer;
+  font-size: 14px; font-weight: 500;
 }
+.chipbtn:hover { background: var(--hover); }
 .chipbtn .short { display: none; }
 @media (max-width: 520px) { .chipbtn .long { display: none; } .chipbtn .short { display: inline; } }
-.chipbtn svg { width: 16px; height: 16px; stroke: var(--ink-2); fill: none; stroke-width: 2.2; stroke-linecap: round; }
+.chipbtn svg { width: 16px; height: 16px; stroke: var(--ink-2); fill: none; stroke-width: 2; stroke-linecap: round; }
+.barfilters { display: none; align-items: center; gap: 20px; }
+.barfilters .grp { display: flex; align-items: center; gap: 8px; }
+
+/* Segmented control */
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; }
+.seg button {
+  border: 0; border-left: 1px solid var(--line-strong); background: transparent; padding: 0 12px; height: 34px; cursor: pointer;
+  font-size: 14px; font-weight: 500; color: var(--ink-2); white-space: nowrap;
+}
+.seg button:first-child { border-left: 0; }
+.seg button:hover { background: var(--hover); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.barfilters .seg button { height: 30px; padding: 0 10px; font-size: 13px; }
 
 /* Views */
-.app { max-width: 1200px; margin: 0 auto; }
-.view { padding-inline: 16px; padding-block: 16px 0; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.app { max-width: 1440px; margin: 0 auto; }
+.view { padding-inline: 16px; padding-block: 20px 0; display: grid; gap: 24px; align-content: start; min-width: 0; }
 body[data-view="list"] #deckView, body[data-view="list"] #matchView,
 body[data-view="deck"] #listView, body[data-view="deck"] #matchView,
 body[data-view="match"] #listView, body[data-view="match"] #deckView { display: none; }
@@ -99,184 +104,238 @@ body[data-view="match"] #listView, body[data-view="match"] #deckView { display: 
 body[data-view="methods"] #listView, body[data-view="methods"] #deckView, body[data-view="methods"] #matchView { display: none; }
 body[data-view="methods"] #methodsView { display: grid; }
 
-@media (min-width: 960px) {
-  .app { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 0 24px; padding-inline: 16px; }
-  .view { padding-inline: 0; }
+@media (min-width: 1024px) {
+  body { font-size: 15px; }
+  .bar { padding-inline: 16px 24px; }
+  .barfilters { display: flex; }
+  #filterBtn { display: none; }
+  .app { display: grid; grid-template-columns: 320px minmax(0, 1fr); padding-inline: 24px; }
+  .view { padding-inline: 32px 0; padding-top: 28px; }
   body[data-view] #listView { display: grid; }
-  #listView { position: sticky; top: 64px; max-height: calc(100vh - 64px); overflow-y: auto; padding-right: 6px; padding-bottom: 24px; }
-  body[data-view="list"] #emptyDetail { display: grid; place-items: center; min-height: 60vh; color: var(--muted); text-align: center; }
-  body[data-view="deck"] .bar .iconbtn { visibility: hidden; }
+  #listView {
+    position: sticky; top: 57px; max-height: calc(100vh - 57px); overflow-y: auto;
+    padding: 20px 20px 24px 0; border-right: 1px solid var(--line); gap: 16px;
+  }
+  body[data-view="list"] #emptyDetail { display: grid; }
+  body[data-view="deck"] .bar .iconbtn { display: none; }
   body[data-view="methods"] #listView, body[data-view="methods"] #emptyDetail { display: none; }
-  body[data-view="methods"] #methodsView { grid-column: 1 / -1; max-width: 860px; width: 100%; justify-self: center; }
+  body[data-view="methods"] #methodsView { grid-column: 1 / -1; max-width: 760px; width: 100%; justify-self: center; padding-inline: 0; }
+  #deckView, #matchView, #emptyDetail { max-width: 1000px; }
 }
+@media (min-width: 1200px) { .app { grid-template-columns: 380px minmax(0, 1fr); } }
+
+/* Sections: separated by rules, not boxes */
+.card { display: grid; gap: 14px; min-width: 0; padding-top: 24px; border-top: 1px solid var(--line); }
+.card > header { display: grid; gap: 4px; }
+.card h2 { font-size: 18px; }
+.card > .seg { justify-self: start; }
+.hero > .dbar { max-width: 640px; }
+.note { font-size: 14px; color: var(--ink-2); max-width: 72ch; }
 
 /* Methods */
-.methods h2 { font-size: 21px; font-weight: 800; font-stretch: 106%; }
-.methods h3 { font-size: 16px; font-weight: 800; font-stretch: 104%; }
+.methods h2 { font-size: 18px; }
+.methods h3 { font-size: 15px; }
 .methods p, .methods li { color: var(--ink-2); font-size: 15px; max-width: 68ch; }
 .methods ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
 .methods .eq { overflow-x: auto; overflow-y: hidden; padding: 4px 0; color: var(--ink); font-size: 15px; }
 .methods .where { font-size: 14px; color: var(--muted); }
-.methods code { font: 13px/1.4 ui-monospace, "SFMono-Regular", Menlo, monospace; background: var(--sunken); border-radius: 5px; padding: 1px 5px; }
+.methods code { font: 13px/1.4 ui-monospace, "SFMono-Regular", Menlo, monospace; background: var(--sunken); border-radius: 4px; padding: 1px 5px; }
 .methods table { border-collapse: collapse; font-size: 14px; width: 100%; }
 .methods th, .methods td { text-align: left; padding: 7px 10px 7px 0; border-top: 1px solid var(--line); vertical-align: top; }
-.methods th { font: 700 12px/1.2 var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.methods th { font-size: 13px; font-weight: 500; color: var(--muted); }
 .methods .tablewrap { overflow-x: auto; }
 .methods .toc { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
 .methods a { color: var(--good); }
 
-
 /* Deck list */
 .intro { display: grid; gap: 6px; }
-.intro h1 { font-size: 30px; font-weight: 800; font-stretch: 110%; line-height: 1.05; letter-spacing: -0.01em; }
+.intro h1 { font-size: 26px; line-height: 1.15; }
 .intro p { color: var(--ink-2); max-width: 46ch; }
+@media (min-width: 1024px) {
+  #listView .intro h1 { font-size: 20px; }
+  #listView .intro p { font-size: 14px; }
+}
 .search { position: relative; display: block; }
 .search input {
-  width: 100%; height: 46px; border-radius: 12px; border: 1px solid var(--line-strong);
-  background: var(--surface); color: var(--ink); font: 16px var(--font-body); padding: 0 14px 0 40px;
+  width: 100%; height: 40px; border-radius: 6px; border: 1px solid var(--line-strong);
+  background: var(--bg); color: var(--ink); font: 16px var(--font); padding: 0 12px 0 36px;
 }
-.search svg { position: absolute; left: 13px; top: 14px; width: 18px; height: 18px; stroke: var(--muted); fill: none; stroke-width: 2.2; stroke-linecap: round; }
-.seg { display: inline-flex; padding: 3px; border-radius: 12px; background: var(--line); gap: 2px; }
-.seg button {
-  border: 0; background: transparent; border-radius: 9px; padding: 0 14px; height: 36px; cursor: pointer;
-  font: 700 14px/1 var(--font-display); font-stretch: 105%; color: var(--ink-2);
-}
-.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.search svg { position: absolute; left: 11px; top: 11px; width: 18px; height: 18px; stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round; }
+@media (min-width: 1024px) { .search input { font-size: 14px; height: 36px; } .search svg { top: 9px; } }
 .listhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.listhead .seg button { height: 30px; font-size: 13px; padding: 0 10px; }
 
-.decks { display: grid; background: var(--surface); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+.decks { display: grid; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); flex: none; }
 .deckrow {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
-  min-height: 64px; padding: 10px 14px 10px 8px; border: 0; border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: 1.6em minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  min-height: 56px; padding: 8px 8px 8px 4px; border: 0; border-top: 1px solid var(--line);
   background: transparent; text-align: left; cursor: pointer; width: 100%;
 }
 .deckrow:first-child { border-top: 0; }
-.deckrow:hover { background: var(--sunken); }
-.deckrow[aria-current="true"] { background: color-mix(in srgb, var(--focus) 12%, var(--surface)); }
-.deckrow .name { font: 700 16px/1.2 var(--font-display); font-stretch: 104%; }
+.deckrow:hover { background: var(--hover); }
+.deckrow[aria-current="true"] { background: var(--sunken); box-shadow: inset 2px 0 0 var(--ink); }
+.deckrow .name { font-size: 15px; font-weight: 600; line-height: 1.25; }
 .deckrow .meta { font-size: 13px; color: var(--muted); }
-.deckrow .wr { display: grid; justify-items: end; gap: 4px; }
-.deckrow .wr b { font: 800 18px/1 var(--font-display); }
-.rank { font: 700 13px var(--font-display); color: var(--muted); width: 1.7em; text-align: right; }
+.deckrow .wr { display: grid; justify-items: end; gap: 3px; }
+.deckrow .wr b { font-size: 16px; font-weight: 600; }
+.rank { font-size: 13px; color: var(--muted); text-align: right; }
+@media (min-width: 1024px) {
+  .deckrow { min-height: 46px; padding-block: 6px; }
+  .deckrow .name { font-size: 14px; }
+  .deckrow .meta { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .deckrow .wr b { font-size: 14px; }
+}
 
 /* Mana symbols */
-.mana { display: inline-flex; gap: 3px; flex: none; }
+.mana { display: inline-flex; gap: 2px; flex: none; }
 .mana i {
-  width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; font-style: normal;
-  font: 800 10px/1 var(--font-display); color: var(--mana-ink); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+  width: 16px; height: 16px; border-radius: 50%; display: inline-grid; place-items: center;
+  font: 600 9px/1 var(--font); font-style: normal; color: var(--mana-ink); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
 }
-.mana.lg i { width: 26px; height: 26px; font-size: 13px; }
+.mana.lg i { width: 22px; height: 22px; font-size: 11px; }
 .deckcell { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .deckcell > div { min-width: 0; }
 
-/* Surfaces */
-.card { background: var(--surface); border-radius: 16px; box-shadow: var(--shadow); padding: 16px; display: grid; gap: 14px; min-width: 0; }
-.card > header { display: grid; gap: 4px; }
-.card h2 { font-size: 21px; font-weight: 800; font-stretch: 106%; }
-.note { font-size: 14px; color: var(--ink-2); }
-
-/* Deck hero */
-.hero { position: relative; overflow: hidden; padding-top: 22px; }
-.hero::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 6px; background: var(--hero-band, var(--line)); }
-.hero h1 { font-size: 30px; font-weight: 800; font-stretch: 110%; line-height: 1.05; letter-spacing: -0.01em; }
+/* Deck / matchup header */
+.hero { display: grid; gap: 14px; }
+.hero h1 { font-size: 26px; line-height: 1.15; }
 .hero .title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.stat { background: var(--sunken); border-radius: 12px; padding: 10px 12px; display: grid; gap: 2px; min-width: 0; align-content: start; }
-.stat b { font: 800 22px/1.1 var(--font-display); font-stretch: 104%; white-space: nowrap; }
-.stat span { font-size: 12px; color: var(--muted); }
-.verdict { font-size: 15px; color: var(--ink-2); }
-.verdict b { color: var(--ink); }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.stat { display: grid; gap: 2px; min-width: 0; align-content: start; }
+.stat b { font-size: 24px; font-weight: 600; line-height: 1.15; white-space: nowrap; }
+.stat span { font-size: 13px; color: var(--muted); }
+@media (min-width: 1024px) {
+  .hero h1 { font-size: 28px; }
+  .stats { display: flex; gap: 0; }
+  .stat { padding: 0 28px; border-left: 1px solid var(--line); }
+  .stat:first-child { padding-left: 0; border-left: 0; }
+}
+.verdict { font-size: 15px; color: var(--ink-2); max-width: 72ch; }
+.verdict b { color: var(--ink); font-weight: 600; }
 .vs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.vs b { font: 800 20px/1.2 var(--font-display); font-stretch: 106%; }
+.vs b { font-size: 18px; font-weight: 600; }
 
-/* Rows with bars (matchups, cards) */
+/* Rows with bars (matchups, cards). Mobile: name | value, bar below.
+   Desktop: one line, name | bar | value. */
 .rows { display: grid; }
 .row {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; align-items: center;
-  padding: 12px 0; border: 0; border-top: 1px solid var(--line); text-align: left; width: 100%; background: transparent;
+  padding: 10px 0; border: 0; border-top: 1px solid var(--line); text-align: left; width: 100%; background: transparent;
 }
 .row:first-child { border-top: 0; }
 button.row { cursor: pointer; }
+button.row:hover { background: var(--hover); }
 button.row:hover .rname { text-decoration: underline; text-underline-offset: 3px; }
-.rname { font: 700 15px/1.25 var(--font-display); font-stretch: 103%; min-width: 0; }
+.rname { font-size: 15px; font-weight: 600; line-height: 1.25; min-width: 0; }
 .rsub { font-size: 13px; color: var(--muted); }
-.rval { display: flex; align-items: center; gap: 8px; justify-self: end; }
-.rval b { font: 800 20px/1 var(--font-display); min-width: 2.4em; text-align: right; }
+.rval { display: flex; align-items: center; gap: 10px; justify-self: end; }
+.rval b { font-size: 17px; font-weight: 600; min-width: 2.6em; text-align: right; }
 .rbar { grid-column: 1 / -1; }
-.chev { width: 18px; height: 18px; stroke: var(--muted); fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-.tag {
-  font: 700 11px/1 var(--font-display); font-stretch: 108%; text-transform: uppercase; letter-spacing: 0.06em;
-  padding: 4px 7px; border-radius: 6px; white-space: nowrap;
+.row .ph { display: none; }
+.chev { width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tag { font-size: 12px; font-weight: 600; white-space: nowrap; min-width: 2.6em; }
+.tag.clear.good { color: var(--good); }
+.tag.clear.bad { color: var(--bad); }
+.tag.lean { color: var(--muted); font-weight: 500; }
+.scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.row.scalerow { padding-top: 4px; border-top: 1px solid var(--line); }
+@media (min-width: 1024px) {
+  .row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 9.5em; gap: 4px 20px; padding: 8px 6px; }
+  .row > :first-child { grid-column: 1; }
+  .row > .rbar { grid-column: 2; grid-row: 1; }
+  .row > .rval { grid-column: 3; grid-row: 1; }
+  .row .ph { display: block; }
+  .rname { font-size: 14px; }
+  .rsub { font-size: 12px; }
+  .rval b { font-size: 15px; }
 }
-.tag.clear.good { background: var(--good); color: #fff; }
-.tag.clear.bad { background: var(--bad); color: #fff; }
-.tag.lean { box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--muted); }
 
 /* Diverging bar: centre line = 50% (or 0 pts), fill to the value, whisker = 95% interval */
 .dbar { position: relative; height: 18px; }
-.dbar .track { position: absolute; left: 0; right: 0; top: 7px; height: 4px; border-radius: 2px; background: var(--line); }
-.dbar .mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--line-strong); }
-.dbar .fill { position: absolute; top: 5px; height: 8px; border-radius: 4px; }
+.dbar .track { position: absolute; left: 0; right: 0; top: 8px; height: 2px; background: var(--line); }
+.dbar .mid { position: absolute; left: 50%; top: 1px; bottom: 1px; width: 1px; background: var(--line-strong); }
+.dbar .fill { position: absolute; top: 5px; height: 8px; border-radius: 2px; }
 .dbar .ci { position: absolute; top: 8px; height: 2px; background: currentColor; opacity: 0.6; }
-.dbar .ci::before, .dbar .ci::after { content: ""; position: absolute; top: -4px; width: 2px; height: 10px; background: currentColor; }
+.dbar .ci::before, .dbar .ci::after { content: ""; position: absolute; top: -3px; width: 1.5px; height: 8px; background: currentColor; }
 .dbar .ci::before { left: 0; } .dbar .ci::after { right: 0; }
 .dbar.good { color: var(--good); } .dbar.good .fill { background: var(--good); }
 .dbar.bad { color: var(--bad); } .dbar.bad .fill { background: var(--bad); }
-.dbar.unsure .fill { opacity: 0.45; }
-.scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.dbar.unsure .fill { opacity: 0.4; }
 
-.empty { padding: 14px; border-radius: 12px; background: var(--sunken); color: var(--ink-2); font-size: 14px; display: grid; gap: 10px; justify-items: start; }
+.empty { padding: 14px; border-radius: 6px; background: var(--sunken); color: var(--ink-2); font-size: 14px; display: grid; gap: 10px; justify-items: start; }
 .linkbtn {
-  border: 0; background: none; padding: 6px 0; color: var(--good); font-weight: 600; cursor: pointer;
+  border: 0; background: none; padding: 4px 0; color: var(--good); font-weight: 500; cursor: pointer;
   text-decoration: underline; text-underline-offset: 3px; text-align: left; justify-self: start;
 }
 details.more > summary {
-  list-style: none; cursor: pointer; padding: 10px 0 0; color: var(--ink-2); font-weight: 600; font-size: 14px;
+  list-style: none; cursor: pointer; padding: 10px 0 0; color: var(--ink-2); font-weight: 500; font-size: 14px;
 }
 details.more > summary::-webkit-details-marker { display: none; }
 details.more > summary::before { content: "+ "; }
 details.more[open] > summary::before { content: "− "; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { padding: 5px 10px; border-radius: 8px; background: var(--sunken); font-size: 13px; }
-.chip b { font-variant-numeric: tabular-nums; margin-right: 4px; }
-.subhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.subhead h3 { font-size: 14px; font-weight: 800; font-stretch: 110%; text-transform: uppercase; letter-spacing: 0.06em; }
+.chip { padding: 4px 9px; border-radius: 4px; background: var(--sunken); font-size: 13px; }
+.chip b { font-variant-numeric: tabular-nums; font-weight: 600; margin-right: 4px; }
+.subhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding-bottom: 4px; border-bottom: 1px solid var(--line-strong); }
+.subhead h3 { font-size: 14px; }
 .subhead h3.good { color: var(--good); } .subhead h3.bad { color: var(--bad); }
 .subhead .count { font-size: 13px; color: var(--muted); }
-.group { display: grid; gap: 4px; }
-.group + .group { margin-top: 8px; }
-.compare { font-size: 13px; color: var(--ink-2); grid-column: 1 / -1; }
+.group { display: grid; gap: 2px; }
+.group + .group { margin-top: 16px; }
+.compare { font-size: 12px; color: var(--muted); grid-column: 1 / -1; }
 
-.howto { gap: 8px; font-size: 14px; color: var(--ink-2); }
+.howto { gap: 10px; font-size: 14px; color: var(--ink-2); }
+.howto h2 { font-size: 16px; }
 .howto ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.howto b { color: var(--ink); font-weight: 600; }
 
-/* Filter sheet */
+/* Metagame chart */
+.overview { position: relative; }
+.overview svg { display: block; width: 100%; overflow: visible; }
+.overview text { font: 12px var(--font); fill: var(--muted); font-variant-numeric: tabular-nums; }
+.overview .lbl { fill: var(--ink-2); }
+.overview .grid { stroke: var(--line); }
+.overview .axis50 { stroke: var(--line-strong); }
+.overview .pt { cursor: pointer; }
+.overview .pt:focus { outline: none; }
+.overview .pt:focus-visible .dot, .overview .pt:hover .dot { stroke: var(--ink); }
+.overview .dot { stroke: var(--bg); stroke-width: 2; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--ink-2); }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+.tip {
+  position: absolute; pointer-events: none; z-index: 2; min-width: 170px;
+  background: var(--bg); border: 1px solid var(--line-strong); border-radius: 6px; padding: 8px 10px;
+  font-size: 13px; line-height: 1.4; color: var(--ink-2); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+.tip b { color: var(--ink); font-weight: 600; display: block; }
+
+/* Filter sheet (mobile) */
 dialog.sheet {
-  border: 0; padding: 0; width: 100%; max-width: 520px; margin: auto auto 0; border-radius: 20px 20px 0 0;
-  background: var(--surface); color: var(--ink); max-height: 90vh;
+  border: 0; padding: 0; width: 100%; max-width: 520px; margin: auto auto 0; border-radius: 12px 12px 0 0;
+  background: var(--bg); color: var(--ink); max-height: 90vh;
 }
 dialog.sheet::backdrop { background: rgba(10, 12, 15, 0.45); }
-@media (min-width: 600px) { dialog.sheet { margin: auto; border-radius: 20px; } }
+@media (min-width: 600px) { dialog.sheet { margin: auto; border-radius: 12px; } }
 .sheet-body { padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 18px; }
-.sheet-body h2 { font-size: 22px; font-weight: 800; font-stretch: 108%; }
+.sheet-body h2 { font-size: 20px; }
 .field { display: grid; gap: 8px; }
 .field .seg { display: flex; }
-.field .seg button { flex: 1; }
+.field .seg button { flex: 1; height: 38px; }
 .cov { font-size: 14px; color: var(--ink-2); display: grid; gap: 4px; }
 .primary {
-  height: 48px; border: 0; border-radius: 12px; background: var(--ink); color: var(--surface);
-  font: 800 16px var(--font-display); font-stretch: 106%; cursor: pointer;
+  height: 46px; border: 0; border-radius: 6px; background: var(--ink); color: var(--bg);
+  font-size: 16px; font-weight: 600; cursor: pointer;
 }
 /* Card images */
 .eye {
-  flex: none; width: 36px; height: 36px; margin: -6px 0 -6px -6px; border: 0; border-radius: 18px;
+  flex: none; width: 32px; height: 32px; margin: -6px 0 -6px -6px; border: 0; border-radius: 6px;
   background: transparent; display: inline-grid; place-items: center; cursor: pointer;
 }
-.eye:hover { background: var(--line); }
-.eye svg, .chip svg { width: 18px; height: 18px; stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.eye:hover { background: var(--hover); }
+.eye svg, .chip svg { width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .cardname { display: flex; align-items: center; gap: 4px; min-width: 0; }
 button.chip { border: 0; color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; }
-button.chip:hover { background: var(--line); }
+button.chip:hover { background: var(--hover); }
 dialog.viewer {
   border: 0; padding: 0; margin: 0; width: 100%; height: 100%; max-width: none; max-height: none;
   background: rgba(8, 9, 11, 0.94); color: #f2f3f5;
@@ -293,7 +352,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
   color: #9aa0a8; font-size: 14px; text-align: center; padding: 16px;
 }
 .viewer-cap { display: grid; justify-items: center; gap: 6px; text-align: center; }
-.viewer-cap b { font: 800 20px/1.2 var(--font-display); font-stretch: 106%; }
+.viewer-cap b { font-size: 20px; font-weight: 600; }
 .viewer-cap a { color: #9cc4f2; font-size: 14px; }
 .viewer-cap small { color: #8b919b; font-size: 12px; }
 .viewer-close {
@@ -310,6 +369,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
   </button>
   <div class="bar-title"><b id="barTitle">Pauper Meta Lab</b><span id="barSub"></span></div>
+  <div class="barfilters" id="barFilters" role="group" aria-label="Data"></div>
   <button class="chipbtn" id="filterBtn" type="button" aria-haspopup="dialog">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg><span id="filterLabel" class="long"></span><span id="filterShort" class="short"></span>
   </button>
@@ -318,7 +378,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
 <main class="app">
   <section class="view" id="listView" aria-label="Decks">
     <div class="intro">
-      <span class="eyebrow">MTG Pauper · tournament results</span>
+      <span class="label">MTG Pauper tournament results</span>
       <h1>Pick a deck</h1>
       <p>See what it beats, what beats it, and which cards move its win rate.</p>
     </div>
@@ -327,11 +387,11 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
       <input id="search" type="search" placeholder="Search decks" autocomplete="off" aria-label="Search decks">
     </label>
     <div class="listhead">
-      <span class="eyebrow" id="listCount"></span>
+      <span class="label" id="listCount"></span>
       <div class="seg" id="sortSeg" role="group" aria-label="Sort decks"></div>
     </div>
     <div class="decks" id="deckList"></div>
-    <div class="card howto">
+    <div class="card howto" id="howto">
       <h2>How to read this</h2>
       <ul>
         <li><b>Win rate</b> is match wins excluding mirrors, with draws as half a win.</li>
@@ -347,11 +407,22 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
 
   <section class="view" id="deckView" aria-live="polite"></section>
   <section class="view" id="matchView" aria-live="polite"></section>
-  <section class="view" id="emptyDetail"><p>Pick a deck to see its matchups and cards.</p></section>
+  <section class="view" id="emptyDetail" aria-labelledby="overviewTitle">
+    <div class="hero">
+      <h1 id="overviewTitle">Metagame</h1>
+      <p class="note" id="overviewNote"></p>
+    </div>
+    <div class="overview" id="overview"></div>
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:var(--good)"></i>Clearly above 50%</span>
+      <span><i style="background:var(--bad)"></i>Clearly below 50%</span>
+      <span><i style="background:var(--neutral)"></i>Could be even</span>
+    </div>
+  </section>
 
   <section class="view methods" id="methodsView" aria-labelledby="methodsTitle">
     <div class="intro">
-      <span class="eyebrow">Methods</span>
+      <span class="label">Methods</span>
       <h1 id="methodsTitle">How every number is calculated</h1>
       <p>The formulas behind each figure on this page, in the order you meet them. Values in <b>bold</b> are the settings this build used.</p>
       <nav class="toc" aria-label="Sections">
@@ -462,6 +533,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
         <thead><tr><th>What</th><th>Rule</th></tr></thead>
         <tbody>
           <tr><td>Decks listed</td><td>Top <b data-k="topArchetypes"></b> archetypes by decklists</td></tr>
+          <tr><td>Metagame chart</td><td>Decks with <b data-k="sortMin"></b>+ matches; meta share on a log scale</td></tr>
           <tr><td>Win-rate sort</td><td>Decks with <b data-k="sortMin"></b>+ matches first</td></tr>
           <tr><td>Matchups shown</td><td><b data-k="minMu"></b>+ matches</td></tr>
           <tr><td>Card breakdowns</td><td>Top <b data-k="cardArchetypes"></b> archetypes; cards in <b data-k="minPlayRate"></b>+ of lists</td></tr>
@@ -480,16 +552,16 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
   <form method="dialog" class="sheet-body">
     <h2 id="sheetTitle">Data</h2>
     <div class="field">
-      <span class="eyebrow">Period</span>
+      <span class="label">Period</span>
       <div class="seg" id="periodSeg" role="group" aria-label="Period"></div>
     </div>
     <div class="field">
-      <span class="eyebrow">Events</span>
+      <span class="label">Events</span>
       <div class="seg" id="scopeSeg" role="group" aria-label="Events"></div>
       <p class="note" id="scopeNote"></p>
     </div>
     <div class="field">
-      <span class="eyebrow">Pilot skill</span>
+      <span class="label">Pilot skill</span>
       <div class="seg" id="adjustSeg" role="group" aria-label="Pilot skill"></div>
       <p class="note" id="adjustNote"></p>
     </div>
@@ -602,11 +674,6 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
       const i = h("i", null, c); i.style.background = `var(--mana-${c})`; box.appendChild(i);
     });
     return box;
-  }
-  function band(color) {
-    const cs = !color || color === "C" ? ["C"] : color.split("");
-    if (cs.length === 1) return `var(--mana-${cs[0]})`;
-    return "linear-gradient(90deg," + cs.map((c, i) => `var(--mana-${c}) ${i / cs.length * 100}% ${(i + 1) / cs.length * 100}%`).join(",") + ")";
   }
 
   // Diverging bar: value/lo/hi in the bar's own units, centred on `center`, clamped to center ± span.
@@ -744,19 +811,33 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
   function setPeriod(v) { state.period = v; store.set("period", v); }
   function setScope(v) { state.scope = v; store.set("scope", v); }
   function setAdjust(v) { state.adjust = v; store.set("adjust", v); }
+  const periodOpts = () => Object.keys(DATA.periods).map((k) => [k, PERIODS[k] || k]);
+  const ADJUST_OPTS = [[true, "Adjusted"], [false, "Raw"]];
+  const adjustNote = () => state.adjust
+    ? "Win rates without the edge of stronger or weaker pilots. Player ratings come from the last 12 months of results (" + fmt((scope().pilot || {}).rated || 0) + " players with 10+ matches). Players are never shown."
+    : "Plain results. A deck favored by strong players looks better than it is.";
   function renderSheet() {
-    seg($("#periodSeg"), Object.keys(DATA.periods).map((k) => [k, PERIODS[k] || k]), state.period, (v) => { setPeriod(v); renderSheet(); render(); });
+    seg($("#periodSeg"), periodOpts(), state.period, (v) => { setPeriod(v); renderSheet(); render(); });
     seg($("#scopeSeg"), Object.entries(SCOPES), state.scope, (v) => { setScope(v); renderSheet(); render(); });
     $("#scopeNote").textContent = SCOPE_NOTES[state.scope];
-    seg($("#adjustSeg"), [[true, "Adjusted"], [false, "Raw"]], state.adjust, (v) => { setAdjust(v); renderSheet(); render(); });
-    const pl = scope().pilot;
-    $("#adjustNote").textContent = state.adjust
-      ? "Win rates without the edge of stronger or weaker pilots. Player ratings come from the last 12 months of results (" + fmt(pl.rated) + " players with 10+ matches). Players are never shown."
-      : "Plain results. A deck favored by strong players looks better than it is.";
+    seg($("#adjustSeg"), ADJUST_OPTS, state.adjust, (v) => { setAdjust(v); renderSheet(); render(); });
+    $("#adjustNote").textContent = adjustNote();
     const p = DATA.periods[state.period], c = scope().coverage;
     $("#sheetCov").replaceChildren(
       h("div", null, h("b", { class: "num" }, fmt(c.matches)), " matches with results · ", h("b", { class: "num" }, fmt(c.decks)), " decklists · ", fmt(c.events), " events"),
       h("div", { class: "muted" }, p.since + " to " + p.until + ". Matches by source: " + (c.by_source.map((s) => s.source + " " + fmt(s.matches)).join(", ") || "none") + "."));
+  }
+  function renderBarFilters() {
+    const group = (label, title, opts, current, pick) => {
+      const s = h("div", { class: "seg", role: "group", "aria-label": label });
+      seg(s, opts, current, (v) => { pick(v); render(); });
+      return h("div", { class: "grp", title }, h("span", { class: "label" }, label), s);
+    };
+    const short = Object.keys(DATA.periods).map((k) => [k, k.replace("d", " days")]);
+    $("#barFilters").replaceChildren(
+      group("Period", "Results from the last 30, 90 or 180 days", short, state.period, setPeriod),
+      group("Events", SCOPE_NOTES[state.scope], [["combined", "All"], ["paper", "Paper"], ["online", "Online"]], state.scope, setScope),
+      group("Pilot skill", adjustNote(), ADJUST_OPTS, state.adjust, setAdjust));
   }
   $("#filterBtn").addEventListener("click", () => {
     renderSheet();
@@ -894,8 +975,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     const bad = enough.filter((m) => m.wr < 0.5).sort((a, b) => a.hi - b.hi);
     const clearGood = good.filter((m) => m.lo > 0.5).length, clearBad = bad.filter((m) => m.hi < 0.5).length;
 
-    const hero = h("section", { class: "card hero" });
-    hero.style.setProperty("--hero-band", band(deck.color));
+    const hero = h("section", { class: "hero" });
     hero.append(
       h("div", { class: "title" }, mana(deck.color, true), h("h1", null, deck.name)),
       h("div", { class: "stats" },
@@ -924,7 +1004,8 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     };
     if (good.length) muSec.append(listGroup("Good against", "good", good));
     if (bad.length) muSec.append(listGroup("Bad against", "bad", bad));
-    if (enough.length) muSec.append(h("div", { class: "scale num", "aria-hidden": "true" }, h("span", null, "15%"), h("span", null, "50%"), h("span", null, "85%")));
+    if (enough.length) muSec.append(h("div", { class: "row scalerow", "aria-hidden": "true" }, h("span", { class: "ph" }),
+      h("div", { class: "rbar scale num" }, h("span", null, "15%"), h("span", null, "50%"), h("span", null, "85%")), h("span", { class: "ph rval" })));
     if (few.length) muSec.append(h("details", { class: "more" }, h("summary", null, few.length + " matchups with fewer than " + MIN_MU + " matches"),
       h("div", { class: "chips", style: "margin-top:8px" }, few.sort((a, b) => b.n - a.n).map((m) => h("span", { class: "chip" }, m.opp.name + " · " + record(m.wins, m.n))))));
 
@@ -943,10 +1024,9 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     }
     const good = m.wr >= 0.5, sure = m.lo > 0.5 || m.hi < 0.5;
     const verdict = sure ? (good ? "Clearly favored" : "Clearly behind") : (good ? "Leans favored, could be even" : "Leans behind, could be even");
-    const hero = h("section", { class: "card hero" });
-    hero.style.setProperty("--hero-band", band(deck.color));
+    const hero = h("section", { class: "hero" });
     hero.append(
-      h("span", { class: "eyebrow" }, "Matchup"),
+      h("span", { class: "label" }, "Matchup"),
       h("div", { class: "title" }, mana(deck.color, true), h("h1", null, deck.name)),
       h("div", { class: "vs" }, h("span", { class: "muted" }, "against"), mana(opp.color), h("b", null, opp.name)),
       h("div", { class: "stats" },
@@ -980,6 +1060,86 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
       boardToggle(draw), body);
     view.replaceChildren(hero, sec);
   }
+
+  // ---------- metagame chart (desktop list view) ----------
+  // Meta share (log scale) against win rate with its 95% interval, one dot per deck with a usable sample.
+  function renderOverview() {
+    const box = $("#overview"), W = box.clientWidth;
+    if (!W) return;
+    const rows = decks().filter((d) => d.matches >= SORT_MIN);
+    $("#overviewNote").textContent = "Meta share against win rate for the " + rows.length + " decks with " + SORT_MIN +
+      "+ matches. Whiskers are 95% intervals. Click a dot to open the deck.";
+    if (!rows.length) { box.replaceChildren(h("div", { class: "empty" }, "No deck has " + SORT_MIN + " or more matches in this view.")); return; }
+    const H = Math.max(360, Math.min(520, Math.round(W * 0.55))), m = { l: 44, r: 20, t: 26, b: 34 };
+    const lx = rows.map((d) => Math.log(d.share)), x0 = Math.min(...lx) - 0.15, x1 = Math.max(...lx) + 0.15;
+    const y0 = Math.floor(Math.min(0.45, ...rows.map((d) => d.lo)) * 20) / 20, y1 = Math.ceil(Math.max(0.55, ...rows.map((d) => d.hi)) * 20) / 20;
+    const X = (s) => m.l + (Math.log(s) - x0) / (x1 - x0) * (W - m.l - m.r), Y = (p) => m.t + (y1 - p) / (y1 - y0) * (H - m.t - m.b);
+    const svg = (tag, attrs, ...kids) => {
+      const e = document.createElementNS(SVGNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      for (const kid of kids) e.append(kid);
+      return e;
+    };
+    const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": "Meta share against win rate" });
+    for (let p = y0; p <= y1 + 1e-9; p += 0.05) {
+      const y = Y(p), mid = Math.abs(p - 0.5) < 1e-9;
+      root.append(svg("line", { x1: m.l, x2: W - m.r, y1: y, y2: y, class: mid ? "axis50" : "grid" }),
+        svg("text", { x: m.l - 8, y: y + 4, "text-anchor": "end" }, Math.round(p * 100) + "%"));
+    }
+    [0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2].filter((s) => Math.log(s) >= x0 && Math.log(s) <= x1).forEach((s) => {
+      root.append(svg("line", { x1: X(s), x2: X(s), y1: m.t, y2: H - m.b, class: "grid" }),
+        svg("text", { x: X(s), y: H - m.b + 18, "text-anchor": "middle" }, s * 100 + "%"));
+    });
+    root.append(svg("text", { x: W - m.r, y: H - 4, "text-anchor": "end" }, "Meta share →"),
+      svg("text", { x: m.l - 8, y: 12, "text-anchor": "end" }, "Win rate"));
+    const tip = h("div", { class: "tip", hidden: true });
+    const colorOf = (d) => d.lo > 0.5 ? "var(--good)" : d.hi < 0.5 ? "var(--bad)" : "var(--neutral)";
+    // Big decks drawn last so they sit on top; labels placed biggest first where they don't collide.
+    const placed = [], labels = [];
+    const free = (b) => b.x0 >= m.l && b.x1 <= W - m.r && b.y0 >= 0 && b.y1 <= H - m.b &&
+      placed.every((o) => b.x1 < o.x0 || b.x0 > o.x1 || b.y1 < o.y0 || b.y0 > o.y1);
+    rows.slice().sort((a, b) => b.share - a.share).forEach((d) => placed.push({ x0: X(d.share) - 7, x1: X(d.share) + 7, y0: Y(d.wr) - 7, y1: Y(d.wr) + 7 }));
+    rows.slice().sort((a, b) => b.share - a.share).forEach((d) => {
+      const w = d.name.length * 6.6, cx = X(d.share), cy = Y(d.wr);
+      for (const [x, anchor] of [[cx + 10, "start"], [cx - 10, "end"]]) {
+        const b = { x0: anchor === "start" ? x : x - w, x1: anchor === "start" ? x + w : x, y0: cy - 8, y1: cy + 6 };
+        if (free(b)) { placed.push(b); labels.push(svg("text", { x, y: cy + 4, "text-anchor": anchor, class: "lbl" }, d.name)); return; }
+      }
+    });
+    rows.slice().sort((a, b) => a.share - b.share).forEach((d) => {
+      const cx = X(d.share), cy = Y(d.wr), c = colorOf(d);
+      const g = svg("g", { class: "pt", tabindex: "0", role: "link",
+        "aria-label": d.name + ": " + pct(d.share, 1) + " of decks, win rate " + pct(d.wr) + ", 95% interval " + ci(d.lo, d.hi) });
+      g.append(svg("line", { x1: cx, x2: cx, y1: Y(d.lo), y2: Y(d.hi), stroke: c, "stroke-width": 1.5, opacity: 0.55 }),
+        svg("circle", { cx, cy, r: 5, fill: c, class: "dot" }),
+        svg("circle", { cx, cy, r: 11, fill: "transparent" }));
+      const show = () => {
+        tip.replaceChildren(h("b", null, d.name), pct(d.wr) + " win rate (" + ci(d.lo, d.hi) + ")", h("br"),
+          pct(d.share, 1) + " of decks · " + fmt(d.matches) + " matches");
+        tip.hidden = false;
+        const left = cx + 14 + 190 > W ? cx - 14 - tip.offsetWidth : cx + 14;
+        tip.style.left = left + "px"; tip.style.top = Math.max(0, cy - 20) + "px";
+      };
+      g.addEventListener("mouseenter", show); g.addEventListener("focus", show);
+      g.addEventListener("mouseleave", () => { tip.hidden = true; }); g.addEventListener("blur", () => { tip.hidden = true; });
+      g.addEventListener("click", () => go("deck", d.name));
+      g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go("deck", d.name); } });
+      root.append(g);
+    });
+    labels.forEach((l) => root.insertBefore(l, root.querySelector(".pt")));
+    box.replaceChildren(root, tip);
+  }
+  let overviewW = 0;
+  new ResizeObserver(() => {
+    const w = $("#overview").clientWidth;
+    if (w && w !== overviewW && state.view === "list") { overviewW = w; renderOverview(); }
+  }).observe($("#overview"));
+
+  // "How to read this" sits under the deck list on phones and beside it on desktop.
+  const wide = window.matchMedia("(min-width: 1024px)");
+  const placeHowto = () => (wide.matches ? $("#emptyDetail") : $("#listView")).append($("#howto"));
+  wide.addEventListener("change", placeHowto);
+  placeHowto();
 
   // ---------- methods ----------
   // Settings shown on the methods page come from the build, so the page can't drift from the code.
@@ -1034,8 +1194,12 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     $("#barTitle").textContent = state.view === "list" ? "Pauper Meta Lab" : state.view === "methods" ? "Methods"
       : state.view === "deck" ? state.deck : state.deck + " vs " + state.opp;
     $("#barSub").textContent = p.since + " to " + p.until;
-    $("#generated").textContent = "Data built " + DATA.generated + " from fbettega/MTG_decklistcache. Archetypes from MTGOFormatData.";
+    const c = scope().coverage;
+    $("#generated").textContent = fmt(c.matches) + " matches, " + fmt(c.decks) + " decklists and " + fmt(c.events) + " events in this view. Data built " +
+      DATA.generated + " from fbettega/MTG_decklistcache. Archetypes from MTGOFormatData.";
+    renderBarFilters();
     renderList();
+    if (state.view === "list") renderOverview();
     if (state.view === "deck") renderDeck();
     if (state.view === "match") renderMatch();
     if (state.view === "methods") renderMethods();
