@@ -331,7 +331,7 @@ a.row:hover .rname { text-decoration: underline; text-underline-offset: 3px; }
 .rval { display: flex; align-items: center; gap: 10px; justify-self: end; }
 .rval b { font-size: 17px; font-weight: 600; min-width: 2.6em; text-align: right; }
 /* Lean: the number steps back so a big but uncertain value doesn't read as a finding */
-.rval b.lean { color: var(--muted); font-weight: 500; }
+.rval b.lean, .deckrow .wr b.lean { color: var(--muted); font-weight: 500; }
 .rbar { grid-column: 1 / -1; }
 .row .ph { display: none; }
 .chev { width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -616,7 +616,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
         <li><b>Win rate</b> is match wins excluding mirrors, with draws as half a win.</li>
         <li>On every bar the centre line is 50% (or no difference). The whisker is the 95% interval: the range the true value most likely sits in.</li>
         <li><b>Clear</b> means the whole interval is on one side of the line. <b>Lean</b> means it could still be even. Headings such as "Good against" list only Clear results, in solid colour; Lean ones are outlined, with their number in grey, and folded under "Could go either way".</li>
-        <li><b>Against the field</b> on a deck page is its expected match win rate if the opponents are the top decks in proportion to their share of lists. Matchups with few matches count close to even.</li>
+        <li><b>Against the field</b> on a deck page is its expected match win rate if the opponents are the top decks in proportion to their share of lists. Matchups with few matches count close to even. Sort by <b>Vs. field</b> to rank every deck by it.</li>
         <li><b>Share of lists</b> counts published decklists, which are mostly MTGO's winning lists. Win rates count matches, which come mostly from paper events. The line under the title says how the current view splits.</li>
         <li><b>Card effects</b> compare lists of the same deck with and without a card. They show what winning lists play, which isn't always what makes them win. With dozens of cards, about 1 in 20 can look Clear by chance.</li>
         <li><b>Online</b> is MTGO: many lists, but match results only from Challenge top 8s. <b>Paper</b> is Melee, CardsRealm and Topdeck, with every round, mostly from Italy and Brazil.</li>
@@ -731,6 +731,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       <div class="eq">\[ E_a = \frac{\sum_b \text{share}_b\, \tilde p_b}{\sum_b \text{share}_b}, \qquad [L, U] = E_a \mp z \sqrt{\sum_b \Big(\frac{\text{share}_b}{\sum_c \text{share}_c}\Big)^2 v_b} \]</div>
       <p class="where">The sums run over the top <b data-k="topArchetypes"></b> decks in the view, the deck itself included; \(z = 1.959964\). The deck is Clear against the field when the whole interval is on one side of 50%. Decks outside the top <b data-k="topArchetypes"></b> are left out, and share of lists is mostly MTGO's winning lists (see Meta share), so this is the field those lists describe.</p>
       <p>When less than <b data-k="fieldThin"></b> of the field's weight comes from real matches, \(\sum_{b \ne a} \text{share}_b \frac{n_b}{n_b + k} \big/ \sum_{b \ne a} \text{share}_b\), the page says the estimate leans towards 50%. The <b>costliest matchup</b> is the opponent with the largest \(\text{share}_b\,(0.5 - \tilde p_b)\): the most expected match wins lost to one deck.</p>
+      <p>The deck list's <b>Vs. field</b> sort shows \(E_a\) and its interval for every deck and ranks by \(E_a\). As in the win-rate sort, decks with fewer than <b data-k="sortMin"></b> matches rank after the rest.</p>
     </section>
 
     <section class="card" id="m-cards">
@@ -1326,20 +1327,29 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
   function renderList() {
     const all = decks();
     let rows = all.slice();
-    seg($("#sortSeg"), [["share", "Most played"], ["wr", "Win rate"]], state.sort, (v) => { state.sort = v; store.set("sort", v); renderList(); });
-    // Win-rate sort puts decks with a usable sample first.
-    if (state.sort === "wr") rows.sort((a, b) => (b.matches >= SORT_MIN) - (a.matches >= SORT_MIN) || (b.wr ?? 0) - (a.wr ?? 0));
+    seg($("#sortSeg"), [["share", "Most played"], ["wr", "Win rate"], ["field", "Vs. field"]], state.sort, (v) => { state.sort = v; store.set("sort", v); renderList(); });
+    // "Vs. field" shows and sorts by the expected win rate against the field (see fieldEstimate).
+    const vsField = state.sort === "field";
+    const field = new Map(vsField ? all.map((d) => [d.name, d.matches ? fieldEstimate(d) : null]) : []);
+    const key = (d) => vsField ? field.get(d.name)?.e : d.wr;
+    // Win-rate sorts put decks with a usable sample first.
+    if (state.sort !== "share") rows.sort((a, b) => (b.matches >= SORT_MIN) - (a.matches >= SORT_MIN) || (key(b) ?? 0) - (key(a) ?? 0));
     const pos = new Map(rows.map((d, k) => [d.name, k + 1]));
     if (state.q) rows = rows.filter((d) => d.name.toLowerCase().includes(state.q));
     $("#listCount").textContent = rows.length + (rows.length === 1 ? " deck" : " decks");
     const list = $("#deckList");
     if (!rows.length) { list.replaceChildren(h("div", { class: "empty inset" }, "No deck matches “" + state.q + "”.")); return; }
     list.replaceChildren(...rows.map((d) => {
-      const wr = h("div", { class: "wr" }, h("b", { class: "num" }, d.matches ? pct(d.wr) : "–"));
-      if (d.matches) wr.append(h("div", { class: "mini" }, dbar(d.wr, d.lo, d.hi, 0.5, 0.2)));
+      const x = vsField ? field.get(d.name) : d.matches ? { e: d.wr, lo: d.lo, hi: d.hi } : null;
+      const sure = x && (x.lo > 0.5 || x.hi < 0.5);
+      // In the field sort a Lean estimate is grey, as everywhere else; the plain win rate keeps its usual weight.
+      const wr = h("div", { class: "wr" }, h("b", { class: "num" + (vsField && x && !sure ? " lean" : "") }, x ? pct(x.e) : "–"));
+      if (x) wr.append(h("div", { class: "mini" }, dbar(x.e, x.lo, x.hi, 0.5, 0.2)));
       return navA({
         class: "deckrow", href: hashOf("deck", d.name), "data-deck": d.name, "aria-current": d.name === state.deck ? "page" : null,
-        "aria-label": d.name + " (" + colorWords(d.color) + "), " + pct(d.share, 1) + " of published lists, win rate " + (d.matches ? pct(d.wr) : "unknown"),
+        "aria-label": d.name + " (" + colorWords(d.color) + "), " + pct(d.share, 1) + " of published lists, " +
+          (vsField ? "expected win rate against the field " + (x ? pct(x.e) + ", 95% interval " + ci(x.lo, x.hi) + (sure ? "" : ", could be even") : "unknown")
+            : "win rate " + (d.matches ? pct(d.wr) : "unknown")),
       }, () => go("deck", d.name),
       h("span", { class: "rank num" }, pos.get(d.name)),
       h("div", { class: "minw0" },
