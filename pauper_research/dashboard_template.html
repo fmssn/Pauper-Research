@@ -358,7 +358,8 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
         <a href="#methods" data-jump="m-results">Results</a><a href="#methods" data-jump="m-share">Meta share</a>
         <a href="#methods" data-jump="m-winrate">Win rate</a><a href="#methods" data-jump="m-wilson">Intervals</a>
         <a href="#methods" data-jump="m-labels">Clear / Lean</a><a href="#methods" data-jump="m-cards">Cards</a>
-        <a href="#methods" data-jump="m-pilot">Pilot skill</a><a href="#methods" data-jump="m-thresholds">Thresholds</a>
+        <a href="#methods" data-jump="m-pilot">Pilot skill</a><a href="#methods" data-jump="m-skill">Skill sensitivity</a>
+        <a href="#methods" data-jump="m-thresholds">Thresholds</a>
       </nav>
     </div>
 
@@ -435,6 +436,26 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
       <p>Win-rate intervals are then clipped to [0, 1]. The adjustment is conservative: because ratings are shrunk towards average, only part of a pilot's edge is removed when they have few matches.</p>
     </section>
 
+    <section class="card" id="m-skill">
+      <h2>Skill sensitivity</h2>
+      <p>The pilot-skill model assumes a rating edge is worth the same on every deck. Some decks reward skill more than others, so a second fit gives each archetype its own skill slope, over the same 12 months:</p>
+      <div class="eq">\[ \begin{gathered} \Pr(i \text{ beats } j) = \sigma\big(o_m + \beta_a\, \tilde r_i - \beta_b\, \tilde r_j\big) \\ \beta_a = \beta_0 + \gamma_a \end{gathered} \]</div>
+      <p class="where">\(o_m = \delta_{a,q} - \delta_{b,q}\) is the deck part of the fitted model, held fixed. \(\tilde r_i\) is player \(i\)'s <em>out-of-fold</em> rating: it comes from the cross-validation fit that left out this match's event, so a rating is never built from the match it predicts. \(\beta_0\) is shared by all decks.</p>
+      <div class="eq">\[ \min_{\beta_0,\,\gamma}\ \sum_m w_m\, \mathcal{L}(\eta_m, s_m) + \frac{\lambda_\gamma}{2} \sum_a \gamma_a^2 \]</div>
+      <p class="where">\(\lambda_\gamma = \) <b data-k="slopeLambda"></b> pulls every deck towards the shared slope, so decks with little data look average.</p>
+      <p>A deck's sensitivity compares its slope with the average deck, weighting decks by matches \(n_a\) and leaving out "Unknown":</p>
+      <div class="eq">\[ S_a = \frac{\beta_a}{\bar\beta}, \qquad \bar\beta = \frac{\sum_a n_a \beta_a}{\sum_a n_a} \]</div>
+      <p>\(S_a = 1\) is average. \(S_a = 1.5\) means a rating edge moves this deck's win chance (on the logit scale) 1.5 times as much as on the average deck. The 95% interval comes from the 2.5th and 97.5th percentiles of \(S_a\) over the <b data-k="bootstrap"></b> bootstrap samples of events, with the ratings held fixed.</p>
+      <p>The sentence on each deck page:</p>
+      <ul>
+        <li><b>Very sensitive to player skill</b>: the whole interval is above 1.</li>
+        <li><b>Less sensitive than most decks</b>: the whole interval is below 1.</li>
+        <li><b>Seems somewhat (or a little less) sensitive</b>: \(S_a \ge\) <b data-k="skillLeanHi"></b> (or \(\le\) <b data-k="skillLeanLo"></b>), but the interval includes 1.</li>
+        <li><b>About as sensitive as an average deck</b>: otherwise.</li>
+      </ul>
+      <p>Decks need <b data-k="skillMin"></b>+ matches in the 12 months. This measures how much skill pays off once a deck is known, not how long it takes to learn.</p>
+    </section>
+
     <section class="card" id="m-thresholds">
       <h2>Thresholds</h2>
       <div class="tablewrap"><table>
@@ -446,6 +467,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
           <tr><td>Card breakdowns</td><td>Top <b data-k="cardArchetypes"></b> archetypes; cards in <b data-k="minPlayRate"></b>+ of lists</td></tr>
           <tr><td>Card comparison</td><td><b data-k="overallDecks"></b>+ lists and <b data-k="overallMatches"></b>+ matches with and without the card</td></tr>
           <tr><td>Card comparison per matchup</td><td><b data-k="matchupTotal"></b>+ matches in the matchup; <b data-k="matchupDecks"></b>+ lists and <b data-k="matchupMatches"></b>+ matches on each side</td></tr>
+          <tr><td>Skill sensitivity</td><td><b data-k="skillMin"></b>+ matches in 12 months; leaning when at least <b data-k="skillLean"></b> away from 1</td></tr>
           <tr><td>Core cards</td><td>In <b data-k="corePlay"></b>+ of lists, so there's nothing to compare against</td></tr>
         </tbody>
       </table></div>
@@ -499,6 +521,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
   const MIN_MU = 8;          // matches before a matchup is listed
   const SORT_MIN = 30;       // matches before a deck ranks in the win-rate sort
   const CORE_PLAY = 0.85;    // play rate above which a card counts as core
+  const SKILL_LEAN = 0.15;   // skill sensitivity this far from 1 counts as leaning one way
   const PERIODS = { "30d": "30 days", "90d": "90 days", "180d": "180 days" };
   const SCOPES = { combined: "All events", paper: "Paper", online: "Online" };
   const SCOPE_NOTES = {
@@ -843,6 +866,20 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     return h("p", { class: "note" }, "Adjusted for pilot skill: its pilots were " + text + ". Raw win rate " + pct(x.raw) + ".");
   }
 
+  // How much the deck's win rate moves with pilot skill, worded gently: most decks only lean one way.
+  function skillNote(deck) {
+    const sk = (scope().skill || {})[deck.i];
+    if (!sk) return h("p", { class: "note" }, "Not enough matches yet to tell how much player skill matters with this deck.");
+    const [x, lo, hi] = sk, clear = lo != null && hi != null;
+    let text;
+    if (clear && lo > 1) text = "Win rate very sensitive to player skill: strong pilots gain more with this deck than with most.";
+    else if (clear && hi < 1) text = "Win rate less sensitive to player skill than most decks: results depend less on who pilots it.";
+    else if (x >= 1 + SKILL_LEAN) text = "Win rate seems somewhat sensitive to player skill.";
+    else if (x <= 1 - SKILL_LEAN) text = "Win rate seems a little less sensitive to player skill than average.";
+    else text = "Win rate about as sensitive to player skill as an average deck.";
+    return h("p", { class: "note" }, text + " ", h("span", { class: "muted num" }, "(" + x.toFixed(1) + "× an average deck, last 12 months)"));
+  }
+
   function renderDeck() {
     const view = $("#deckView");
     const deck = deckByName(state.deck);
@@ -866,6 +903,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
         h("div", { class: "stat" }, h("b", { class: "num" }, pct(deck.share, 1)), h("span", null, "of decklists")),
         h("div", { class: "stat" }, h("b", { class: "num" }, fmt(deck.matches)), h("span", null, "matches"))),
       pilotNote(deck) || "",
+      skillNote(deck),
       h("p", { class: "verdict" }, enough.length
         ? ["Clearly ahead against ", h("b", null, String(clearGood)), clearGood === 1 ? " deck" : " decks", " and clearly behind against ", h("b", null, String(clearBad)), ". ",
            String(enough.length - clearGood - clearBad), " more matchups lean one way but could still be even."]
@@ -954,6 +992,8 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
       topArchetypes: T.topArchetypes, cardArchetypes: T.cardArchetypes, minPlayRate: pct(T.minPlayRate),
       minMu: MIN_MU, sortMin: SORT_MIN, corePlay: pct(CORE_PLAY), overallDecks: T.overall.min_decks, overallMatches: T.overall.min_matches,
       matchupTotal: T.matchupTotal, matchupDecks: T.matchup.min_decks, matchupMatches: T.matchup.min_matches,
+      slopeLambda: M.slope_lambda, skillMin: M.skill_min_matches, skillLean: SKILL_LEAN,
+      skillLeanHi: (1 + SKILL_LEAN).toFixed(2), skillLeanLo: (1 - SKILL_LEAN).toFixed(2),
     };
     document.querySelectorAll("#methodsView [data-k]").forEach((el) => { el.textContent = vals[el.dataset.k] ?? "–"; });
     typeset();

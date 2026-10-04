@@ -78,7 +78,7 @@ see which cards move its win rate, overall and against a specific opponent.
 | File | Contents |
 |---|---|
 | `README.md` | Coverage, meta share and win rate per archetype, matchup matrix of the top archetypes |
-| `archetypes.csv` | All archetypes: decks, meta share, non-mirror wins/matches, win rate, 95% CI, pilot lift and pilot-adjusted win rate with its 95% CI |
+| `archetypes.csv` | All archetypes: decks, meta share, non-mirror wins/matches, win rate, 95% CI, pilot lift and pilot-adjusted win rate with its 95% CI, skill sensitivity with its 95% CI |
 | `matchups.csv` | Every archetype pair: wins, matches, win rate, 95% CI, pilot lift, pilot-adjusted win rate and CI |
 | `matchup_matrix.csv` | Win-rate matrix of the top archetypes |
 
@@ -131,6 +131,18 @@ the two.
   comparison.
 - **Intervals.** The ratings are refitted on 100 bootstrap resamples of events.
   The lift's spread is added, in quadrature, to the Wilson (or Newcombe) interval.
+
+**Skill sensitivity.** The model above treats a rating edge as worth the same
+on every deck. A second fit gives each archetype its own skill slope, using
+*out-of-fold* ratings (from the cross-validation fit that held out the match's
+event), with a ridge penalty pulling every deck towards the shared slope. A
+deck's sensitivity is its slope over the match-weighted average slope: 1 is
+average, 1.5 means a rating edge counts 1.5 times as much. Its 95% interval
+comes from the same event bootstrap. Each deck page has one plain sentence about
+it ("Win rate very sensitive to player skill" only when the whole interval is
+above 1), and `archetypes.csv` has `skill_sensitivity` and its CI for decks with
+150+ matches in the 12 months. It measures how much skill pays off on a known
+deck, not how long the deck takes to learn.
 
 The adjustment is **conservative**. Ratings are shrunk towards average, so for
 players with few matches only part of their edge is removed. On simulated data

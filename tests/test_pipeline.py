@@ -269,6 +269,8 @@ def test_dashboard_carries_pilot_lift():
     assert by_name["Strong Pilots"][6] > 0 and by_name["Everyone"][6] < 0
     assert block["pilot"]["rated"] > 0
     assert all(len(m) == 5 for ms in block["mu"].values() for m in ms)
+    # Both decks have enough matches for a skill sensitivity: [value, ci_low, ci_high, matches].
+    assert set(block["skill"]) == {0, 1} and all(len(v) == 4 for v in block["skill"].values())
 
 
 def test_methods_page_in_sync():
@@ -281,7 +283,8 @@ def test_methods_page_in_sync():
     script = template[template.index("function renderMethods"):template.index("function typeset")]
     filled = set(re.findall(r"(\w+):", script[script.index("const vals"):]))
     assert shown and shown <= filled, f"methods page shows values nobody fills: {shown - filled}"
-    for section in ("m-results", "m-share", "m-winrate", "m-wilson", "m-labels", "m-cards", "m-pilot", "m-thresholds"):
+    for section in ("m-results", "m-share", "m-winrate", "m-wilson", "m-labels", "m-cards", "m-pilot", "m-skill",
+                    "m-thresholds"):
         assert f'id="{section}"' in template
     matches, decks, cards = _confounded_matches(n_events=30)
     events = decks.groupby("event_id").agg(date=("date", "first"), source=("source", "first")).reset_index()
@@ -290,3 +293,42 @@ def test_methods_page_in_sync():
     assert data["methods"]["lambda_grid"] == list(ratings.LAMBDA_GRID)
     assert data["methods"]["half_life_days"] == ratings.HALF_LIFE_DAYS
     assert data["periods"]["180d"]["scopes"]["paper"]["pilot"]["lam"] in ratings.LAMBDA_GRID
+    assert data["methods"]["slope_lambda"] == ratings.SLOPE_LAMBDA
+
+
+def _skill_matches(seed=5, n_players=300, n_events=200, per_event=16, rounds=5):
+    """Three decks of equal strength, picked at random. On "Combo" a rating edge
+    counts twice as much, on "Burn" half as much."""
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    skill = rng.normal(0, 0.8, n_players)
+    factor = {"Combo": 2.0, "Midrange": 1.0, "Burn": 0.5}
+    rows = []
+    for e in range(n_events):
+        date = pd.Timestamp("2026-01-01") + pd.Timedelta(days=int(rng.integers(0, 300)))
+        players = rng.choice(n_players, per_event, replace=False)
+        deck = {p: rng.choice(list(factor)) for p in players}
+        for _ in range(rounds):
+            order = rng.permutation(players)
+            for a, b in zip(order[::2], order[1::2]):
+                eta = factor[deck[a]] * skill[a] - factor[deck[b]] * skill[b]
+                s = float(rng.random() < 1 / (1 + np.exp(-eta)))
+                for me, opp, sc in ((a, b, s), (b, a, 1 - s)):
+                    rows.append({"event_id": e, "date": date, "source": "MTGmelee", "player": f"P{me}",
+                                 "opponent": f"P{opp}", "score": sc, "archetype": deck[me],
+                                 "opp_archetype": deck[opp]})
+    return pd.DataFrame(rows)
+
+
+def test_skill_sensitivity():
+    from pauper_research import ratings
+    matches = _skill_matches()
+    pilot = ratings.fit(matches, matches["date"].max(), bootstrap=20)
+    sk = pilot.skill
+    # Relative to the average deck (factor 3.5 / 3): Combo 1.71, Midrange 0.86, Burn 0.43.
+    assert sk.loc["Combo", "sensitivity"] == pytest.approx(1.71, abs=0.15)
+    assert sk.loc["Midrange", "sensitivity"] == pytest.approx(0.86, abs=0.1)
+    assert sk.loc["Burn", "sensitivity"] == pytest.approx(0.43, abs=0.1)
+    assert sk.loc["Combo", "ci_low"] > 1 > sk.loc["Burn", "ci_high"]
+    weights = sk["matches"] / sk["matches"].sum()
+    assert (weights * sk["sensitivity"]).sum() == pytest.approx(1)

@@ -27,6 +27,20 @@ uncertainty of the lift, which is added to the usual sampling interval.
 
 Players are identified by their name, normalised (case, whitespace, Unicode)
 and merged across sources. No player names leave this module's tables.
+
+**Skill sensitivity.** The model above assumes a rating edge is worth the
+same on every deck. To see where skill matters more, a second stage fits one
+skill slope per archetype on the same window:
+
+    logit P(win) = offset + b_a * r_i - b_b * r_j,    b_a = b0 + g_a
+
+where `offset` is the fitted deck part, and `r` are *out-of-fold* ratings
+(from the cross-validation fit that held out the match's event), so a
+player's rating never comes from the match it is used to predict. The
+deviations `g_a` get a ridge penalty, so decks with little data stay near
+`b0`. A deck's sensitivity is its slope over the average slope of all decks
+(weighted by matches, "Unknown" left out): 1 is average, above 1 means the
+win rate rises and falls more with pilot skill.
 """
 
 from __future__ import annotations
@@ -41,12 +55,16 @@ import pandas as pd
 from scipy import sparse
 from scipy.sparse import linalg as splinalg
 
+from .archetypes import UNKNOWN
+
 LOOKBACK_DAYS = 365
 HALF_LIFE_DAYS = 182.5
 LAMBDA_GRID = (0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0)  # player ridge penalty, ~ 1 / prior variance
 DECK_LAMBDA = 1.0  # weak prior (SD 1 logit): keeps thin deck-quarters from running off
 CV_FOLDS = 5
 BOOTSTRAP = 100
+SLOPE_LAMBDA = 4.0  # ridge on per-deck skill slopes (prior SD 0.5 around the average slope)
+SKILL_MIN_MATCHES = 150  # matches in the window before a deck's skill sensitivity is reported
 
 
 def normalize_name(name: object) -> str:
@@ -74,6 +92,11 @@ class Design:
     w: np.ndarray          # recency weight
     event: np.ndarray      # event code per row, for grouped folds and the bootstrap
     n_players: int
+    pi: np.ndarray         # player index of each side
+    pj: np.ndarray
+    ai: np.ndarray         # archetype code of each side (not per quarter)
+    aj: np.ndarray
+    archetypes: pd.Index
 
 
 def _design(matches: pd.DataFrame, me: pd.Series, opp: pd.Series, end: pd.Timestamp, half_life: float) -> Design:
@@ -94,11 +117,16 @@ def _design(matches: pd.DataFrame, me: pd.Series, opp: pd.Series, end: pd.Timest
     age = (end - matches["date"]).dt.days.clip(lower=0).to_numpy(dtype=float)
     w = np.power(0.5, age / half_life)
     event = pd.factorize(matches["event_id"])[0]
-    return Design(X, matches["score"].to_numpy(dtype=float), w, event, n_p)
+    archs = pd.Index(pd.unique(pd.concat([matches["archetype"], matches["opp_archetype"]], ignore_index=True).astype(str)))
+    return Design(X, matches["score"].to_numpy(dtype=float), w, event, n_p,
+                  players.get_indexer(me), players.get_indexer(opp),
+                  archs.get_indexer(matches["archetype"].astype(str)),
+                  archs.get_indexer(matches["opp_archetype"].astype(str)), archs)
 
 
 def _rows(design: Design, mask: np.ndarray) -> Design:
-    return Design(design.X[mask], design.y[mask], design.w[mask], design.event[mask], design.n_players)
+    return Design(design.X[mask], design.y[mask], design.w[mask], design.event[mask], design.n_players,
+                  design.pi[mask], design.pj[mask], design.ai[mask], design.aj[mask], design.archetypes)
 
 
 def _penalty(design: Design, lam: float) -> np.ndarray:
@@ -148,25 +176,99 @@ def _fit(design: Design, weights: np.ndarray, pen: np.ndarray, theta0: np.ndarra
     return theta
 
 
-def _choose_lambda(design: Design, folds: int = CV_FOLDS, grid=LAMBDA_GRID, seed: int = 0) -> tuple[float, dict]:
-    """Pick the player penalty by cross-validated log-loss, with whole events held out."""
+def _choose_lambda(design: Design, folds: int = CV_FOLDS, grid=LAMBDA_GRID,
+                   seed: int = 0) -> tuple[float, dict, np.ndarray | None]:
+    """Pick the player penalty by cross-validated log-loss, with whole events held out.
+
+    Also returns, for the chosen penalty, every row's *out-of-fold* ratings
+    (an (n, 2) array: player i, player j), fitted without that row's event.
+    """
     n_events = design.event.max() + 1
     if n_events < folds:
-        return grid[len(grid) // 2], {}
+        return grid[len(grid) // 2], {}, None
     rng = np.random.default_rng(seed)
     fold_of_event = rng.permutation(n_events) % folds
     fold = fold_of_event[design.event]
-    scores = {}
+    scores, oof = {}, {}
+    n_p = design.n_players
     for lam in grid:
         total, theta = 0.0, None
+        r_oof = np.zeros((len(design.y), 2))
         for k in range(folds):
             train = fold != k
             theta = _fit(design, design.w * train, _penalty(design, lam), theta)
             eta = design.X[~train] @ theta
             ll = np.logaddexp(0.0, eta) - design.y[~train] * eta
             total += design.w[~train] @ ll
+            r_oof[~train, 0] = theta[:n_p][design.pi[~train]]
+            r_oof[~train, 1] = theta[:n_p][design.pj[~train]]
         scores[lam] = total / design.w.sum()
-    return min(scores, key=scores.get), scores
+        oof[lam] = r_oof
+    best = min(scores, key=scores.get)
+    return best, scores, oof[best]
+
+
+def _slope_design(design: Design, r_oof: np.ndarray) -> sparse.csr_matrix:
+    """Columns: the shared slope b0 (r_i - r_j), then one deviation g_a per archetype
+    (+r_i on the player's deck, -r_j on the opponent's; a mirror nets r_i - r_j)."""
+    n, n_a = len(design.y), len(design.archetypes)
+    ri, rj = r_oof[:, 0], r_oof[:, 1]
+    rows = np.concatenate([np.arange(n), np.arange(n), np.arange(n)])
+    cols = np.concatenate([np.zeros(n, int), 1 + design.ai, 1 + design.aj])
+    vals = np.concatenate([ri - rj, ri, -rj])
+    Z = sparse.csr_matrix((vals, (rows, cols)), shape=(n, 1 + n_a))
+    Z.sum_duplicates()
+    return Z
+
+
+def _fit_offset(Z: sparse.csr_matrix, y: np.ndarray, w: np.ndarray, offset: np.ndarray, pen: np.ndarray,
+                beta0: np.ndarray | None = None, max_iter: int = 30) -> np.ndarray:
+    """Small ridge logistic regression with a fixed offset (Newton, dense Hessian)."""
+    beta = np.zeros(Z.shape[1]) if beta0 is None else beta0.copy()
+    Zt = Z.T.tocsr()
+    for _ in range(max_iter):
+        eta = offset + Z @ beta
+        p = 0.5 * (1.0 + np.tanh(0.5 * eta))
+        grad = Zt @ (w * (p - y)) + pen * beta
+        hess = (Zt @ sparse.diags(w * p * (1.0 - p)) @ Z).toarray() + np.diag(pen)
+        step = np.linalg.solve(hess, grad)
+        beta = beta - step
+        if np.abs(step).max() < 1e-7:
+            break
+    return beta
+
+
+def _skill(design: Design, theta: np.ndarray, r_oof: np.ndarray, bootstrap: int, seed: int) -> pd.DataFrame:
+    """Per-archetype skill sensitivity b_a / b0 with a bootstrap 95% interval (resampling events)."""
+    Z = _slope_design(design, r_oof)
+    offset = design.X[:, design.n_players:] @ theta[design.n_players:]
+    pen = np.full(Z.shape[1], SLOPE_LAMBDA)
+    pen[0] = 1e-6
+    beta = _fit_offset(Z, design.y, design.w, offset, pen)
+    n_a = len(design.archetypes)
+    counts = np.bincount(design.ai, minlength=n_a) + np.bincount(design.aj, minlength=n_a) \
+        - np.bincount(design.ai[design.ai == design.aj], minlength=n_a)
+    known = (design.archetypes != UNKNOWN).astype(float) * counts
+
+    def relative(b: np.ndarray) -> np.ndarray:
+        slopes = b[0] + b[1:]
+        avg = known @ slopes / known.sum()
+        return slopes / avg if avg > 0.05 else np.full(n_a, np.nan)
+
+    out = pd.DataFrame({"archetype": design.archetypes, "matches": counts,
+                        "slope": beta[0] + beta[1:], "sensitivity": relative(beta)})
+    out["ci_low"] = out["ci_high"] = np.nan
+    if bootstrap > 0 and known.sum() > 0:
+        rng = np.random.default_rng(seed + 1)
+        n_events = design.event.max() + 1
+        ratios = np.empty((n_a, bootstrap))
+        for b in range(bootstrap):
+            c = np.bincount(rng.integers(0, n_events, n_events), minlength=n_events)
+            ratios[:, b] = relative(_fit_offset(Z, design.y, design.w * c[design.event], offset, pen, beta))
+        with np.errstate(all="ignore"):
+            out["ci_low"] = np.nanpercentile(ratios, 2.5, axis=1)
+            out["ci_high"] = np.nanpercentile(ratios, 97.5, axis=1)
+    return out.set_index("archetype")
 
 
 @dataclass
@@ -178,6 +280,7 @@ class PilotFit:
     cv: dict = field(default_factory=dict)
     players: int = 0
     rated: int = 0                   # players with 10+ matches in the window
+    skill: pd.DataFrame = field(default_factory=pd.DataFrame)  # per archetype: matches, sensitivity, ci_low/high
 
     @classmethod
     def empty(cls, index: pd.Index) -> "PilotFit":
@@ -228,9 +331,10 @@ def fit(matches: pd.DataFrame, end: pd.Timestamp | str, keep_since: pd.Timestamp
     # Every match is in the table once from each side. Fit on one side only:
     # the model is symmetric, so the other side adds nothing but run time.
     train = _rows(design, (me < opp).to_numpy())
-    lam, cv = _choose_lambda(train, seed=seed)
+    lam, cv, r_oof = _choose_lambda(train, seed=seed)
     pen = _penalty(train, lam)
     theta = _fit(train, train.w, pen)
+    skill = _skill(train, theta, r_oof, bootstrap, seed) if r_oof is not None else pd.DataFrame()
 
     keep = np.ones(len(window), dtype=bool) if keep_since is None else (window["date"] >= pd.Timestamp(keep_since)).to_numpy()
     kept = _rows(design, keep)
@@ -247,7 +351,8 @@ def fit(matches: pd.DataFrame, end: pd.Timestamp | str, keep_since: pd.Timestamp
             boot[:, b] = _lifts(kept, theta_b)
 
     matches_per_player = np.bincount(train.X[:, :train.n_players].nonzero()[1], minlength=train.n_players)
-    return PilotFit(lift, boot, lam, cv, players=train.n_players, rated=int((matches_per_player >= 10).sum()))
+    return PilotFit(lift, boot, lam, cv, players=train.n_players, rated=int((matches_per_player >= 10).sum()),
+                    skill=skill)
 
 
 def fit_scope(tables: dict[str, pd.DataFrame], scope_sources: set[str] | None, end, keep_since=None,

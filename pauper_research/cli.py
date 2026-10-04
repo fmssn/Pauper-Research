@@ -87,6 +87,10 @@ def report(since: str, until: str | None, sources: list[str] | None, top: int, m
 
     pilot = _pilot(all_tables, since, until, sources, scope, bootstrap)
     summary = analysis.archetype_summary(decks, matches, pilot)
+    if not pilot.skill.empty:
+        skill = pilot.skill[pilot.skill["matches"] >= ratings.SKILL_MIN_MATCHES]
+        skill = skill[["sensitivity", "ci_low", "ci_high"]].add_prefix("skill_")
+        summary = summary.merge(skill, left_on="archetype", right_index=True, how="left")
     matchups = analysis.matchup_table(matches, pilot=pilot)
     summary.to_csv(out_dir / "archetypes.csv", index=False)
     matchups.to_csv(out_dir / "matchups.csv", index=False)
