@@ -259,9 +259,9 @@
       "name": "Card Chip",
       "kind": "chip",
       "refersTo": "chip",
-      "description": "Sunken chip with a tabular count; matchup chips outline Clear results.",
+      "description": "Sunken chip with a tabular count; matchup chips tint Clear results (outlines mean Lean).",
       "html": "<span class=\"ds-chip\"><b>4</b>Lightning Bolt</span> <span class=\"ds-chip ds-sure-good\"><b>62%</b>vs Affinity</span>",
-      "css": ".ds-chip{display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;background:var(--sunken,#f4f5f6);color:var(--ink,#1b2230);font:13px 'IBM Plex Sans',system-ui,sans-serif}.ds-chip b{font-weight:600;font-variant-numeric:tabular-nums;margin-right:4px}.ds-sure-good{color:var(--good-ink,#1f66bd);box-shadow:inset 0 0 0 1px currentColor;font-weight:500}"
+      "css": ".ds-chip{display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;background:var(--sunken,#f4f5f6);color:var(--ink,#1b2230);font:13px 'IBM Plex Sans',system-ui,sans-serif}.ds-chip b{font-weight:600;font-variant-numeric:tabular-nums;margin-right:4px}.ds-sure-good{color:var(--good-ink,#1f66bd);background:color-mix(in srgb,currentColor 13%,var(--bg,#fff));font-weight:500}"
     },
     {
       "name": "Clear / Lean Tag",
@@ -298,6 +298,11 @@
         "section": "colors"
       },
       {
+        "name": "The Quiet Lean Rule",
+        "body": "A Lean value is set in Muted at weight 500 and its bar is outlined; only Clear values get Ink at weight 600 or a solid or tinted fill. Visual weight follows certainty, never magnitude.",
+        "section": "colors"
+      },
+      {
         "name": "The Ink Twin Rule",
         "body": "Every meaning colour has a fill version for marks and an ink version for text. Text never uses the fill version.",
         "section": "colors"
@@ -330,6 +335,7 @@
       "Don't use blue or red in data for anything other than favoured / unfavoured; blue outside data is limited to underlined links and the focus ring.",
       "Don't wrap sections in shadowed or bordered cards; shadows are for floating layers only (tooltip, card image).",
       "Don't use the serif for numbers, labels or controls.",
+      "Don't use an outline to mean anything but Lean; mark Clear with a fill or a tint.",
       "Don't show a result as Clear by colour alone; the solid-versus-outline mark and the text tag must agree.",
       "Don't add font weights beyond 400, 500 and 600, or a third typeface."
     ]

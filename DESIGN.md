@@ -245,6 +245,10 @@ help the deck?", it is grey. The only other uses of blue are interaction cues, k
 deliberately thin: link buttons and Methods links (Favoured Blue Ink, underlined) and
 the focus ring.
 
+**The Quiet Lean Rule.** A Lean value is set in Muted at weight 500 and its bar is
+outlined; only Clear values get Ink at weight 600 or a solid or tinted fill. Visual
+weight follows certainty, never magnitude.
+
 **The Ink Twin Rule.** Every meaning colour has a fill version for marks and an ink
 version for text. Text never uses the fill version.
 
@@ -351,7 +355,8 @@ chart dots are full circles. Borders are 1px hairlines; the only thicker lines a
 - **Card chip** (`chip`): Sunken fill, 4px radius, 13px text with a tabular count in
   weight 600.
 - **Matchup chip** (`matchup-chip`): a tighter 12px chip for an option's matchups.
-  Clear results get a 1px inset outline in Favoured Blue Ink or Unfavoured Red Ink.
+  Clear results take Favoured Blue Ink or Unfavoured Red Ink text on a 13% tint of
+  that colour (22% on hover or when open). Never an outline: outlines mean Lean.
 
 ### Inputs / Fields
 - **Search** (`input-search`): 44px (36px on desktop), UI Line border, 6px radius,
@@ -375,6 +380,15 @@ Line centre line at 50% (or 0 points), an 8px fill from the centre to the value
 - **Lean:** the same shape outlined (1.5px inset) in the direction's colour, with no
   fill.
 - Paired with a text tag beside the value: "Clear" in the ink colour, "Lean" in Muted.
+- The value itself follows the tag: Clear values are Ink at weight 600, Lean values
+  Muted at weight 500, so a large but uncertain number never reads as a finding.
+
+### Field Verdict
+The deck page's answer to "should I register this?", between the stat row and the
+matchup count. A bold verdict sentence ("Clearly favored against the field.") with
+the expected match win rate and its interval, a Diverging Bar (max 640px), then one
+Muted note naming the costliest matchup as a link. Hairlines above and below set it
+apart from the stats without a box.
 
 ### Build Panel
 A Sunken panel (`panel`, 6px radius) holding a typical decklist in two columns
@@ -410,6 +424,7 @@ dimmed page, closing on mouse move or click.
 - **Don't** wrap sections in shadowed or bordered cards; shadows are for floating
   layers only (tooltip, card image).
 - **Don't** use the serif for numbers, labels or controls.
+- **Don't** use an outline to mean anything but Lean; mark Clear with a fill or a tint.
 - **Don't** show a result as Clear by colour alone; the solid-versus-outline mark and
   the text tag must agree.
 - **Don't** add font weights beyond 400, 500 and 600, or a third typeface.

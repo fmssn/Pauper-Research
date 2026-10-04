@@ -287,7 +287,7 @@ def test_methods_page_in_sync():
     script = template[template.index("function renderMethods"):template.index("function typeset")]
     filled = set(re.findall(r"(\w+):", script[script.index("const vals"):]))
     assert shown and shown <= filled, f"methods page shows values nobody fills: {shown - filled}"
-    for section in ("m-sources", "m-refs", "m-results", "m-share", "m-winrate", "m-wilson", "m-labels", "m-cards", "m-builds", "m-pilot", "m-skill",
+    for section in ("m-sources", "m-refs", "m-results", "m-share", "m-winrate", "m-wilson", "m-labels", "m-field", "m-cards", "m-builds", "m-pilot", "m-skill",
                     "m-thresholds"):
         assert f'id="{section}"' in template
     matches, decks, cards = _confounded_matches(n_events=30)

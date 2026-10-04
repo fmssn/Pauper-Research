@@ -308,6 +308,9 @@ body[data-view="methods"] #methodsView { display: grid; }
   .stat:first-child { padding-left: 0; border-left: 0; }
 }
 .verdict { font-size: 15px; color: var(--ink-2); max-width: 72ch; }
+/* Against the field: the deck's answer to "should I register it?", between the numbers and the matchup count */
+.field { display: grid; gap: 8px; max-width: 640px; padding-block: 12px; border-block: 1px solid var(--line); }
+.field .note a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
 .verdict b { color: var(--ink); font-weight: 600; }
 .vs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .vs b { font: 600 22px/1.2 var(--font-head); }
@@ -327,6 +330,8 @@ a.row:hover .rname { text-decoration: underline; text-underline-offset: 3px; }
 .rsub { font-size: 13px; color: var(--muted); }
 .rval { display: flex; align-items: center; gap: 10px; justify-self: end; }
 .rval b { font-size: 17px; font-weight: 600; min-width: 2.6em; text-align: right; }
+/* Lean: the number steps back so a big but uncertain value doesn't read as a finding */
+.rval b.lean { color: var(--muted); font-weight: 500; }
 .rbar { grid-column: 1 / -1; }
 .row .ph { display: none; }
 .chev { width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -407,7 +412,9 @@ details.lean[open] > summary { margin-bottom: 4px; }
 }
 .mchip:hover, .mchip[aria-expanded="true"] { background: var(--hover); }
 .mchip b { font-weight: 600; font-variant-numeric: tabular-nums; }
-.mchip.sure { font-weight: 500; box-shadow: inset 0 0 0 1px currentColor; }
+/* Clear: a tint of its direction's colour. Outlines mean Lean everywhere else, so chips don't use one. */
+.mchip.sure { font-weight: 500; background: color-mix(in srgb, currentColor 13%, var(--bg)); }
+.mchip.sure:hover, .mchip.sure[aria-expanded="true"] { background: color-mix(in srgb, currentColor 22%, var(--bg)); }
 .mchip.sure.good { color: var(--good-ink); }
 .mchip.sure.bad { color: var(--bad-ink); }
 .mchip .mn { font-weight: 400; color: var(--ink-2); }
@@ -608,7 +615,8 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       <ul>
         <li><b>Win rate</b> is match wins excluding mirrors, with draws as half a win.</li>
         <li>On every bar the centre line is 50% (or no difference). The whisker is the 95% interval: the range the true value most likely sits in.</li>
-        <li><b>Clear</b> means the whole interval is on one side of the line. <b>Lean</b> means it could still be even. Headings such as "Good against" list only Clear results, in solid colour; Lean ones are outlined and folded under "Could go either way".</li>
+        <li><b>Clear</b> means the whole interval is on one side of the line. <b>Lean</b> means it could still be even. Headings such as "Good against" list only Clear results, in solid colour; Lean ones are outlined, with their number in grey, and folded under "Could go either way".</li>
+        <li><b>Against the field</b> on a deck page is its expected match win rate if the opponents are the top decks in proportion to their share of lists. Matchups with few matches count close to even.</li>
         <li><b>Share of lists</b> counts published decklists, which are mostly MTGO's winning lists. Win rates count matches, which come mostly from paper events. The line under the title says how the current view splits.</li>
         <li><b>Card effects</b> compare lists of the same deck with and without a card. They show what winning lists play, which isn't always what makes them win. With dozens of cards, about 1 in 20 can look Clear by chance.</li>
         <li><b>Online</b> is MTGO: many lists, but match results only from Challenge top 8s. <b>Paper</b> is Melee, CardsRealm and Topdeck, with every round, mostly from Italy and Brazil.</li>
@@ -654,7 +662,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     <nav class="toc" aria-label="Sections">
         <a href="#methods" data-jump="m-sources">Data sources</a><a href="#methods" data-jump="m-results">Results</a><a href="#methods" data-jump="m-share">Meta share</a>
         <a href="#methods" data-jump="m-winrate">Win rate</a><a href="#methods" data-jump="m-wilson">Intervals</a>
-        <a href="#methods" data-jump="m-labels">Clear / Lean</a><a href="#methods" data-jump="m-cards">Cards</a><a href="#methods" data-jump="m-builds">Builds</a>
+        <a href="#methods" data-jump="m-labels">Clear / Lean</a><a href="#methods" data-jump="m-field">Against the field</a><a href="#methods" data-jump="m-cards">Cards</a><a href="#methods" data-jump="m-builds">Builds</a>
         <a href="#methods" data-jump="m-pilot">Pilot skill</a><a href="#methods" data-jump="m-skill">Skill sensitivity</a>
         <a href="#methods" data-jump="m-thresholds">Thresholds</a><a href="#methods" data-jump="m-refs">References</a>
     </nav>
@@ -710,8 +718,19 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       <h2>Clear and Lean</h2>
       <div class="eq">\[ \text{Clear} \iff L > c \ \text{ or } \ U < c \]</div>
       <p class="where">Otherwise Lean. \(c = 0.5\) for win rates and matchups, \(c = 0\) for card differences. Clear means the whole interval is on one side of the line. With dozens of cards, about 1 in 20 can look Clear by chance.</p>
-      <p>The labels decide how results are grouped. "Good against" and "Bad against" on a deck page, and "Lists with it win more" and "win less" for cards, hold only Clear results, drawn as solid bars. Lean results are drawn as outlined bars in a folded "Could go either way" group, which opens by itself when nothing in the section is Clear. Deck pages sort Clear matchups by how far the interval is from 50%: good ones by \(L\), bad ones by \(U\).</p>
+      <p>The labels decide how results are grouped. "Good against" and "Bad against" on a deck page, and "Lists with it win more" and "win less" for cards, hold only Clear results, drawn as solid bars. Lean results are drawn as outlined bars, with their number in grey at a lighter weight, in a folded "Could go either way" group, which opens by itself when nothing in the section is Clear. Builds and decisions show every option, so there the grey number and the outlined bar mark the Lean ones. Deck pages sort Clear matchups by how far the interval is from 50%: good ones by \(L\), bad ones by \(U\).</p>
       <p>In the reports, an archetype is flagged as <b>skewed</b> between online and paper when the two intervals don't overlap: \(L_\text{online} > U_\text{paper}\) or \(L_\text{paper} > U_\text{online}\).</p>
+    </section>
+
+    <section class="card" id="m-field" tabindex="-1">
+      <h2>Against the field</h2>
+      <p>The line under a deck's numbers estimates its match win rate at an event where the opponents are the top decks in proportion to their share of lists. Each matchup \(b\) is a Beta posterior: <b data-k="fieldPrior"></b> matches at 50% are added to its record, so a matchup with few matches counts close to even. With the pilot correction on, its lift is shrunk the same way:</p>
+      <div class="eq">\[ \tilde p_b = \frac{W_b + k/2}{n_b + k} - \frac{n_b}{n_b + k}\,\bar\ell_b \]</div>
+      <div class="eq">\[ v_b = \frac{\alpha_b \beta_b}{(\alpha_b + \beta_b)^2 (\alpha_b + \beta_b + 1)} + \Big(\frac{n_b}{n_b + k}\Big)^2 s_{\ell,b}^2, \qquad \alpha_b = W_b + \tfrac{k}{2},\ \beta_b = n_b - W_b + \tfrac{k}{2} \]</div>
+      <p class="where">\(W_b\), \(n_b\): the deck's wins and matches against \(b\); \(k\) = <b data-k="fieldPrior"></b>; \(\bar\ell_b\), \(s_{\ell,b}\): the average pilot lift in those matches and its bootstrap SD (both 0 with the correction off). The mirror counts as \(\tilde p = 0.5\), \(v = 0\).</p>
+      <div class="eq">\[ E_a = \frac{\sum_b \text{share}_b\, \tilde p_b}{\sum_b \text{share}_b}, \qquad [L, U] = E_a \mp z \sqrt{\sum_b \Big(\frac{\text{share}_b}{\sum_c \text{share}_c}\Big)^2 v_b} \]</div>
+      <p class="where">The sums run over the top <b data-k="topArchetypes"></b> decks in the view, the deck itself included; \(z = 1.959964\). The deck is Clear against the field when the whole interval is on one side of 50%. Decks outside the top <b data-k="topArchetypes"></b> are left out, and share of lists is mostly MTGO's winning lists (see Meta share), so this is the field those lists describe.</p>
+      <p>When less than <b data-k="fieldThin"></b> of the field's weight comes from real matches, \(\sum_{b \ne a} \text{share}_b \frac{n_b}{n_b + k} \big/ \sum_{b \ne a} \text{share}_b\), the page says the estimate leans towards 50%. The <b>costliest matchup</b> is the opponent with the largest \(\text{share}_b\,(0.5 - \tilde p_b)\): the most expected match wins lost to one deck.</p>
     </section>
 
     <section class="card" id="m-cards">
@@ -751,7 +770,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       <h3>Better and worse against</h3>
       <p>For every opponent \(o\) that both sides met <b data-k="decMuMin"></b>+ times, lists with an option are compared with the deck's other lists: \(\Delta_o = \hat p^{+}_o - \hat p^{-}_o\) (pilot-adjusted, with its Newcombe interval \([L_o, U_o]\)). The <b data-k="decMuTop"></b> opponents each way with the largest</p>
       <div class="eq">\[ z_o = \frac{\Delta_o}{(U_o - L_o)/2} \]</div>
-      <p class="where">are compared; the Clear ones are shown (outlined, with these lists' matches against the opponent) and the rest wait behind a button. Selecting one shows both records and the interval. Picking the most extreme of many opponents finds Clear ones by chance more often than 1 in 20, so trust a pattern that repeats (a build and the card that defines it) more than a single chip. Not shown for sideboards: what a list sideboards follows the field it expects.</p>
+      <p class="where">are compared; the Clear ones are shown (tinted, with these lists' matches against the opponent) and the rest wait behind a button. Selecting one shows both records and the interval. Picking the most extreme of many opponents finds Clear ones by chance more often than 1 in 20, so trust a pattern that repeats (a build and the card that defines it) more than a single chip. Not shown for sideboards: what a list sideboards follows the field it expects.</p>
     </section>
 
     <section class="card" id="m-pilot">
@@ -813,6 +832,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
           <tr><td>Metagame chart</td><td>Decks with <b data-k="sortMin"></b>+ matches; meta share on a log scale. On phones, a list of those decks that are Clear above or below 50%</td></tr>
           <tr><td>Win-rate sort</td><td>Decks with <b data-k="sortMin"></b>+ matches first</td></tr>
           <tr><td>Matchups shown</td><td><b data-k="minMu"></b>+ matches</td></tr>
+          <tr><td>Against the field</td><td>Each matchup pulled towards 50% by <b data-k="fieldPrior"></b> matches; "leans towards 50%" below <b data-k="fieldThin"></b> real data</td></tr>
           <tr><td>Card breakdowns</td><td>Top <b data-k="cardArchetypes"></b> archetypes; cards in <b data-k="minPlayRate"></b>+ of lists</td></tr>
           <tr><td>Card comparison</td><td><b data-k="overallDecks"></b>+ lists and <b data-k="overallMatches"></b>+ matches with and without the card</td></tr>
           <tr><td>Card comparison per matchup</td><td><b data-k="matchupTotal"></b>+ matches in the matchup; <b data-k="matchupDecks"></b>+ lists and <b data-k="matchupMatches"></b>+ matches on each side</td></tr>
@@ -886,6 +906,8 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
   const SORT_MIN = 30;       // matches before a deck ranks in the win-rate sort
   const CORE_PLAY = 0.85;    // play rate above which a card counts as core
   const SKILL_LEAN = 0.15;   // skill sensitivity this far from 1 counts as leaning one way
+  const FIELD_PRIOR = 10;    // matches at 50% that every matchup is pulled towards in the field estimate
+  const FIELD_THIN = 0.5;    // below this share of real matches in the field estimate, say it leans on 50%
   const PERIODS = { "30d": "30 days", "90d": "90 days", "180d": "180 days" };
   const SCOPES = { combined: "All events", paper: "Paper", online: "Online" };
   const SCOPE_NOTES = {
@@ -992,6 +1014,8 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     return wrap;
   }
   const tag = (sure, good) => h("span", { class: "tag " + (sure ? "clear " + (good ? "good" : "bad") : "lean") }, sure ? "Clear" : "Lean");
+  // A row's number: bold when Clear, quieter when Lean, so its size never outruns its certainty.
+  const val = (text, sure) => h("b", { class: "num" + (sure ? "" : " lean") }, text);
 
   // ---------- data access ----------
   const scope = () => DATA.periods[state.period].scopes[state.scope];
@@ -1370,14 +1394,14 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       h("div", { class: "deckcell" }, mana(m.opp.color), h("div", null,
         h("div", { class: "rname" }, m.opp.name),
         h("div", { class: "rsub num" }, record(m.wins, m.n) + " in " + fmt(m.n) + " matches"))),
-      h("div", { class: "rval" }, tag(sure, good), h("b", { class: "num" }, pct(m.wr)), chevron()),
+      h("div", { class: "rval" }, tag(sure, good), val(pct(m.wr), sure), chevron()),
       h("div", { class: "rbar" }, dbar(m.wr, m.lo, m.hi, 0.5, 0.35)));
   }
   function cardRow(r, context) {
     const good = r.delta >= 0, sure = r.lo > 0 || r.hi < 0;
     return h("div", { class: "row" },
       h("div", { class: "minw0" }, h("div", { class: "cardname" }, h("span", { class: "rname" }, r.card), eyeButton(r.card)), h("div", { class: "rsub num" }, context)),
-      h("div", { class: "rval" }, tag(sure, good), h("b", { class: "num" }, pts(r.delta))),
+      h("div", { class: "rval" }, tag(sure, good), val(pts(r.delta), sure)),
       h("div", { class: "rbar" }, dbar(r.delta, r.lo, r.hi, 0, 0.3)),
       h("div", { class: "compare num" }, "With it " + pct(r.wrW) + " in " + fmt(r.nW) + " matches (" + r.dW + " lists), without " + pct(r.wrWo) + " in " + fmt(r.nWo) + " (" + r.dWo + " lists)"));
   }
@@ -1589,7 +1613,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     return h("div", { class: "row" },
       h("div", { style: "min-width:0" }, h("div", { class: "rname" }, label),
         h("div", { class: "rsub num" }, pct(share) + " of lists, " + (n ? fmt(n) + " matches" + vs : "no matches"))),
-      h("div", { class: "rval" }, t, r ? h("b", { class: "num" }, pct(r[0])) : h("b", { class: "num muted" }, "–")),
+      h("div", { class: "rval" }, t, r ? val(pct(r[0]), !c || sure) : h("b", { class: "num muted" }, "–")),
       h("div", { class: "rbar" }, c ? dbar(c[0], c[1], c[2], 0, 0.2) : null),
       muChips(mu), after);
   }
@@ -1624,7 +1648,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       }
       const main = state.board === "main", chips = (m) => main ? m : null;   // no matchups per option on the sideboard
       body.append(h("p", { class: "dkey" }, "Bars: win rate against the deck's other lists, in points, with its 95% interval. " +
-        (main ? "Next to an opponent: the same against that opponent, then these lists' matches against it; outlined is Clear. Select one for its numbers. Opponents need " + DT.muMin + "+ matches on both sides. " : "") +
+        (main ? "Next to an opponent: the same against that opponent, then these lists' matches against it; tinted is Clear. Select one for its numbers. Opponents need " + DT.muMin + "+ matches on both sides. " : "") +
         (state.adjust || !HAS_PILOT ? "" : "Not corrected for pilot skill.")));
       // A build's typical list opens in place, so focus stays on its button.
       const listToggle = (b) => {
@@ -1726,6 +1750,51 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     return h("p", { class: "note" }, text + " ", h("span", { class: "muted num" }, "(" + x.toFixed(1) + "× an average deck, last 12 months)"));
   }
 
+  // Expected match win rate against the field: every listed deck, the mirror at 50%, weighted by its share of
+  // lists. Each matchup is its Beta posterior from FIELD_PRIOR matches at 50% plus the real record, so thin
+  // matchups count close to even; the pilot lift is shrunk the same way. See the methods page (m-field).
+  function fieldEstimate(deck) {
+    const byOpp = new Map((scope().mu[deck.i] || []).map((r) => [r[0], r]));
+    const parts = decks().map((o) => {
+      if (o.i === deck.i) return { o, p: 0.5, v: 0, k: 0 };
+      const [, w = 0, n = 0, lift, sd] = byOpp.get(o.i) || [];
+      const a = w + FIELD_PRIOR / 2, b = n - w + FIELD_PRIOR / 2, k = n / (n + FIELD_PRIOR);
+      const adj = state.adjust && lift != null;
+      return { o, n, k, p: a / (a + b) - (adj ? k * lift : 0),
+        v: a * b / ((a + b) ** 2 * (a + b + 1)) + (adj ? (k * (sd || 0)) ** 2 : 0) };
+    });
+    const tot = parts.reduce((t, x) => t + x.o.share, 0);
+    if (!tot) return null;
+    const e = parts.reduce((t, x) => t + x.o.share * x.p, 0) / tot;
+    const half = 1.959964 * Math.sqrt(parts.reduce((t, x) => t + (x.o.share / tot) ** 2 * x.v, 0));
+    const others = parts.filter((x) => x.o.i !== deck.i), rest = others.reduce((t, x) => t + x.o.share, 0);
+    const data = rest ? others.reduce((t, x) => t + x.o.share * x.k, 0) / rest : 0;
+    // The costliest matchup: the most expected points lost against one opponent.
+    const risk = others.filter((x) => x.p < 0.5).sort((x, y) => y.o.share * (0.5 - y.p) - x.o.share * (0.5 - x.p))[0] || null;
+    return { e, lo: Math.max(0, e - half), hi: Math.min(1, e + half), data, n: parts.length, risk };
+  }
+  function fieldBlock(deck) {
+    const f = deck.matches ? fieldEstimate(deck) : null;
+    if (!f) return null;
+    const sure = f.lo > 0.5 || f.hi < 0.5, up = f.e >= 0.5;
+    const head = sure ? (up ? "Clearly favored against the field" : "Clearly behind against the field")
+      : (up ? "Leans favored against the field, could be even" : "Leans behind against the field, could be even");
+    const box = h("div", { class: "field" },
+      h("p", { class: "verdict" }, h("b", null, head + "."), " Expected match win rate ", h("b", { class: "num" }, pct(f.e)),
+        h("span", { class: "num" }, ", 95% interval " + ci(f.lo, f.hi)), ", against the top " + f.n + " decks, each weighted by its share of lists, the mirror included."),
+      dbar(f.e, f.lo, f.hi, 0.5, 0.35, head + ": " + pct(f.e) + ", 95% interval " + ci(f.lo, f.hi)));
+    const notes = [];
+    if (f.risk) {
+      const m = matchups(deck).find((x) => x.opp.i === f.risk.o.i);
+      notes.push("Costliest matchup: ", navA({ href: hashOf("match", deck.name, f.risk.o.name) }, () => go("match", deck.name, f.risk.o.name), f.risk.o.name),
+        h("span", { class: "num" }, " (" + pct(f.risk.o.share, 1) + " of lists" + (m ? ", " + pct(m.wr) + " in " + fmt(m.n) + " matches" : "") + ")."), " ");
+    }
+    if (f.data < FIELD_THIN) notes.push("Few matches against much of the field, so this estimate leans towards 50%. ");
+    notes.push(h("button", { class: "linkbtn inline", type: "button", onclick: () => { go("methods", null, null, true, false); const s = document.getElementById("m-field"); s.scrollIntoView(); s.focus({ preventScroll: true }); } }, "How this is estimated"));
+    box.append(h("p", { class: "note" }, notes));
+    return box;
+  }
+
   function renderDeck() {
     const view = $("#deckView");
     const deck = deckByName(state.deck);
@@ -1749,6 +1818,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
         h("div", { class: "stat" }, h("b", { class: "num" }, deck.matches ? pct(deck.wr) : "–"), h("span", null, deck.matches ? "win rate, " + ci(deck.lo, deck.hi) : "no matches")),
         h("div", { class: "stat" }, h("b", { class: "num" }, pct(deck.share, 1)), h("span", null, "of published lists")),
         h("div", { class: "stat" }, h("b", { class: "num" }, fmt(deck.matches)), h("span", null, "matches"))),
+      fieldBlock(deck) || "",
       h("p", { class: "verdict" }, enough.length
         ? ["Clearly ahead against ", h("b", null, String(good.length)), good.length === 1 ? " deck" : " decks", " and clearly behind against ", h("b", null, String(bad.length)), ". ",
            String(lean.length), lean.length === 1 ? " more matchup could go either way." : " more matchups could go either way."]
@@ -1966,7 +2036,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       grid: (M.lambda_grid || []).join(", "), bootstrap: M.bootstrap,
       lam: pl.lam == null ? "–" : pl.lam, rated: fmt(pl.rated || 0), players: fmt(pl.players || 0),
       topArchetypes: T.topArchetypes, cardArchetypes: T.cardArchetypes, minPlayRate: pct(T.minPlayRate),
-      minMu: MIN_MU, sortMin: SORT_MIN, corePlay: pct(CORE_PLAY), overallDecks: T.overall.min_decks, overallMatches: T.overall.min_matches,
+      minMu: MIN_MU, sortMin: SORT_MIN, fieldPrior: FIELD_PRIOR, fieldThin: pct(FIELD_THIN), corePlay: pct(CORE_PLAY), overallDecks: T.overall.min_decks, overallMatches: T.overall.min_matches,
       matchupTotal: T.matchupTotal, matchupDecks: T.matchup.min_decks, matchupMatches: T.matchup.min_matches,
       slopeLambda: M.slope_lambda, skillMin: M.skill_min_matches, skillLean: SKILL_LEAN,
       skillLeanHi: (1 + SKILL_LEAN).toFixed(2), skillLeanLo: (1 - SKILL_LEAN).toFixed(2),
