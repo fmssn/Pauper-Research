@@ -1,0 +1,337 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-04T21:25:15Z",
+  "title": "Design System: Pauper-Research",
+  "extensions": {
+    "colorMeta": {
+      "favoured-blue": {
+        "role": "primary",
+        "displayName": "Favoured Blue",
+        "canonical": "oklch(57.5% 0.163 256)",
+        "tonalRamp": [
+          "#00004d",
+          "#00156f",
+          "#003992",
+          "#005bb6",
+          "#2f7ddb",
+          "#539fff",
+          "#79c6ff",
+          "#a4f2ff"
+        ]
+      },
+      "unfavoured-red": {
+        "role": "primary",
+        "displayName": "Unfavoured Red",
+        "canonical": "oklch(62.3% 0.191 25)",
+        "tonalRamp": [
+          "#3d0000",
+          "#630000",
+          "#8a0000",
+          "#b0081d",
+          "#d73d3e",
+          "#ff635f",
+          "#ff8b83",
+          "#ffc2b8"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(25.2% 0.029 264)",
+        "tonalRamp": [
+          "#060b17",
+          "#1d2432",
+          "#38404f",
+          "#555e6e",
+          "#757d8f",
+          "#959fb1",
+          "#bbc4d7",
+          "#e5efff"
+        ]
+      },
+      "neutral": {
+        "role": "neutral",
+        "displayName": "Neutral Grey",
+        "canonical": "oklch(64.1% 0.015 258)",
+        "tonalRamp": [
+          "#070b12",
+          "#20242b",
+          "#3b4048",
+          "#585e66",
+          "#787e86",
+          "#999fa8",
+          "#bec5ce",
+          "#e8eff9"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper"
+      },
+      "sunken": {
+        "role": "neutral",
+        "displayName": "Sunken"
+      },
+      "hover": {
+        "role": "neutral",
+        "displayName": "Hover"
+      },
+      "ink-secondary": {
+        "role": "neutral",
+        "displayName": "Ink Secondary"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted"
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline"
+      },
+      "hairline-strong": {
+        "role": "neutral",
+        "displayName": "Hairline Strong"
+      },
+      "ui-line": {
+        "role": "neutral",
+        "displayName": "UI Line"
+      },
+      "favoured-blue-ink": {
+        "role": "primary",
+        "displayName": "Favoured Blue Ink"
+      },
+      "unfavoured-red-ink": {
+        "role": "primary",
+        "displayName": "Unfavoured Red Ink"
+      },
+      "focus": {
+        "role": "primary",
+        "displayName": "Focus"
+      },
+      "mana-W": {
+        "role": "tertiary",
+        "displayName": "Mana W"
+      },
+      "mana-U": {
+        "role": "tertiary",
+        "displayName": "Mana U"
+      },
+      "mana-B": {
+        "role": "tertiary",
+        "displayName": "Mana B"
+      },
+      "mana-R": {
+        "role": "tertiary",
+        "displayName": "Mana R"
+      },
+      "mana-G": {
+        "role": "tertiary",
+        "displayName": "Mana G"
+      },
+      "mana-C": {
+        "role": "tertiary",
+        "displayName": "Mana C"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Deck or matchup name in the page header; 30px on phones."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Deck-list intro title; 22px in the desktop sidebar."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section headings."
+      },
+      "stat": {
+        "displayName": "Stat",
+        "purpose": "Headline numbers in the deck header."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text; 15px from 1024px."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Filter labels, tags, metadata."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "Inline code on the Methods page."
+      }
+    },
+    "shadows": [
+      {
+        "name": "tooltip",
+        "value": "0 4px 14px rgba(0, 0, 0, 0.12)",
+        "purpose": "Metagame chart tooltip."
+      },
+      {
+        "name": "card-image",
+        "value": "0 12px 48px rgba(0, 0, 0, 0.6)",
+        "purpose": "Card image in the viewer."
+      },
+      {
+        "name": "current-edge",
+        "value": "inset 2px 0 0 var(--ink)",
+        "purpose": "Selected deck row and decision lines; a marker, not elevation."
+      }
+    ],
+    "motion": [
+      {
+        "name": "reduced-motion",
+        "value": "transition: none; scroll-behavior: auto",
+        "purpose": "Under prefers-reduced-motion all transitions are removed. The system otherwise uses no animation."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "short-labels",
+        "value": "max-width: 520px"
+      },
+      {
+        "name": "sheet-dialog",
+        "value": "600px"
+      },
+      {
+        "name": "desktop",
+        "value": "1024px"
+      },
+      {
+        "name": "desktop-wide-sidebar",
+        "value": "1200px"
+      },
+      {
+        "name": "desktop-full-labels",
+        "value": "1280px"
+      },
+      {
+        "name": "wide",
+        "value": "1600px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ink-filled action; used once, to apply filters.",
+      "html": "<button class=\"ds-btn-primary\">Apply</button>",
+      "css": ".ds-btn-primary{height:46px;padding:0 24px;border:0;border-radius:6px;background:var(--ink,#1b2230);color:var(--bg,#fff);font:600 16px 'IBM Plex Sans',system-ui,sans-serif;cursor:pointer}.ds-btn-primary:hover{background:#38404f}.ds-btn-primary:focus-visible{outline:2px solid var(--focus,#1f66bd);outline-offset:2px}"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "custom",
+      "refersTo": "segmented-option",
+      "description": "Period, events and pilot-skill filters; the pressed option is ink-filled.",
+      "html": "<div class=\"ds-seg\"><button>30 days</button><button aria-pressed=\"true\">90 days</button><button>180 days</button></div>",
+      "css": ".ds-seg{display:inline-flex;border:1px solid var(--line-strong,#cdd2da);border-radius:6px;overflow:hidden}.ds-seg button{border:0;border-left:1px solid var(--line-strong,#cdd2da);background:transparent;padding:0 12px;height:34px;font:500 14px 'IBM Plex Sans',system-ui,sans-serif;color:var(--ink-2,#464e5c);cursor:pointer}.ds-seg button:first-child{border-left:0}.ds-seg button:hover{background:var(--hover,#eef0f2)}.ds-seg button[aria-pressed=true]{background:var(--ink,#1b2230);color:var(--bg,#fff)}.ds-seg button:focus-visible{outline:2px solid var(--focus,#1f66bd);outline-offset:-2px}"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Deck search; / focuses it.",
+      "html": "<label class=\"ds-search\"><svg viewBox=\"0 0 24 24\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m20 20-3.5-3.5\"/></svg><input placeholder=\"Search decks\"></label>",
+      "css": ".ds-search{position:relative;display:block;width:280px}.ds-search input{width:100%;height:44px;border-radius:6px;border:1px solid var(--ui-line,#7d8490);background:var(--bg,#fff);color:var(--ink,#1b2230);font:16px 'IBM Plex Sans',system-ui,sans-serif;padding:0 12px 0 36px;box-sizing:border-box}.ds-search input::placeholder{color:var(--muted,#5f6776)}.ds-search input:focus-visible{outline:2px solid var(--focus,#1f66bd);outline-offset:2px}.ds-search svg{position:absolute;left:11px;top:13px;width:18px;height:18px;stroke:var(--muted,#5f6776);fill:none;stroke-width:2;stroke-linecap:round}"
+    },
+    {
+      "name": "Diverging Bar",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Signature mark: fill from 50% to the value, whisker for the 95% interval; solid = Clear, outline = Lean.",
+      "html": "<div class=\"ds-dbar ds-good\"><i class=\"t\"></i><i class=\"m\"></i><i class=\"f\" style=\"left:50%;width:18%\"></i><i class=\"c\" style=\"left:58%;width:20%\"></i></div><div class=\"ds-dbar ds-bad ds-lean\"><i class=\"t\"></i><i class=\"m\"></i><i class=\"f\" style=\"left:44%;width:6%\"></i><i class=\"c\" style=\"left:30%;width:28%\"></i></div>",
+      "css": ".ds-dbar{position:relative;height:18px;width:320px;margin:6px 0}.ds-dbar i{position:absolute;display:block}.ds-dbar .t{left:0;right:0;top:8px;height:2px;background:var(--line,#e5e8ed)}.ds-dbar .m{left:50%;top:1px;bottom:1px;width:1px;background:var(--ui-line,#7d8490)}.ds-dbar .f{top:5px;height:8px;border-radius:2px;background:currentColor}.ds-dbar .c{top:8px;height:2px;background:currentColor;opacity:.6}.ds-dbar .c::before,.ds-dbar .c::after{content:'';position:absolute;top:-3px;width:1.5px;height:8px;background:currentColor}.ds-dbar .c::before{left:0}.ds-dbar .c::after{right:0}.ds-good{color:var(--good,#2a78d6)}.ds-bad{color:var(--bad,#e34948)}.ds-lean .f{background:transparent;box-shadow:inset 0 0 0 1.5px currentColor}"
+    },
+    {
+      "name": "Deck Row",
+      "kind": "custom",
+      "refersTo": "deck-row",
+      "description": "Rank, name with mana pips and metadata, win rate; current row has a 2px ink edge.",
+      "html": "<a class=\"ds-deckrow\" href=\"#\"><span class=\"r\">3</span><span><b>Red Madness</b><small><span class=\"ds-mana\"><i style=\"background:#ec9f80\">R</i></span>7.4% of lists</small></span><b class=\"w\">54.1%</b></a>",
+      "css": ".ds-deckrow{display:grid;grid-template-columns:1.6em minmax(0,1fr) auto;align-items:center;gap:10px;min-height:56px;padding:8px 8px 8px 4px;width:320px;color:var(--ink,#1b2230);text-decoration:none;font-family:'IBM Plex Sans',system-ui,sans-serif;border-top:1px solid var(--line,#e5e8ed);box-sizing:border-box}.ds-deckrow:hover{background:var(--hover,#eef0f2)}.ds-deckrow:focus-visible{outline:2px solid var(--focus,#1f66bd);outline-offset:-2px}.ds-deckrow .r{font-size:13px;color:var(--muted,#5f6776);text-align:right}.ds-deckrow b{font-size:15px;font-weight:600;display:block}.ds-deckrow small{display:flex;gap:4px;align-items:center;font-size:13px;color:var(--muted,#5f6776)}.ds-deckrow .w{font-size:16px;font-variant-numeric:tabular-nums}.ds-mana{display:inline-flex;gap:2px}.ds-mana i{width:14px;height:14px;border-radius:50%;display:inline-grid;place-items:center;font:600 8px/1 sans-serif;font-style:normal;color:#1c1c1a;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}"
+    },
+    {
+      "name": "Card Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Sunken chip with a tabular count; matchup chips outline Clear results.",
+      "html": "<span class=\"ds-chip\"><b>4</b>Lightning Bolt</span> <span class=\"ds-chip ds-sure-good\"><b>62%</b>vs Affinity</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;padding:4px 9px;border-radius:4px;background:var(--sunken,#f4f5f6);color:var(--ink,#1b2230);font:13px 'IBM Plex Sans',system-ui,sans-serif}.ds-chip b{font-weight:600;font-variant-numeric:tabular-nums;margin-right:4px}.ds-sure-good{color:var(--good-ink,#1f66bd);box-shadow:inset 0 0 0 1px currentColor;font-weight:500}"
+    },
+    {
+      "name": "Clear / Lean Tag",
+      "kind": "chip",
+      "refersTo": "tag-clear-good",
+      "description": "Text tag beside a value; Clear in the ink colour, Lean in muted.",
+      "html": "<span class=\"ds-tag ds-g\">Clear</span> <span class=\"ds-tag ds-b\">Clear</span> <span class=\"ds-tag ds-l\">Lean</span>",
+      "css": ".ds-tag{font:600 12px 'IBM Plex Sans',system-ui,sans-serif;margin-right:12px}.ds-g{color:var(--good-ink,#1f66bd)}.ds-b{color:var(--bad-ink,#c42f2e)}.ds-l{color:var(--muted,#5f6776);font-weight:500}"
+    },
+    {
+      "name": "Top Bar",
+      "kind": "nav",
+      "refersTo": "",
+      "description": "Sticky bar: brand, breadcrumbs, filters; hairline below.",
+      "html": "<nav class=\"ds-bar\"><a class=\"b\" href=\"#\"><b>Pauper metagame</b><span>Jul 6 – Oct 4</span></a><span class=\"cr\">Decks <i>/</i> <strong>Red Madness</strong></span></nav>",
+      "css": ".ds-bar{display:flex;align-items:center;gap:16px;min-height:56px;padding:6px 16px;background:var(--bg,#fff);border-bottom:1px solid var(--line,#e5e8ed);font-family:'IBM Plex Sans',system-ui,sans-serif}.ds-bar .b{display:grid;color:var(--ink,#1b2230);text-decoration:none}.ds-bar .b:hover b{text-decoration:underline;text-underline-offset:3px}.ds-bar .b span{font-size:12px;color:var(--muted,#5f6776)}.ds-bar .cr{font-size:15px;font-weight:500;color:var(--ink-2,#464e5c)}.ds-bar .cr i{font-style:normal;color:var(--line-strong,#cdd2da)}.ds-bar .cr strong{color:var(--ink,#1b2230);font-weight:600}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Lab Notebook",
+    "overview": "The dashboard reads like a careful researcher's notebook: plain sans-serif entries in\ntabular figures, a single serif voice for the thing being studied (a deck's name, a\nmatchup), and every claim annotated with how sure it is. Nothing on the page is\ndecorative. Structure comes from hairline rules and whitespace, not from boxes,\nshadows or colour fields. The method is always one link away, because in a notebook\nyou show your working.\n\nDensity is high but calm. A grinder scrolls long lists of decks, matchups and cards,\nso rows are tight, numbers line up, and hierarchy comes from weight and size steps\ninside one sans family rather than from colour. Colour is reserved for a single\nmeaning: whether a result favours the deck (blue) or not (red). Grey carries\neverything else. Certainty is drawn, not written: a solid bar is a Clear result, an\noutlined bar is a Lean one, and every bar carries the whisker of its 95% interval.\n\nThe system is mobile-first and theme-symmetric. Phones get one stacked column with\n44px touch targets; from 1024px a sidebar of decks sits beside the detail; from\n1600px matchups and cards stand side by side. Light and dark themes share every\nrole, and both meet WCAG AA.",
+    "keyCharacteristics": [
+      "Rules, not boxes: sections are separated by 1px hairlines, never by cards with shadows.",
+      "One meaning colour pair (Favoured Blue / Unfavoured Red); everything else is ink on paper.",
+      "Serif only for the subject (deck or matchup names, page titles); sans for all data.",
+      "Tabular numerals everywhere numbers sit in columns.",
+      "Certainty is encoded in the mark: solid fill = Clear, outline = Lean, whisker = 95% interval.",
+      "Quiet, precise controls: hairline borders, 6px radius, ink-filled when selected."
+    ],
+    "rules": [
+      {
+        "name": "The One Meaning Rule",
+        "body": "In data, blue and red mean \"favoured\" and \"unfavoured\", nothing else: no red warnings, no branded accents. If a mark does not answer \"does this help the deck?\", it is grey. The only other uses of blue are interaction cues, kept deliberately thin: link buttons and Methods links (Favoured Blue Ink, underlined) and the focus ring.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink Twin Rule",
+        "body": "Every meaning colour has a fill version for marks and an ink version for text. Text never uses the fill version.",
+        "section": "colors"
+      },
+      {
+        "name": "The Serif Names the Subject Rule",
+        "body": "Source Serif 4 is used only for what the page is about: a deck, a matchup, the page title. Never for numbers, labels or controls.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Any number that can sit above or below another number uses `font-variant-numeric: tabular-nums`.",
+        "section": "typography"
+      },
+      {
+        "name": "The Rules-Not-Boxes Rule",
+        "body": "Sections are separated by a 1px hairline and space. Do not wrap content in bordered or shadowed cards.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do separate sections with a 1px Hairline and space.",
+      "Do draw every win rate as a Diverging Bar with its 95% whisker, solid for Clear and outlined for Lean.",
+      "Do use the Ink versions of blue and red for any text, so text keeps 4.5:1 on every surface in both themes.",
+      "Do set every column of numbers in tabular figures.",
+      "Do keep touch targets at 44px below 1024px (40px for dense card chips).",
+      "Do define every new colour as a role token with a dark-theme twin, and check it in both themes."
+    ],
+    "donts": [
+      "Don't use blue or red in data for anything other than favoured / unfavoured; blue outside data is limited to underlined links and the focus ring.",
+      "Don't wrap sections in shadowed or bordered cards; shadows are for floating layers only (tooltip, card image).",
+      "Don't use the serif for numbers, labels or controls.",
+      "Don't show a result as Clear by colour alone; the solid-versus-outline mark and the text tag must agree.",
+      "Don't add font weights beyond 400, 500 and 600, or a third typeface."
+    ]
+  }
+}
