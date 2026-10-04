@@ -63,8 +63,9 @@ width; from 1600px the deck view shows matchups and cards side by side.
 - **Decks:** every top archetype with meta share and win rate. Search and sort;
   the number is the deck's position in the current sort.
 - **Metagame chart:** meta share (log scale) against win rate with its 95%
-  interval for every deck with 30+ matches, beside the deck list on desktop and
-  a compact version above it on phones. Click a dot to open the deck.
+  interval for every deck with 30+ matches, beside the deck list on desktop.
+  Click a dot to open the deck. Phones instead get a list of those decks that
+  are clearly above or below 50%, above the deck list.
 - **Deck page:** good and bad matchups, most certain first, each with its 95%
   interval and a Clear / Lean label; then the cards whose lists win more or less.
 - **Matchup page:** the head-to-head record, plus card comparisons counting

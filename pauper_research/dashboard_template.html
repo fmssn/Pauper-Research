@@ -340,11 +340,15 @@ details.more[open] > summary::before { content: "− "; }
 .howto ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
 .howto b { color: var(--ink); font-weight: 600; }
 
-/* Metagame chart: above the deck list on phones (smaller heading), beside it on desktop */
+/* Metagame: a list of clear winners and losers above the deck list on phones, the chart beside it on desktop */
 .metachart { display: grid; gap: 14px; min-width: 0; }
 #listView .metachart .hero { gap: 6px; }
 #listView .metachart h1 { font-size: 20px; }
-#listView .metachart .legend { font-size: 12px; gap: 4px 14px; }
+#listView .metachart .legend { display: none; }
+.metasub { display: flex; flex-wrap: wrap; align-items: center; column-gap: 4px; margin-top: 2px; }
+.metasub span { white-space: nowrap; }
+.metasub .mana { margin-right: 3px; }
+.metasub .mana i { width: 14px; height: 14px; font-size: 8px; }
 @media (min-width: 1024px) { .metachart { gap: 24px; } }
 .overview { position: relative; }
 .overview svg { display: block; width: 100%; overflow: visible; }
@@ -594,7 +598,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
         <thead><tr><th>What</th><th>Rule</th></tr></thead>
         <tbody>
           <tr><td>Decks listed</td><td>Top <b data-k="topArchetypes"></b> archetypes by decklists</td></tr>
-          <tr><td>Metagame chart</td><td>Decks with <b data-k="sortMin"></b>+ matches; meta share on a log scale</td></tr>
+          <tr><td>Metagame chart</td><td>Decks with <b data-k="sortMin"></b>+ matches; meta share on a log scale. On phones, a list of those decks that are Clear above or below 50%</td></tr>
           <tr><td>Win-rate sort</td><td>Decks with <b data-k="sortMin"></b>+ matches first</td></tr>
           <tr><td>Matchups shown</td><td><b data-k="minMu"></b>+ matches</td></tr>
           <tr><td>Card breakdowns</td><td>Top <b data-k="cardArchetypes"></b> archetypes; cards in <b data-k="minPlayRate"></b>+ of lists</td></tr>
@@ -1157,14 +1161,11 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     const box = $("#overview"), W = box.clientWidth;
     if (!W) return;
     const rows = decks().filter((d) => d.matches >= SORT_MIN);
+    if (!wide.matches) return renderMetaList(box, rows);
     $("#overviewNote").textContent = "Meta share against win rate for the " + rows.length + " decks with " + SORT_MIN +
-      "+ matches. Whiskers are 95% intervals. " + (wide.matches ? "Click" : "Tap") + " a dot to open the deck.";
+      "+ matches. Whiskers are 95% intervals. Click a dot to open the deck.";
     if (!rows.length) { box.replaceChildren(h("div", { class: "empty" }, "No deck has " + SORT_MIN + " or more matches in this view.")); return; }
-    // Phones get a compact, squarer chart with fewer labels.
-    const narrow = W < 600, maxLabels = narrow ? 8 : Infinity;
-    const H = narrow ? Math.max(280, Math.min(400, Math.round(W * 0.9)))
-      : Math.max(360, Math.min(Math.max(520, innerHeight - 280), Math.round(W * 0.55)));
-    const m = { l: narrow ? 38 : 44, r: narrow ? 12 : 20, t: 26, b: 34 };
+    const H = Math.max(360, Math.min(Math.max(520, innerHeight - 280), Math.round(W * 0.55))), m = { l: 44, r: 20, t: 26, b: 34 };
     const lx = rows.map((d) => Math.log(d.share)), x0 = Math.min(...lx) - 0.15, x1 = Math.max(...lx) + 0.15;
     const y0 = Math.floor(Math.min(0.45, ...rows.map((d) => d.lo)) * 20) / 20, y1 = Math.ceil(Math.max(0.55, ...rows.map((d) => d.hi)) * 20) / 20;
     const X = (s) => m.l + (Math.log(s) - x0) / (x1 - x0) * (W - m.l - m.r), Y = (p) => m.t + (y1 - p) / (y1 - y0) * (H - m.t - m.b);
@@ -1185,7 +1186,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
         svg("text", { x: X(s), y: H - m.b + 18, "text-anchor": "middle" }, s * 100 + "%"));
     });
     root.append(svg("text", { x: W - m.r, y: H - 4, "text-anchor": "end" }, "Meta share"),
-      svg("text", narrow ? { x: 0, y: 12 } : { x: m.l - 8, y: 12, "text-anchor": "end" }, "Win rate"));
+      svg("text", { x: m.l - 8, y: 12, "text-anchor": "end" }, "Win rate"));
     const tip = h("div", { class: "tip", hidden: true });
     const colorOf = (d) => d.lo > 0.5 ? "var(--good)" : d.hi < 0.5 ? "var(--bad)" : "var(--neutral)";
     // Big decks drawn last so they sit on top; labels placed biggest first where they don't collide.
@@ -1194,15 +1195,10 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
       placed.every((o) => b.x1 < o.x0 || b.x0 > o.x1 || b.y1 < o.y0 || b.y0 > o.y1);
     rows.slice().sort((a, b) => b.share - a.share).forEach((d) => placed.push({ x0: X(d.share) - 7, x1: X(d.share) + 7, y0: Y(d.wr) - 7, y1: Y(d.wr) + 7 }));
     rows.slice().sort((a, b) => b.share - a.share).forEach((d) => {
-      if (labels.length >= maxLabels) return;
       const w = d.name.length * 6.6, cx = X(d.share), cy = Y(d.wr);
-      // Right of the dot, left of it, then (on phones, where dots crowd) above and below.
-      const spots = [[cx + 10, cy, "start"], [cx - 10, cy, "end"]];
-      if (narrow) spots.push([cx, cy - 13, "middle"], [cx, cy + 13, "middle"]);
-      for (const [x, y, anchor] of spots) {
-        const x0 = anchor === "start" ? x : anchor === "end" ? x - w : x - w / 2;
-        const b = { x0, x1: x0 + w, y0: y - 8, y1: y + 6 };
-        if (free(b)) { placed.push(b); labels.push(svg("text", { x, y: y + 4, "text-anchor": anchor, class: "lbl" }, d.name)); return; }
+      for (const [x, anchor] of [[cx + 10, "start"], [cx - 10, "end"]]) {
+        const b = { x0: anchor === "start" ? x : x - w, x1: anchor === "start" ? x + w : x, y0: cy - 8, y1: cy + 6 };
+        if (free(b)) { placed.push(b); labels.push(svg("text", { x, y: cy + 4, "text-anchor": anchor, class: "lbl" }, d.name)); return; }
       }
     });
     rows.slice().sort((a, b) => a.share - b.share).forEach((d) => {
@@ -1228,6 +1224,25 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     labels.forEach((l) => root.insertBefore(l, root.querySelector(".pt")));
     box.replaceChildren(root, tip);
   }
+  // Phones: the chart is too crowded, so list the decks that are clearly above or below 50% instead.
+  function renderMetaList(box, rows) {
+    const good = rows.filter((d) => d.lo > 0.5).sort((a, b) => b.wr - a.wr);
+    const bad = rows.filter((d) => d.hi < 0.5).sort((a, b) => a.wr - b.wr);
+    const even = rows.length - good.length - bad.length;
+    $("#overviewNote").textContent = "Of the " + rows.length + " decks with " + SORT_MIN + "+ matches, these are the ones whose whole 95% interval is above or below 50%. "
+      + even + (even === 1 ? " other could" : " others could") + " still be even.";
+    if (!rows.length) { box.replaceChildren(h("div", { class: "empty" }, "No deck has " + SORT_MIN + " or more matches in this view.")); return; }
+    const row = (d) => h("button", { class: "row", type: "button", onclick: () => go("deck", d.name),
+      "aria-label": d.name + ": win rate " + pct(d.wr) + ", 95% interval " + ci(d.lo, d.hi) + ", " + pct(d.share, 1) + " of decks" },
+      h("div", { style: "min-width:0" },
+        h("div", { class: "rname" }, d.name),
+        h("div", { class: "rsub num metasub" }, mana(d.color), h("span", null, pct(d.share, 1) + " of decks,"), h("span", null, "interval " + ci(d.lo, d.hi)))),
+      h("div", { class: "rval" }, h("b", { class: "num" }, pct(d.wr)), chevron()));
+    const group = (title, cls, items) => h("div", { class: "group" },
+      h("div", { class: "subhead" }, h("h3", { class: cls }, title), h("span", { class: "count" }, items.length + (items.length === 1 ? " deck" : " decks"))),
+      items.length ? h("div", { class: "rows" }, items.map(row)) : h("p", { class: "note", style: "padding:8px 0" }, "None in this view."));
+    box.replaceChildren(group("Clearly above 50%", "good", good), group("Clearly below 50%", "bad", bad));
+  }
   let overviewW = 0;
   new ResizeObserver(() => {
     const w = $("#overview").clientWidth;
@@ -1236,7 +1251,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
 
   // "How to read this" sits under the deck list on phones and beside it on desktop.
   const wide = window.matchMedia("(min-width: 1024px)");
-  // So does the metagame chart: above the deck list on phones.
+  // So does the metagame block: above the deck list on phones.
   const placeHowto = () => {
     if (wide.matches) $("#emptyDetail").prepend($("#metaChart")); else $("#listView .intro").after($("#metaChart"));
     (wide.matches ? $("#emptyDetail") : $("#listView")).append($("#howto"));
