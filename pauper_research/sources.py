@@ -29,6 +29,21 @@ DECKLIST_PATTERNS = [
 ]
 FORMAT_PATTERNS = ["/Formats/card_colors.json", "/Formats/Pauper/"]
 
+# The sites the decklist cache collects from, keyed by the folder name used as
+# `source` in every table. Shown on the dashboard's methods page.
+SITES = {
+    "MTGO": {"name": "Magic Online", "url": "https://www.mtgo.com/decklists",
+             "what": "Challenge top-32 lists with the top-8 bracket; a curated sample of 5-0 League lists without opponents"},
+    "Manatrader": {"name": "Manatraders", "url": "https://www.manatraders.com/",
+                   "what": "Online series run on MTGO: lists and rounds"},
+    "MTGmelee": {"name": "Melee", "url": "https://melee.gg/",
+                 "what": "Paper events, mostly Italy: every Swiss and playoff round, lists for most players"},
+    "CardsRealm": {"name": "CardsRealm", "url": "https://mtg.cardsrealm.com/",
+                   "what": "Paper events, mostly Brazil: every round, lists for most players"},
+    "Topdeck": {"name": "Topdeck.gg", "url": "https://topdeck.gg/",
+                "what": "Paper events: every round, lists for most players"},
+}
+
 
 def _git(*args: str, cwd: Path | None = None) -> None:
     subprocess.run(["git", *args], cwd=cwd, check=True)

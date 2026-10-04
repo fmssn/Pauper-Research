@@ -107,6 +107,13 @@ A snapshot for July to September 2026 is in [reports/2026-Q3](reports/2026-Q3/co
   with 30 matches, a cell is only accurate to about ±17 points.
 - **Meta share** is the share of *published* decklists, so for MTGO it means
   "share among the top 32 and 5-0 lists", not share of the whole field.
+- **Sources** are not weighted: every list and every match counts the same,
+  whatever site it comes from. A pooled figure is therefore the average of the
+  per-source figures weighted by each source's share of the data behind it:
+  lists for meta share, non-mirror matches for win rates, matches against a
+  known list for matchups, recency weight for the pilot model. The Methods page
+  shows these shares for the current period and events, and lists the papers
+  behind each method.
 
 ## Pilot skill
 

@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import analysis, ratings
+from . import analysis, ratings, sources
 from .archetypes import UNKNOWN
 
 TEMPLATE = Path(__file__).with_name("dashboard_template.html")
@@ -107,10 +107,17 @@ def _scope_block(tables: dict[str, pd.DataFrame], colors: dict[str, str], pilot:
                 r = sk.loc[name]
                 skill[i] = [_r(r.sensitivity, 3), _r(r.ci_low, 3), _r(r.ci_high, 3), int(r.matches)]
 
-    by_source = [{"source": src, "events": len(ev),
+    # What each source adds to every statistic: decklists drive meta share, non-mirror match
+    # rows the win rates, rows with a known opponent the matchups, recency weight the pilot model.
+    nm = analysis.non_mirror(matches)
+    known = nm[nm["opp_archetype"] != UNKNOWN]
+    srcs = sorted(set(events["source"]) | set(decks["source"]) | set(matches["source"]) | set(pilot.weight_by_source))
+    by_source = [{"source": src, "events": int((events["source"] == src).sum()),
                   "decks": int((decks["source"] == src).sum()),
-                  "matches": int((matches["source"] == src).sum() // 2)}
-                 for src, ev in events.groupby("source")]
+                  "matches": int((matches["source"] == src).sum() // 2),
+                  "winrate": int((nm["source"] == src).sum()), "matchup": int((known["source"] == src).sum()),
+                  "weight": _r(pilot.weight_by_source.get(src, 0.0), 1)}
+                 for src in srcs]
     return {
         "coverage": {"events": len(events), "decks": len(decks), "matches": len(matches) // 2,
                      "by_source": by_source},
@@ -150,7 +157,10 @@ def build_data(all_tables: dict[str, pd.DataFrame], bootstrap: int = ratings.BOO
             "methods": {"lookback_days": ratings.LOOKBACK_DAYS, "half_life_days": ratings.HALF_LIFE_DAYS,
                         "deck_lambda": ratings.DECK_LAMBDA, "lambda_grid": list(ratings.LAMBDA_GRID),
                         "cv_folds": ratings.CV_FOLDS, "bootstrap": bootstrap,
-                        "slope_lambda": ratings.SLOPE_LAMBDA, "skill_min_matches": ratings.SKILL_MIN_MATCHES}}
+                        "slope_lambda": ratings.SLOPE_LAMBDA, "skill_min_matches": ratings.SKILL_MIN_MATCHES},
+            "sources": {"sites": sources.SITES, "repo": sources.DECKLIST_REPO.removesuffix(".git"),
+                        "formats": sources.FORMAT_REPO.removesuffix(".git"),
+                        "scopes": {s: sorted(v) if v else None for s, v in analysis.SCOPES.items()}}}
 
 
 def card_names(data: dict) -> list[str]:

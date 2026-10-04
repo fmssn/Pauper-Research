@@ -281,6 +281,7 @@ class PilotFit:
     players: int = 0
     rated: int = 0                   # players with 10+ matches in the window
     skill: pd.DataFrame = field(default_factory=pd.DataFrame)  # per archetype: matches, sensitivity, ci_low/high
+    weight_by_source: dict = field(default_factory=dict)  # sum of recency weights of the fitted matches
 
     @classmethod
     def empty(cls, index: pd.Index) -> "PilotFit":
@@ -351,8 +352,10 @@ def fit(matches: pd.DataFrame, end: pd.Timestamp | str, keep_since: pd.Timestamp
             boot[:, b] = _lifts(kept, theta_b)
 
     matches_per_player = np.bincount(train.X[:, :train.n_players].nonzero()[1], minlength=train.n_players)
+    weights = pd.Series(train.w, index=window.index[(me < opp).to_numpy()])
+    by_source = weights.groupby(window.loc[weights.index, "source"]).sum()
     return PilotFit(lift, boot, lam, cv, players=train.n_players, rated=int((matches_per_player >= 10).sum()),
-                    skill=skill)
+                    skill=skill, weight_by_source={str(k): float(v) for k, v in by_source.items()})
 
 
 def fit_scope(tables: dict[str, pd.DataFrame], scope_sources: set[str] | None, end, keep_since=None,
