@@ -1,7 +1,7 @@
 <title>Pauper Meta Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap">
 <style>
 /* Layout: mobile-first. One column of stacked views (decks -> deck -> matchup).
    From 1024px the deck list is a sidebar on the left, the filters sit in the top bar,
@@ -10,29 +10,30 @@
   --bg: #ffffff;
   --sunken: #f4f5f6;
   --hover: #eef0f2;
-  --ink: #111316;
-  --ink-2: #454b54;
-  --muted: #6b717a;
-  --line: #e6e8eb;
-  --line-strong: #cfd3d8;
+  --ink: #1b2230;
+  --ink-2: #464e5c;
+  --muted: #6a7282;
+  --line: #e5e8ed;
+  --line-strong: #cdd2da;
   --good: #2a78d6;
   --bad: #e34948;
   --neutral: #9ba1a9;
   --focus: #2a78d6;
   --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-head: "Source Serif 4", Georgia, serif;
   --mana-W: #f4eed2; --mana-U: #a9cdea; --mana-B: #b7aca3; --mana-R: #ec9f80; --mana-G: #9cc598; --mana-C: #d3d5d9;
   --mana-ink: #1c1c1a;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #141517; --sunken: #1d1f22; --hover: #24272b; --ink: #f1f2f3; --ink-2: #c3c7cd; --muted: #8d939c;
-    --line: #2a2d32; --line-strong: #3b3f46; --good: #3987e5; --bad: #e66767; --neutral: #6f757e; --focus: #5598e7;
+    --bg: #11161e; --sunken: #19202a; --hover: #202833; --ink: #eef1f5; --ink-2: #c1c8d2; --muted: #8b94a3;
+    --line: #262e3a; --line-strong: #37414f; --good: #3987e5; --bad: #e66767; --neutral: #6f757e; --focus: #5598e7;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #141517; --sunken: #1d1f22; --hover: #24272b; --ink: #f1f2f3; --ink-2: #c3c7cd; --muted: #8d939c;
-  --line: #2a2d32; --line-strong: #3b3f46; --good: #3987e5; --bad: #e66767; --neutral: #6f757e; --focus: #5598e7;
+  --bg: #11161e; --sunken: #19202a; --hover: #202833; --ink: #eef1f5; --ink-2: #c1c8d2; --muted: #8b94a3;
+  --line: #262e3a; --line-strong: #37414f; --good: #3987e5; --bad: #e66767; --neutral: #6f757e; --focus: #5598e7;
   color-scheme: dark;
 }
 
@@ -125,7 +126,7 @@ body[data-view="methods"] #methodsView { display: grid; }
 @media (min-width: 1200px) { .app { grid-template-columns: 380px minmax(0, 1fr); } }
 
 /* Sections: separated by rules, not boxes */
-.card { display: grid; gap: 14px; min-width: 0; padding-top: 24px; border-top: 1px solid var(--line); }
+.card { display: grid; gap: 14px; min-width: 0; padding-top: 16px; }
 .card > header { display: grid; gap: 4px; }
 .card h2 { font-size: 18px; }
 .card > .seg { justify-self: start; }
@@ -149,10 +150,11 @@ body[data-view="methods"] #methodsView { display: grid; }
 
 /* Deck list */
 .intro { display: grid; gap: 6px; }
-.intro h1 { font-size: 26px; line-height: 1.15; }
+.intro h1, .hero h1 { font-family: var(--font-head); font-weight: 600; letter-spacing: -0.01em; }
+.intro h1 { font-size: 28px; line-height: 1.15; }
 .intro p { color: var(--ink-2); max-width: 46ch; }
 @media (min-width: 1024px) {
-  #listView .intro h1 { font-size: 20px; }
+  #listView .intro h1 { font-size: 22px; }
   #listView .intro p { font-size: 14px; }
 }
 .search { position: relative; display: block; }
@@ -198,14 +200,14 @@ body[data-view="methods"] #methodsView { display: grid; }
 
 /* Deck / matchup header */
 .hero { display: grid; gap: 14px; }
-.hero h1 { font-size: 26px; line-height: 1.15; }
+.hero h1 { font-size: 30px; line-height: 1.1; }
 .hero .title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .stat { display: grid; gap: 2px; min-width: 0; align-content: start; }
 .stat b { font-size: 24px; font-weight: 600; line-height: 1.15; white-space: nowrap; }
 .stat span { font-size: 13px; color: var(--muted); }
 @media (min-width: 1024px) {
-  .hero h1 { font-size: 28px; }
+  .hero h1 { font-size: 36px; }
   .stats { display: flex; gap: 0; }
   .stat { padding: 0 28px; border-left: 1px solid var(--line); }
   .stat:first-child { padding-left: 0; border-left: 0; }
@@ -213,7 +215,7 @@ body[data-view="methods"] #methodsView { display: grid; }
 .verdict { font-size: 15px; color: var(--ink-2); max-width: 72ch; }
 .verdict b { color: var(--ink); font-weight: 600; }
 .vs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.vs b { font-size: 18px; font-weight: 600; }
+.vs b { font: 600 22px/1.2 var(--font-head); }
 
 /* Rows with bars (matchups, cards). Mobile: name | value, bar below.
    Desktop: one line, name | bar | value. */
@@ -378,9 +380,8 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
 <main class="app">
   <section class="view" id="listView" aria-label="Decks">
     <div class="intro">
-      <span class="label">MTG Pauper tournament results</span>
       <h1>Pick a deck</h1>
-      <p>See what it beats, what beats it, and which cards move its win rate.</p>
+      <p>MTG Pauper tournament results. See what a deck beats, what beats it, and which cards move its win rate.</p>
     </div>
     <label class="search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
@@ -422,7 +423,6 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
 
   <section class="view methods" id="methodsView" aria-labelledby="methodsTitle">
     <div class="intro">
-      <span class="label">Methods</span>
       <h1 id="methodsTitle">How every number is calculated</h1>
       <p>The formulas behind each figure on this page, in the order you meet them. Values in <b>bold</b> are the settings this build used.</p>
       <nav class="toc" aria-label="Sections">
@@ -824,7 +824,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     $("#adjustNote").textContent = adjustNote();
     const p = DATA.periods[state.period], c = scope().coverage;
     $("#sheetCov").replaceChildren(
-      h("div", null, h("b", { class: "num" }, fmt(c.matches)), " matches with results · ", h("b", { class: "num" }, fmt(c.decks)), " decklists · ", fmt(c.events), " events"),
+      h("div", null, h("b", { class: "num" }, fmt(c.matches)), " matches with results, ", h("b", { class: "num" }, fmt(c.decks)), " decklists, ", fmt(c.events), " events"),
       h("div", { class: "muted" }, p.since + " to " + p.until + ". Matches by source: " + (c.by_source.map((s) => s.source + " " + fmt(s.matches)).join(", ") || "none") + "."));
   }
   function renderBarFilters() {
@@ -869,7 +869,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
       h("span", { class: "rank num" }, d.i + 1),
       h("div", { class: "deckcell" }, mana(d.color), h("div", null,
         h("div", { class: "name" }, d.name),
-        h("div", { class: "meta num" }, pct(d.share, 1) + " of decks · " + fmt(d.matches) + " matches"))),
+        h("div", { class: "meta num" }, pct(d.share, 1) + " of decks, " + fmt(d.matches) + " matches"))),
       wr);
     }));
   }
@@ -903,7 +903,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
       h("div", { style: "min-width:0" }, h("div", { class: "cardname" }, eyeButton(r.card), h("span", { class: "rname" }, r.card)), h("div", { class: "rsub num" }, context)),
       h("div", { class: "rval" }, tag(sure, good), h("b", { class: "num" }, pts(r.delta))),
       h("div", { class: "rbar" }, dbar(r.delta, r.lo, r.hi, 0, 0.3)),
-      h("div", { class: "compare num" }, "With it " + pct(r.wrW) + " in " + fmt(r.nW) + " matches (" + r.dW + " lists) · without " + pct(r.wrWo) + " in " + fmt(r.nWo) + " (" + r.dWo + " lists)"));
+      h("div", { class: "compare num" }, "With it " + pct(r.wrW) + " in " + fmt(r.nW) + " matches (" + r.dW + " lists), without " + pct(r.wrWo) + " in " + fmt(r.nWo) + " (" + r.dWo + " lists)"));
   }
   function effectGroups(body, rows, ctx, suffix) {
     const helps = rows.filter((r) => r.delta >= 0).sort((a, b) => b.delta - a.delta);
@@ -925,12 +925,12 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
       const core = rows.filter((r) => r.delta == null && r.play >= CORE_PLAY);
       const rare = rows.filter((r) => r.delta == null && r.play < CORE_PLAY);
       if (!compared.length) suggestMore(body, "Not enough lists with and without each card (" + T.overall.min_decks + "+ lists and " + T.overall.min_matches + "+ matches on each side) to compare them yet.");
-      effectGroups(body, compared, (r) => "In " + pct(r.play) + " of lists · " + r.copies.toFixed(1) + " copies on average", "");
+      effectGroups(body, compared, (r) => "In " + pct(r.play) + " of lists, " + r.copies.toFixed(1) + " copies on average", "");
       if (core.length) body.append(h("div", { class: "group" }, h("div", { class: "subhead" }, h("h3", null, "Core cards")),
         h("p", { class: "note" }, "In almost every list, so there's nothing to compare them against."),
         h("div", { class: "chips" }, core.map((r) => cardChip(r.card, h("b", null, Math.round(r.copies)), r.card)))));
       if (rare.length) body.append(h("details", { class: "more" }, h("summary", null, rare.length + " more cards in too few lists to compare"),
-        h("div", { class: "chips", style: "margin-top:8px" }, rare.map((r) => cardChip(r.card, r.card + " · " + pct(r.play))))));
+        h("div", { class: "chips", style: "margin-top:8px" }, rare.map((r) => cardChip(r.card, r.card + " " + pct(r.play))))));
     };
     draw();
     return h("section", { class: "card" }, h("header", null, h("h2", null, "Cards that move the win rate"),
@@ -1007,7 +1007,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     if (enough.length) muSec.append(h("div", { class: "row scalerow", "aria-hidden": "true" }, h("span", { class: "ph" }),
       h("div", { class: "rbar scale num" }, h("span", null, "15%"), h("span", null, "50%"), h("span", null, "85%")), h("span", { class: "ph rval" })));
     if (few.length) muSec.append(h("details", { class: "more" }, h("summary", null, few.length + " matchups with fewer than " + MIN_MU + " matches"),
-      h("div", { class: "chips", style: "margin-top:8px" }, few.sort((a, b) => b.n - a.n).map((m) => h("span", { class: "chip" }, m.opp.name + " · " + record(m.wins, m.n))))));
+      h("div", { class: "chips", style: "margin-top:8px" }, few.sort((a, b) => b.n - a.n).map((m) => h("span", { class: "chip" }, m.opp.name + " " + record(m.wins, m.n))))));
 
     view.replaceChildren(hero, muSec, cardSection(deck));
   }
@@ -1026,7 +1026,6 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     const verdict = sure ? (good ? "Clearly favored" : "Clearly behind") : (good ? "Leans favored, could be even" : "Leans behind, could be even");
     const hero = h("section", { class: "hero" });
     hero.append(
-      h("span", { class: "label" }, "Matchup"),
       h("div", { class: "title" }, mana(deck.color, true), h("h1", null, deck.name)),
       h("div", { class: "vs" }, h("span", { class: "muted" }, "against"), mana(opp.color), h("b", null, opp.name)),
       h("div", { class: "stats" },
@@ -1090,7 +1089,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
       root.append(svg("line", { x1: X(s), x2: X(s), y1: m.t, y2: H - m.b, class: "grid" }),
         svg("text", { x: X(s), y: H - m.b + 18, "text-anchor": "middle" }, s * 100 + "%"));
     });
-    root.append(svg("text", { x: W - m.r, y: H - 4, "text-anchor": "end" }, "Meta share →"),
+    root.append(svg("text", { x: W - m.r, y: H - 4, "text-anchor": "end" }, "Meta share"),
       svg("text", { x: m.l - 8, y: 12, "text-anchor": "end" }, "Win rate"));
     const tip = h("div", { class: "tip", hidden: true });
     const colorOf = (d) => d.lo > 0.5 ? "var(--good)" : d.hi < 0.5 ? "var(--bad)" : "var(--neutral)";
@@ -1115,7 +1114,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
         svg("circle", { cx, cy, r: 11, fill: "transparent" }));
       const show = () => {
         tip.replaceChildren(h("b", null, d.name), pct(d.wr) + " win rate (" + ci(d.lo, d.hi) + ")", h("br"),
-          pct(d.share, 1) + " of decks · " + fmt(d.matches) + " matches");
+          pct(d.share, 1) + " of decks, " + fmt(d.matches) + " matches");
         tip.hidden = false;
         const left = cx + 14 + 190 > W ? cx - 14 - tip.offsetWidth : cx + 14;
         tip.style.left = left + "px"; tip.style.top = Math.max(0, cy - 20) + "px";
@@ -1184,8 +1183,8 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
   // ---------- frame ----------
   function render() {
     const p = DATA.periods[state.period];
-    $("#filterLabel").textContent = (PERIODS[state.period] || state.period) + " · " + SCOPES[state.scope] + (state.adjust ? "" : " · raw");
-    $("#filterShort").textContent = state.period + " · " + ({ combined: "All", paper: "Paper", online: "Online" })[state.scope];
+    $("#filterLabel").textContent = (PERIODS[state.period] || state.period) + ", " + SCOPES[state.scope].toLowerCase() + (state.adjust ? "" : ", raw");
+    $("#filterShort").textContent = state.period + ", " + ({ combined: "All", paper: "Paper", online: "Online" })[state.scope];
     $("#filterBtn").setAttribute("aria-label", "Data: " + $("#filterLabel").textContent);
     document.body.dataset.view = state.view;
     const back = $("#backBtn");
