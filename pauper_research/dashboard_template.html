@@ -434,13 +434,33 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
       <h1 id="methodsTitle">How every number is calculated</h1>
       <p>The formulas behind each figure on this page, in the order you meet them. Values in <b>bold</b> are the settings this build used.</p>
       <nav class="toc" aria-label="Sections">
-        <a href="#methods" data-jump="m-results">Results</a><a href="#methods" data-jump="m-share">Meta share</a>
+        <a href="#methods" data-jump="m-sources">Data sources</a><a href="#methods" data-jump="m-results">Results</a><a href="#methods" data-jump="m-share">Meta share</a>
         <a href="#methods" data-jump="m-winrate">Win rate</a><a href="#methods" data-jump="m-wilson">Intervals</a>
         <a href="#methods" data-jump="m-labels">Clear / Lean</a><a href="#methods" data-jump="m-cards">Cards</a>
         <a href="#methods" data-jump="m-pilot">Pilot skill</a><a href="#methods" data-jump="m-skill">Skill sensitivity</a>
-        <a href="#methods" data-jump="m-thresholds">Thresholds</a>
+        <a href="#methods" data-jump="m-thresholds">Thresholds</a><a href="#methods" data-jump="m-refs">References</a>
       </nav>
     </div>
+
+    <section class="card" id="m-sources">
+      <h2>Data sources</h2>
+      <p>Decklists, round pairings and results come from <a data-src="repo" target="_blank" rel="noopener"></a>, which collects them daily from the sites below. Archetypes are assigned with the community rules in <a data-src="formats" target="_blank" rel="noopener"></a>. Each table row is the folder name a site has in the cache.</p>
+      <ul id="srcSites"></ul>
+      <p>The event filter picks sources: <b>Online</b> is <b data-k="scopeOnline"></b>, <b>Paper</b> is <b data-k="scopePaper"></b>, <b>All events</b> is every source.</p>
+      <h3>How much each source contributes</h3>
+      <p>Sources are not weighted: every decklist and every match counts the same, whichever site it comes from. So a source's influence on a statistic is its share of the data behind it:</p>
+      <div class="eq">\[ c_s^{X} = \frac{n_s^{X}}{\sum_t n_t^{X}} \]</div>
+      <p class="where">\(n_s^{X}\): what source \(s\) adds to statistic \(X\). For meta share, decklists \(d_s\). For win rates, non-mirror matches from a known deck's side \(|M_s|\) (a match between two known, different decks counts once for each). For matchups, the same restricted to opponents with a published list. For the pilot model, the recency weight \(\sum_{m \in s} w_m\) of its matches (one side each) in the <b data-k="lookback"></b>-day fit.</p>
+      <p>Pooling is the same as a weighted average of the per-source figures, with these shares as weights. For deck \(a\):</p>
+      <div class="eq">\[ \hat p_a = \sum_s \frac{n_{a,s}}{n_a}\, \hat p_{a,s}, \qquad \text{share}_a = \sum_s \frac{d_s}{\sum_t d_t}\, \text{share}_{a,s} \]</div>
+      <p class="where">\(n_{a,s}\), \(\hat p_{a,s}\): deck \(a\)'s non-mirror matches and win rate in source \(s\); \(\text{share}_{a,s}\): its meta share among that source's lists. Paper sites report every round, so they carry most of the win-rate and matchup weight. MTGO publishes many lists but only top-8 rounds, so it counts for more in meta share than in win rates.</p>
+      <p>In the current view (<b data-k="srcView"></b>):</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Source</th><th>Events</th><th>Lists</th><th>Matches</th><th>Meta share</th><th>Win rates</th><th>Matchups</th><th>Pilot model</th></tr></thead>
+        <tbody id="srcBody"></tbody>
+      </table></div>
+      <p class="where">The last four columns are \(c_s^{X}\). Pilot model shares come from the <b data-k="lookback"></b>-day fit, so they don't change with the period.</p>
+    </section>
 
     <section class="card" id="m-results">
       <h2>Match results</h2>
@@ -551,6 +571,18 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
           <tr><td>Core cards</td><td>In <b data-k="corePlay"></b>+ of lists, so there's nothing to compare against</td></tr>
         </tbody>
       </table></div>
+    </section>
+
+    <section class="card" id="m-refs">
+      <h2>References</h2>
+      <ul>
+        <li>Wilson, E. B. (1927). Probable inference, the law of succession, and statistical inference. <em>Journal of the American Statistical Association</em>, 22(158), 209–212. Used for: 95% intervals.</li>
+        <li>Newcombe, R. G. (1998). Interval estimation for the difference between independent proportions: comparison of eleven methods. <em>Statistics in Medicine</em>, 17(8), 873–890. Used for: card comparison intervals (method 10, hybrid score).</li>
+        <li>Bradley, R. A., &amp; Terry, M. E. (1952). Rank analysis of incomplete block designs: I. The method of paired comparisons. <em>Biometrika</em>, 39(3/4), 324–345. Used for: the pilot-skill model.</li>
+        <li>Hoerl, A. E., &amp; Kennard, R. W. (1970). Ridge regression: biased estimation for nonorthogonal problems. <em>Technometrics</em>, 12(1), 55–67. Used for: shrinking ratings and skill slopes.</li>
+        <li>Efron, B. (1979). Bootstrap methods: another look at the jackknife. <em>The Annals of Statistics</em>, 7(1), 1–26. Used for: intervals of the pilot lift and skill sensitivity (resampling whole events).</li>
+        <li>Badaro, MTGOArchetypeParser. Used for: archetype detection, ported to Python with the rules from MTGOFormatData.</li>
+      </ul>
       <p class="muted" style="font-size:13px">Formulas rendered with MathJax. If they show as plain TeX, the MathJax script couldn't load.</p>
     </section>
   </section>
@@ -1151,7 +1183,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
   // ---------- methods ----------
   // Settings shown on the methods page come from the build, so the page can't drift from the code.
   function renderMethods() {
-    const M = DATA.methods || {}, pl = scope().pilot || {};
+    const M = DATA.methods || {}, S = DATA.sources || {}, pl = scope().pilot || {};
     const vals = {
       lookback: M.lookback_days, halfLife: M.half_life_days, deckLambda: M.deck_lambda, folds: M.cv_folds,
       grid: (M.lambda_grid || []).join(", "), bootstrap: M.bootstrap,
@@ -1161,9 +1193,27 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
       matchupTotal: T.matchupTotal, matchupDecks: T.matchup.min_decks, matchupMatches: T.matchup.min_matches,
       slopeLambda: M.slope_lambda, skillMin: M.skill_min_matches, skillLean: SKILL_LEAN,
       skillLeanHi: (1 + SKILL_LEAN).toFixed(2), skillLeanLo: (1 - SKILL_LEAN).toFixed(2),
+      scopeOnline: (S.scopes?.online || []).join(", "), scopePaper: (S.scopes?.paper || []).join(", "),
+      srcView: (PERIODS[state.period] || state.period) + ", " + SCOPES[state.scope].toLowerCase(),
     };
     document.querySelectorAll("#methodsView [data-k]").forEach((el) => { el.textContent = vals[el.dataset.k] ?? "–"; });
+    renderSources(S);
     typeset();
+  }
+  // Each source's share of the data behind every statistic, in the current view.
+  function renderSources(S) {
+    document.querySelectorAll("#methodsView [data-src]").forEach((a) => { a.href = S[a.dataset.src] || ""; a.textContent = (S[a.dataset.src] || "").replace("https://github.com/", ""); });
+    const sites = S.sites || {};
+    $("#srcSites").replaceChildren(...Object.entries(sites).map(([k, v]) =>
+      h("li", null, h("b", null, k), " (", h("a", { href: v.url, target: "_blank", rel: "noopener" }, v.name), "): " + v.what + ".")));
+    const rows = scope().coverage.by_source || [];
+    const keys = ["decks", "winrate", "matchup", "weight"];
+    const tot = Object.fromEntries(["events", "matches", ...keys].map((k) => [k, rows.reduce((a, r) => a + (r[k] || 0), 0)]));
+    const share = (r, k) => tot[k] ? pct((r[k] || 0) / tot[k], 1) : "–";
+    const row = (r, label) => h("tr", null, h("td", null, label), h("td", null, fmt(r.events || 0)), h("td", null, fmt(r.decks || 0)),
+      h("td", null, fmt(r.matches || 0)), ...keys.map((k) => h("td", null, share(r, k))));
+    $("#srcBody").replaceChildren(...[...rows].sort((a, b) => (b.winrate || 0) - (a.winrate || 0)).map((r) => row(r, r.source)),
+      row(tot, h("b", null, "Total")));
   }
   // MathJax (SVG output, no font files) loads the first time the page is opened.
   let mathjax = null;

@@ -283,7 +283,7 @@ def test_methods_page_in_sync():
     script = template[template.index("function renderMethods"):template.index("function typeset")]
     filled = set(re.findall(r"(\w+):", script[script.index("const vals"):]))
     assert shown and shown <= filled, f"methods page shows values nobody fills: {shown - filled}"
-    for section in ("m-results", "m-share", "m-winrate", "m-wilson", "m-labels", "m-cards", "m-pilot", "m-skill",
+    for section in ("m-sources", "m-refs", "m-results", "m-share", "m-winrate", "m-wilson", "m-labels", "m-cards", "m-pilot", "m-skill",
                     "m-thresholds"):
         assert f'id="{section}"' in template
     matches, decks, cards = _confounded_matches(n_events=30)
@@ -294,6 +294,14 @@ def test_methods_page_in_sync():
     assert data["methods"]["half_life_days"] == ratings.HALF_LIFE_DAYS
     assert data["periods"]["180d"]["scopes"]["paper"]["pilot"]["lam"] in ratings.LAMBDA_GRID
     assert data["methods"]["slope_lambda"] == ratings.SLOPE_LAMBDA
+    # Every source's contribution to each statistic adds up to the totals.
+    assert set(data["sources"]["sites"]) >= {src for v in data["sources"]["scopes"].values() if v for src in v}
+    block = data["periods"]["180d"]["scopes"]["combined"]
+    rows = block["coverage"]["by_source"]
+    assert sum(r["decks"] for r in rows) == block["coverage"]["decks"]
+    assert sum(r["matches"] for r in rows) == block["coverage"]["matches"]
+    assert all({"winrate", "matchup", "weight"} <= set(r) for r in rows)
+    assert sum(r["weight"] for r in rows) > 0
 
 
 def _skill_matches(seed=5, n_players=300, n_events=200, per_event=16, rounds=5):
