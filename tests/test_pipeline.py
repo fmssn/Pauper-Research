@@ -287,7 +287,7 @@ def test_methods_page_in_sync():
     script = template[template.index("function renderMethods"):template.index("function typeset")]
     filled = set(re.findall(r"(\w+):", script[script.index("const vals"):]))
     assert shown and shown <= filled, f"methods page shows values nobody fills: {shown - filled}"
-    for section in ("m-sources", "m-refs", "m-results", "m-share", "m-winrate", "m-wilson", "m-labels", "m-cards", "m-pilot", "m-skill",
+    for section in ("m-sources", "m-refs", "m-results", "m-share", "m-winrate", "m-wilson", "m-labels", "m-cards", "m-builds", "m-pilot", "m-skill",
                     "m-thresholds"):
         assert f'id="{section}"' in template
     matches, decks, cards = _confounded_matches(n_events=30)
@@ -344,3 +344,69 @@ def test_skill_sensitivity():
     assert sk.loc["Combo", "ci_low"] > 1 > sk.loc["Burn", "ci_high"]
     weights = sk["matches"] / sk["matches"].sum()
     assert (weights * sk["sensitivity"]).sum() == pytest.approx(1)
+
+
+def _two_builds(seed=1, n=200):
+    """A deck in two builds (Ninja + Delver, or Counterspell + Mulldrifter), a 4-card slot of
+    Bolt and Chain Lightning, 17 or 18 Island, and 4 Brainstorm everywhere. The Ninja build
+    wins 70% of its matches, the other 40%."""
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    cards, matches = [], []
+    for d in range(n):
+        ninja = d < n // 2
+        bolt = int(rng.choice([4, 3, 2], p=[0.6, 0.3, 0.1]))
+        main = {"Brainstorm": 4, "Island": int(rng.choice([17, 18])), "Lightning Bolt": bolt, "Chain Lightning": 4 - bolt,
+                **({"Ninja": 4, "Delver of Secrets": 4} if ninja else {"Counterspell": 4, "Mulldrifter": 4})}
+        cards += [{"deck_id": d, "card": c, "board": "main", "count": k} for c, k in main.items() if k]
+        for r in range(4):
+            opp = "Elves" if r % 2 else "Affinity"
+            win = rng.random() < (0.7 if ninja else 0.4)
+            matches.append({"deck_id": d, "archetype": "Terror", "opp_archetype": opp, "score": float(win)})
+    decks = pd.DataFrame({"deck_id": range(n), "archetype": "Terror"})
+    return decks, pd.DataFrame(cards), pd.DataFrame(matches)
+
+
+def test_decisions_builds_and_slots():
+    from pauper_research import decisions
+    decks, cards, matches = _two_builds()
+    rec = decisions.Records(matches, None)
+    out = decisions.archetype(decks, cards, "Terror", rec, {"Elves": 0, "Affinity": 1})
+    main = out["main"]
+    assert main["lists"] == 200 and "side" not in out
+    # The first question splits the two builds; within them, the slot is most of what's left to
+    # explain, so builds can split further on it. The largest build is the stock list.
+    ls = main["builds"]
+    # Other builds are named by how they differ from it: "Counterspell build", "…, 2 Chain Lightning".
+    assert ls[0]["name"] == "Stock list" and "Counterspell build" in [b["name"] for b in ls]
+    assert len({b["name"] for b in ls}) == len(ls) and sum(b["lists"] for b in ls) == 200
+    assert all(b["path"][0][0] in {"Ninja", "Delver of Secrets", "Counterspell", "Mulldrifter"} for b in ls)
+    ninja = [b for b in ls if dict(b["list"]).get("Ninja")]
+    assert sum(b["lists"] for b in ninja) == 100
+    assert all(dict(b["list"])["Delver of Secrets"] == 4 and "Counterspell" not in dict(b["list"]) for b in ninja)
+    # Records are [wins, matches, lift, sd]; build matchups compare with the deck's other lists.
+    rate = lambda bs: sum(b["win"][0] for b in bs) / sum(b["win"][1] for b in bs)
+    assert sum(b["win"][1] for b in ninja) == 400 and rate(ninja) > 0.6 > rate([b for b in ls if b not in ninja])
+    assert all(e[0] in (0, 1) and len(e) == 8 for b in ls for e in b["mu"])
+    assert all(b["cmp"][1] + b["cmp"][4] == 800 for b in ls)
+    # Within the whole deck: Bolt and Chain fill one 4-card slot, Island is a copy-count decision.
+    dec = main["dec"]
+    slot = next(s for s in dec["slots"] if "Lightning Bolt" in s["cards"])
+    assert set(slot["cards"]) == {"Lightning Bolt", "Chain Lightning"} and slot["total"] == 4
+    # Each split is an option: [counts, share, record, comparison with the other lists, matchups].
+    assert slot["configs"][0][0] == [4, 0] and len(slot["configs"][0]) == 5
+    assert dec["cards"]["Brainstorm"] == ["fixed", 4]
+    island = dec["cards"]["Island"]
+    assert island[0] == "count" and island[3][:2] == [18, 17] and len(island[4]) == 2
+    # In/out cards compare lists with the card against lists without it.
+    ninja_card = dec["cards"]["Ninja"]
+    assert ninja_card[0] == "inout" and ninja_card[3][1] == 400 and ninja_card[3][4] == 400
+    # Inside a build, the other build's cards don't show up as choices.
+    assert all("Counterspell" not in b["dec"]["cards"] for b in ninja)
+
+
+def test_decisions_need_enough_lists():
+    from pauper_research import decisions
+    decks, cards, matches = _two_builds(n=decisions.MIN_LISTS - 2)
+    rec = decisions.Records(matches, None)
+    assert decisions.archetype(decks, cards, "Terror", rec, {}) is None

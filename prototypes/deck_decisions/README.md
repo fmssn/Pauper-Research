@@ -1,7 +1,8 @@
 # Deck decisions (prototype)
 
-Which cards in a deck are fixed, and which are real deckbuilding decisions? A
-standalone prototype, not yet part of the dashboard. Iterated in further sessions.
+Which cards in a deck are fixed, and which are real deckbuilding decisions? The
+prototype the dashboard's "Builds and decisions" section was ported from
+(`pauper_research/decisions.py`, view 2 below). Kept for reference.
 
 ```bash
 python prototypes/deck_decisions/build.py      # needs data/processed/tables.pkl (see the main README)
