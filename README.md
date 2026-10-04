@@ -55,7 +55,8 @@ One self-contained HTML page (open it in a browser, no server needed). The
 flow is: pick a deck, see what it's good and bad against, then see which cards
 move its win rate, overall and against a specific opponent. On phones the views
 stack; from 1024px wide the deck list is a sidebar, the filters sit in the top
-bar and matchup and card rows fit on one line.
+bar and matchup and card rows fit on one line. The page uses the full screen
+width; from 1600px the deck view shows matchups and cards side by side.
 
 - **Decks:** every top archetype with meta share and win rate. Search and sort.
 - **Metagame chart** (desktop): meta share (log scale) against win rate with
