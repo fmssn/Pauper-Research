@@ -97,6 +97,16 @@ def _scope_block(tables: dict[str, pd.DataFrame], colors: dict[str, str], pilot:
         block["decks"] = int((decks["archetype"] == name).sum())
         cards[i] = block
 
+    # Skill sensitivity per listed deck (from the 12-month fit, so the same in every period).
+    skill = {}
+    sk = pilot.skill
+    if not sk.empty:
+        for name, i in idx.items():
+            if name in sk.index and sk.at[name, "matches"] >= ratings.SKILL_MIN_MATCHES \
+                    and not pd.isna(sk.at[name, "sensitivity"]):
+                r = sk.loc[name]
+                skill[i] = [_r(r.sensitivity, 3), _r(r.ci_low, 3), _r(r.ci_high, 3), int(r.matches)]
+
     by_source = [{"source": src, "events": len(ev),
                   "decks": int((decks["source"] == src).sum()),
                   "matches": int((matches["source"] == src).sum() // 2)}
@@ -104,7 +114,7 @@ def _scope_block(tables: dict[str, pd.DataFrame], colors: dict[str, str], pilot:
     return {
         "coverage": {"events": len(events), "decks": len(decks), "matches": len(matches) // 2,
                      "by_source": by_source},
-        "archetypes": archetypes, "mu": mu, "cards": cards, "cardMu": card_mu,
+        "archetypes": archetypes, "mu": mu, "cards": cards, "cardMu": card_mu, "skill": skill,
         "pilot": {"players": pilot.players, "rated": pilot.rated, "lam": _r(pilot.lam)},
     }
 
@@ -139,7 +149,8 @@ def build_data(all_tables: dict[str, pd.DataFrame], bootstrap: int = ratings.BOO
             # Settings shown on the methods page.
             "methods": {"lookback_days": ratings.LOOKBACK_DAYS, "half_life_days": ratings.HALF_LIFE_DAYS,
                         "deck_lambda": ratings.DECK_LAMBDA, "lambda_grid": list(ratings.LAMBDA_GRID),
-                        "cv_folds": ratings.CV_FOLDS, "bootstrap": bootstrap}}
+                        "cv_folds": ratings.CV_FOLDS, "bootstrap": bootstrap,
+                        "slope_lambda": ratings.SLOPE_LAMBDA, "skill_min_matches": ratings.SKILL_MIN_MATCHES}}
 
 
 def card_names(data: dict) -> list[str]:
