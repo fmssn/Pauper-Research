@@ -60,15 +60,23 @@ leads back to the deck list; on desktop it is followed by breadcrumbs
 (deck / matchup), on phones a back button goes up one level. The page uses the full screen
 width; from 1600px the deck view shows matchups and cards side by side.
 
-- **Decks:** every top archetype with meta share and win rate. Search and sort;
-  the number is the deck's position in the current sort.
+- **Decks:** every top archetype with meta share (share of published lists) and
+  win rate. Search (`/` jumps to the search box) and sort; the number is the
+  deck's position in the current sort. A line under the title says where the
+  current view's lists and match results come from (e.g. "Share of lists: 56%
+  MTGO. Win rates: 95% paper."), since the two come from different sources.
 - **Metagame chart:** meta share (log scale) against win rate with its 95%
   interval for every deck with 30+ matches, beside the deck list on desktop.
-  Click a dot to open the deck. Phones instead get a list of those decks that
-  are clearly above or below 50%, above the deck list.
+  Click a dot to open the deck; pointing at a dot or a deck row highlights the
+  other. The dots are links: Tab reaches the chart, arrow keys move between
+  decks. Phones instead get a list of those decks that are clearly above or
+  below 50%, above the deck list (hidden while you search).
 - **Deck page:** good and bad matchups, most certain first, each with its 95%
   interval and a Clear / Lean label; then the deck's builds and decisions (see
   below); then the cards whose lists win more or less.
+  The "Good against", "Bad against", "win more" and "win less" groups hold only
+  Clear results (solid bars). Lean ones are drawn as outlined bars and folded
+  under "Could go either way", which opens by itself when nothing is Clear.
 - **Builds and decisions** (top 30 decks with 80+ lists in the view): the builds
   a deck comes in, each with its share, win rate, the opponents it does best and
   worst against compared with the deck's other lists (30+ matches on each side),
@@ -87,9 +95,17 @@ width; from 1600px the deck view shows matchups and cards side by side.
   pilot skill** (on, the default, or off) in the top bar or filter sheet. Each
   deck and matchup page says whether and by how much it was corrected. See
   [Pilot skill](#pilot-skill).
-- **Methods:** every formula behind the numbers, rendered from LaTeX, with the
-  settings of the current build (Methods link in the top bar, the link under
-  "How to read this", or `#methods`).
+- **Methods:** a short plain-language summary, then every formula behind the
+  numbers, rendered from LaTeX, with the settings of the current build (Methods
+  link in the top bar, the link under "How to read this", or `#methods`). Its
+  back button returns to the deck or matchup you came from.
+- **Theme:** follows the device's light or dark setting; the button in the top
+  bar switches between auto, light and dark and remembers the choice.
+- **Accessibility:** every deck, matchup and chart dot is a real link (opens in
+  a new tab with a modified click), focus moves to the new page's heading after
+  navigation and stays on a filter button after you press it, filter changes
+  are announced to screen readers, and there is a skip link. Text meets WCAG AA
+  contrast in both themes; phone controls are at least 44px tall.
 - **Card images:** the eye icon next to a card opens its Scryfall image full
   screen on phones. On desktop it opens as a peek next to the pointer over a
   slightly dimmed page, and closes when the mouse moves away or you click. By default the page links to Scryfall's image server. For hosts that
