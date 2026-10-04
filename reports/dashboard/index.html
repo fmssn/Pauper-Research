@@ -312,6 +312,23 @@ body[data-view="methods"] #methodsView { display: grid; }
 .field { display: grid; gap: 8px; max-width: 640px; padding-block: 12px; border-block: 1px solid var(--line); }
 .field .note a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
 .verdict b { color: var(--ink); font-weight: 600; }
+/* In short: one line per section below, Clear results only; the labels jump to their section */
+.brief { display: grid; gap: 6px; max-width: 640px; padding-top: 12px; border-top: 1px solid var(--line); }
+.brief h2 { font-size: 13px; font-weight: 600; color: var(--ink); }
+.brief h2 span { font-weight: 500; color: var(--muted); }
+.brief dl { display: grid; grid-template-columns: 1fr; margin: 0; }
+.brief dt { font-size: 13px; }
+.brief dt .linkbtn { padding: 0; display: inline-flex; align-items: flex-end; }
+@media (max-width: 1023px) { .brief dt .linkbtn { padding-bottom: 2px; } }
+.brief dd { margin: 0 0 4px; font-size: 14px; color: var(--ink-2); }
+.brief dd b { color: var(--ink); font-weight: 600; }
+.brief dd .cardlink { font-weight: 600; }
+@media (min-width: 520px) {
+  .brief dl { grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; }
+  .brief dt { padding-top: 1px; }
+  .brief dd { margin-bottom: 6px; }
+}
+#deckView > section { scroll-margin-top: calc(var(--bar-h) + 12px); }
 .vs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .vs b { font: 600 22px/1.2 var(--font-head); }
 
@@ -662,7 +679,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     <nav class="toc" aria-label="Sections">
         <a href="#methods" data-jump="m-sources">Data sources</a><a href="#methods" data-jump="m-results">Results</a><a href="#methods" data-jump="m-share">Meta share</a>
         <a href="#methods" data-jump="m-winrate">Win rate</a><a href="#methods" data-jump="m-wilson">Intervals</a>
-        <a href="#methods" data-jump="m-labels">Clear / Lean</a><a href="#methods" data-jump="m-field">Against the field</a><a href="#methods" data-jump="m-cards">Cards</a><a href="#methods" data-jump="m-builds">Builds</a>
+        <a href="#methods" data-jump="m-labels">Clear / Lean</a><a href="#methods" data-jump="m-field">Against the field</a><a href="#methods" data-jump="m-summary">In short</a><a href="#methods" data-jump="m-cards">Cards</a><a href="#methods" data-jump="m-builds">Builds</a>
         <a href="#methods" data-jump="m-pilot">Pilot skill</a><a href="#methods" data-jump="m-skill">Skill sensitivity</a>
         <a href="#methods" data-jump="m-thresholds">Thresholds</a><a href="#methods" data-jump="m-refs">References</a>
     </nav>
@@ -732,6 +749,18 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       <p class="where">The sums run over the top <b data-k="topArchetypes"></b> decks in the view, the deck itself included; \(z = 1.959964\). The deck is Clear against the field when the whole interval is on one side of 50%. Decks outside the top <b data-k="topArchetypes"></b> are left out, and share of lists is mostly MTGO's winning lists (see Meta share), so this is the field those lists describe.</p>
       <p>When less than <b data-k="fieldThin"></b> of the field's weight comes from real matches, \(\sum_{b \ne a} \text{share}_b \frac{n_b}{n_b + k} \big/ \sum_{b \ne a} \text{share}_b\), the page says the estimate leans towards 50%. The <b>costliest matchup</b> is the opponent with the largest \(\text{share}_b\,(0.5 - \tilde p_b)\): the most expected match wins lost to one deck.</p>
       <p>The deck list's <b>Vs. field</b> sort shows \(E_a\) and its interval for every deck and ranks by \(E_a\). As in the win-rate sort, decks with fewer than <b data-k="sortMin"></b> matches rank after the rest.</p>
+    </section>
+
+    <section class="card" id="m-summary" tabindex="-1">
+      <h2>In short</h2>
+      <p>The "In short" lines at the end of a deck's header summarise the sections below them. They are built from fixed sentence templates filled with the same numbers and Clear rules as those sections, so they add no new statistic and name nothing that is only Lean. They always use the main deck, whichever board a section shows.</p>
+      <ul>
+        <li><b>Matchups</b>: the number of Clear good and bad matchups among those with <b data-k="minMu"></b>+ matches, and the surest of each, the first in its group: \(\arg\max_b L_b\) among good ones, \(\arg\min_b U_b\) among bad ones, with its win rate. The rest are counted as could go either way.</li>
+        <li><b>Builds</b>: the number of builds and the most common one with its share of lists, then the build furthest from the deck's other lists among those that are Clear, gains before losses: \(\arg\max \Delta\) over Clear \(\Delta &gt; 0\), else \(\arg\min \Delta\) over Clear \(\Delta &lt; 0\).</li>
+        <li><b>Decisions</b>: the most open decision (the first in its section) with its two most common options and their shares; then how many options across all decisions are Clear against the deck's other lists, and the one furthest from them, picked the same way as for builds.</li>
+        <li><b>Cards</b>: the card whose lists win clearly more by the largest \(\Delta\), and the one whose lists win clearly less by the largest \(|\Delta|\) (see Card comparisons), and, when more than two are Clear, how many.</li>
+      </ul>
+      <p class="where">\(L_b\), \(U_b\): the matchup's 95% interval; \(\Delta\): the difference in points with its 95% interval \([L_\Delta, U_\Delta]\), Clear when \(L_\Delta &gt; 0\) or \(U_\Delta &lt; 0\). Builds and decisions need <b data-k="decMinLists"></b>+ lists and card lines one of the top <b data-k="cardArchetypes"></b> decks; otherwise their line is left out. With many options and cards to pick from, the largest Clear one is the most likely to be inflated by chance: read it as a lead, then open the section.</p>
     </section>
 
     <section class="card" id="m-cards">
@@ -1453,7 +1482,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
         h("div", { class: "chips spaced" }, rare.map((r) => cardChip(r.card, r.card + " " + pct(r.play))))));
     };
     draw();
-    return h("section", { class: "card" }, h("header", null, h("h2", null, "Cards that move the win rate"),
+    return h("section", { class: "card", id: "sec-cards" }, h("header", null, h("h2", null, "Cards that move the win rate"),
       h("p", { class: "note" }, "Win rate of " + deck.name + " lists with each card minus lists without it, in percentage points. Open a matchup for the same comparison against one opponent.")),
       boardToggle(draw), body);
   }
@@ -1645,6 +1674,26 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     const own = new Map(b.list), st = new Map(stock.list);
     return [...new Set(b.path.map((p) => p[0]))].map((c) => [c, own.get(c) || 0]).filter(([c, k]) => k !== (st.get(c) || 0));
   }
+  // The cards whose questions define the builds; their decisions are shown with the builds.
+  const buildCards = (data) => new Set(data.builds.length > 1 ? data.builds.flatMap((b) => b.path.map((p) => p[0])) : []);
+  // One board's decisions across the whole deck, most open first. Each has its question (as nodes, so card
+  // names open their image) and its options; `phrase` names an option as a choice ("4 copies of Lightning Bolt").
+  function decisionItems(data, skip) {
+    const dec = classify(data.dec, skip);
+    return [
+      ...dec.slots.map((s) => ({ open: s.open, other: s.other, q: () => ["Which " + slotSize(s) + ": ", orList(s.cards), "?"],
+        options: s.configs.map(([counts, share, rec, cmp, mu]) => ({ label: splitNodes(s.cards, counts), text: splitText(s.cards, counts),
+          phrase: splitText(s.cards, counts), share, rec, cmp, mu })) })),
+      ...dec.counts.filter((c) => c.sides).map((c) => ({ open: c.open, q: () => ["How many copies of ", cardName(c.card), "?"],
+        options: c.sides.map(([label, share, rec, cmp, mu]) => {
+          const text = label === "0" ? "None" : plural(+label, "copy", "copies");
+          return { label: text, text, phrase: label === "0" ? "no " + c.card : text + " of " + c.card, share, rec, cmp, mu };
+        }) })),
+      ...dec.inout.filter((c) => c.sides).map((c) => ({ open: c.open, q: () => ["Play ", cardName(c.card), "?"],
+        options: c.sides.map(([label, share, rec, cmp, mu]) => ({ label: label === "yes" ? "Yes, usually " + usual(c.opts) : "No",
+          text: label === "yes" ? "Yes" : "No", phrase: label === "yes" ? c.card : "no " + c.card, share, rec, cmp, mu })) })),
+    ].sort((a, b) => b.open - a.open);
+  }
   function decisionsSection(deck) {
     const body = h("div", { style: "display:grid;gap:8px" });
     const draw = () => {
@@ -1697,23 +1746,10 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       }
 
       // Decisions across the whole deck. Cards that define a build are shown with the builds above.
-      const skip = new Set(ls.length > 1 ? ls.flatMap((b) => b.path.map((p) => p[0])) : []);
-      const dec = classify(data.dec, skip);
-      const block = (q, options, open, extra) => ({ open, el: group(q, verdict(options),
-        [...options.map((o) => optionRow(o.label, o.share, o.rec, o.cmp, chips(o.mu))), ...(extra || [])]) });
-      const items = [
-        ...dec.slots.map((s) => block(["Which " + slotSize(s) + ": ", orList(s.cards), "?"],
-          s.configs.map(([counts, share, rec, cmp, mu]) => ({ label: splitNodes(s.cards, counts), text: splitText(s.cards, counts), share, rec, cmp, mu })), s.open,
-          s.other > 0.02 ? [h("div", { class: "row" }, h("div", { class: "rsub" }, "Other splits: " + pct(s.other) + " of lists"))] : null)),
-        ...dec.counts.filter((c) => c.sides).map((c) => block(["How many copies of ", cardName(c.card), "?"],
-          c.sides.map(([label, share, rec, cmp, mu]) => {
-            const text = label === "0" ? "None" : plural(+label, "copy", "copies");
-            return { label: text, text, share, rec, cmp, mu };
-          }), c.open)),
-        ...dec.inout.filter((c) => c.sides).map((c) => block(["Play ", cardName(c.card), "?"],
-          c.sides.map(([label, share, rec, cmp, mu]) => ({ label: label === "yes" ? "Yes, usually " + usual(c.opts) : "No",
-            text: label === "yes" ? "Yes" : "No", share, rec, cmp, mu })), c.open)),
-      ].sort((a, b) => b.open - a.open);
+      const skip = buildCards(data), fixed = classify(data.dec, skip).fixed;
+      const block = (x) => ({ open: x.open, el: group(x.q(), verdict(x.options),
+        [...x.options.map((o) => optionRow(o.label, o.share, o.rec, o.cmp, chips(o.mu))), ...(x.other > 0.02 ? [h("div", { class: "row" }, h("div", { class: "rsub" }, "Other splits: " + pct(x.other) + " of lists"))] : [])]) });
+      const items = decisionItems(data, skip).map(block);
       // Phones list fewer before "more"; a "more" that would hide a single decision isn't worth it.
       let top = wide.matches ? DEC_TOP : DEC_TOP_NARROW;
       if (items.length - top < 2) top = items.length;
@@ -1723,12 +1759,12 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       items.slice(0, top).forEach((x) => body.append(x.el));
       if (items.length > top) body.append(h("details", { class: "more" }, h("summary", null, (items.length - top) + " more, mostly settled"),
         h("div", { style: "display:grid;gap:16px;margin-top:12px" }, items.slice(top).map((x) => x.el))));
-      if (dec.fixed.length) body.append(h("details", { class: "more" }, h("summary", null, plural(dec.fixed.length, "card", "cards") + " every list plays the same"),
-        h("div", { class: "chips", style: "margin-top:8px" }, dec.fixed.map(([c, k]) => cardChip(c, h("b", null, k), c)))));
+      if (fixed.length) body.append(h("details", { class: "more" }, h("summary", null, plural(fixed.length, "card", "cards") + " every list plays the same"),
+        h("div", { class: "chips", style: "margin-top:8px" }, fixed.map(([c, k]) => cardChip(c, h("b", null, k), c)))));
       if (!main) body.append(h("p", { class: "note" }, "Matchups per option are left out on the sideboard: what a list sideboards follows the field it expects."));
     };
     draw();
-    return h("section", { class: "card decisions" }, h("header", null, h("h2", null, "Builds and decisions"),
+    return h("section", { class: "card decisions", id: "sec-dec" }, h("header", null, h("h2", null, "Builds and decisions"),
       h("p", { class: "note" }, "The builds " + deck.name + " comes in, then the choices its lists make, most open first. Win rates are for the lists that made each choice: like card effects, they show what winning lists play, not what makes them win."),
       h("button", { class: "linkbtn", type: "button", onclick: () => { go("methods", null, null, true, false); const m = document.getElementById("m-builds"); m.scrollIntoView(); m.focus({ preventScroll: true }); } }, "How builds and decisions are found")),
       boardToggle(draw), body);
@@ -1805,6 +1841,71 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     return box;
   }
 
+  // "In short": one line per section of the deck page, naming only Clear results, each linking to its
+  // section. Always the main deck. Same rules as the sections themselves; see the methods page (m-summary).
+  function deckSummary(deck, enough, good, bad, lean) {
+    const name = (x) => h("b", null, x), num = (x) => h("span", { class: "num" }, x);
+    const lines = [];
+    const add = (label, id, ...text) => lines.push(h("dt", null, h("button", { class: "linkbtn", type: "button",
+      "aria-label": label + ": go to the section", onclick: () => jumpTo(id) }, label)), h("dd", null, text.flat(Infinity)));
+
+    if (!enough.length) add("Matchups", "sec-mu", "Not enough matches against other top decks yet.");
+    else add("Matchups", "sec-mu",
+      good.length ? ["Clearly ahead against ", plural(good.length, "deck", "decks"), " (surest: ", name(good[0].opp.name), num(", " + pct(good[0].wr)), ")"] : "Not clearly ahead against any deck",
+      bad.length ? [", clearly behind against ", String(bad.length), " (surest: ", name(bad[0].opp.name), num(", " + pct(bad[0].wr)), "). "] : ", not clearly behind against any. ",
+      lean.length ? plural(lean.length, "more matchup could", "more matchups could") + " go either way." : "");
+
+    const data = ((scope().decisions || {})[deck.i] || {}).main;
+    if (data) {
+      const ls = data.builds, stock = ls[0];
+      // The option furthest from the deck's other lists, among the Clear ones: gains first, else losses.
+      const clearest = (opts) => {
+        const c = opts.map((o) => [o, recDiff(o.cmp)]).filter(([, d]) => d && (d[1] > 0 || d[2] < 0));
+        const up = c.filter(([, d]) => d[0] > 0).sort((a, b) => b[1][0] - a[1][0]);
+        const down = c.filter(([, d]) => d[0] < 0).sort((a, b) => a[1][0] - b[1][0]);
+        return { n: c.length, top: up[0] || down[0] || null };
+      };
+      if (ls.length > 1) {
+        const c = clearest(ls.map((b) => ({ b, cmp: b.cmp })));
+        add("Builds", "sec-dec", plural(ls.length, "build", "builds") + ". Most common: ", name(stock.name), num(" (" + pct(stock.share) + " of lists)"), ". ",
+          c.top ? [name(c.top[0].b.name), c.top[1][0] > 0 ? " does clearly better than the others " : " does clearly worse than the others ", num("(" + ptsU(c.top[1][0]) + ")"), "."]
+            : "None does clearly better or worse than the others.");
+      } else add("Builds", "sec-dec", "One build: no single card choice splits the lists.");
+
+      const items = decisionItems(data, buildCards(data));
+      if (items.length) {
+        const q = items[0], opts = [...q.options].sort((a, b) => b.share - a.share).slice(0, 2);
+        const c = clearest(items.flatMap((x) => x.options));
+        add("Decisions", "sec-dec", "Most open: ", name(q.q()), " ", opts.flatMap((o, i) => [i ? " or " : "", /^(None|Yes|No)$/.test(o.text) ? o.text.toLowerCase() : o.text, num(" (" + pct(o.share) + ")")]), ". ",
+          c.top ? [c.n === 1 ? "One choice shows a clear difference: lists with " : c.n + " choices show a clear difference; the largest: lists with ",
+            name(c.top[0].phrase), c.top[1][0] > 0 ? " do better " : " do worse ", num("(" + ptsU(c.top[1][0]) + ")"), "."]
+            : "No choice clearly changes the win rate.");
+      } else add("Decisions", "sec-dec", "Beyond the builds, the lists all play the same cards.");
+    }
+
+    const rows = cardRows(deck, "main");
+    if (rows) {
+      const compared = rows.filter((r) => r.delta != null);
+      const helps = compared.filter((r) => r.lo > 0).sort((a, b) => b.delta - a.delta);
+      const hurts = compared.filter((r) => r.hi < 0).sort((a, b) => a.delta - b.delta);
+      add("Cards", "sec-cards", !helps.length && !hurts.length ? "No card clearly changes the win rate." : [
+        helps.length ? ["Lists with ", name(helps[0].card), " win clearly more ", num("(" + ptsU(helps[0].delta) + ")")] : "",
+        helps.length && hurts.length ? "; with " : hurts.length ? "Lists with " : "",
+        hurts.length ? [name(hurts[0].card), helps.length ? " clearly less " : " win clearly less ", num("(" + ptsU(hurts[0].delta) + ")")] : "",
+        ". ", helps.length + hurts.length > 2 ? (helps.length + hurts.length) + " cards show a clear difference in all." : ""]);
+    }
+    return h("section", { class: "brief", "aria-labelledby": "brief-h" },
+      h("h2", { id: "brief-h" }, "In short", h("span", null, " · main deck")), h("dl", null, lines));
+  }
+  // Scrolls to a section of the deck page and moves focus to its heading.
+  function jumpTo(id) {
+    const s = document.getElementById(id), head = s && s.querySelector("h2");
+    if (!s) return;
+    s.scrollIntoView({ block: "start" });
+    head.setAttribute("tabindex", "-1");
+    head.focus({ preventScroll: true });
+  }
+
   function renderDeck() {
     const view = $("#deckView");
     const deck = deckByName(state.deck);
@@ -1820,7 +1921,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     const bad = enough.filter((m) => m.hi < 0.5).sort((a, b) => a.hi - b.hi);
     const lean = enough.filter((m) => !(m.lo > 0.5 || m.hi < 0.5)).sort((a, b) => b.wr - a.wr);
 
-    // The verdict comes right after the numbers; the notes on pilots and skill follow it.
+    // The verdict comes right after the numbers, then the notes on pilots and skill, then the summary of the sections below.
     const hero = h("section", { class: "hero" });
     hero.append(
       h("div", { class: "title" }, mana(deck.color, true), h("h1", null, deck.name)),
@@ -1829,14 +1930,11 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
         h("div", { class: "stat" }, h("b", { class: "num" }, pct(deck.share, 1)), h("span", null, "of published lists")),
         h("div", { class: "stat" }, h("b", { class: "num" }, fmt(deck.matches)), h("span", null, "matches"))),
       fieldBlock(deck) || "",
-      h("p", { class: "verdict" }, enough.length
-        ? ["Clearly ahead against ", h("b", null, String(good.length)), good.length === 1 ? " deck" : " decks", " and clearly behind against ", h("b", null, String(bad.length)), ". ",
-           String(lean.length), lean.length === 1 ? " more matchup could go either way." : " more matchups could go either way."]
-        : "Not enough matches against other top decks yet."),
       pilotNote(deck) || "",
-      skillNote(deck));
+      skillNote(deck),
+      deckSummary(deck, enough, good, bad, lean));
 
-    const muSec = h("section", { class: "card" }, h("header", null, h("h2", null, "Matchups"),
+    const muSec = h("section", { class: "card", id: "sec-mu" }, h("header", null, h("h2", null, "Matchups"),
       h("p", { class: "note" }, "Most certain results first. Open a matchup for the cards that matter in it.")));
     if (!enough.length) suggestMore(muSec, "No matchup has " + MIN_MU + " or more matches in this view.");
     else if (!good.length && !bad.length) muSec.append(h("p", { class: "note" }, "No matchup is clear in this view yet: every one could still be even."));

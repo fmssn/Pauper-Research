@@ -76,6 +76,9 @@ width; from 1600px the deck view shows matchups and cards side by side.
 - **Deck page:** under the deck's numbers, its expected match win rate
   **against the field** (the top decks weighted by share of lists, see below),
   with its 95% interval, a Clear / Lean verdict and the costliest matchup. Then
+  the notes on pilot skill, and **In short**: one line each for matchups,
+  builds, decisions and cards, naming only Clear results, whose labels jump to
+  their sections (see below). Then
   good and bad matchups, most certain first, each with its 95%
   interval and a Clear / Lean label; then the deck's builds and decisions (see
   below); then the cards whose lists win more or less.
@@ -158,6 +161,14 @@ A snapshot for July to September 2026 is in [reports/2026-Q3](reports/2026-Q3/co
   by share squared. The costliest matchup is the one losing the most expected
   match wins, share × (50% − matchup win rate). The deck list's "Vs. field" sort
   ranks by it, decks with fewer than 30 matches last, as in the win-rate sort.
+- **In short** on a deck page is filled from fixed sentence templates, not
+  written by a model: the number of Clear good and bad matchups and the surest
+  of each (the first in its group), the most common build and the one furthest
+  from the deck's other lists, the most open decision and the clearest option
+  difference, and the cards whose lists win clearly more or less by the most.
+  Only Clear results are named, always for the main deck. The largest of many
+  Clear differences is the likeliest to be inflated by chance, so read it as a
+  lead.
 - **Builds** come from a tree of single-card questions ("4+ Moon-Circuit
   Hacker?"), each the one that best predicts the rest of the list, up to 3 deep;
   each build's typical list is Frank Karsten's aggregate decklist. A card is
