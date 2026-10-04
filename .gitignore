@@ -7,3 +7,4 @@ _site/
 .venv/
 # Impeccable: project design context is shared, per-developer overrides are not
 .impeccable/config.local.json
+.impeccable/live/server.json
