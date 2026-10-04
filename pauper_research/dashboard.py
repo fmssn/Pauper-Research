@@ -181,9 +181,11 @@ def render(data: dict, standalone: bool = True) -> str:
     page = TEMPLATE.read_text(encoding="utf-8").replace("/*__DATA__*/null", payload)
     if not standalone:
         return page
+    # The template's title, fonts and styles (everything before the marker) go in <head>.
+    head, _, body = page.partition("<!--/head-->")
     return ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
-            '</head>\n<body>\n' + page + '\n</body>\n</html>\n')
+            + head.strip() + '\n</head>\n<body>\n' + body.strip() + '\n</body>\n</html>\n')
 
 
 def write(all_tables: dict[str, pd.DataFrame], out: Path, standalone: bool = True,
