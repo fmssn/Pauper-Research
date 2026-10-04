@@ -378,6 +378,11 @@ a.row:hover .rname { text-decoration: underline; text-underline-offset: 3px; }
 .dbar.unsure .fill { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }
 
 .deckrow .mini { width: 72px; }
+.deckrow .wr small { font-size: 12px; color: var(--muted); }
+/* "Vs. field" groups: a heading row inside the list */
+.decks .decksub { padding: 16px 4px 4px; border-top: 1px solid var(--line); }
+.decks .decksub:first-child { border-top: 0; padding-top: 8px; }
+.decksub + .deckrow { border-top: 0; }
 .empty.inset { margin: 12px; }
 .note.pad { padding: 8px 0; }
 .empty { padding: 14px; border-radius: 6px; background: var(--sunken); color: var(--ink-2); font-size: 14px; display: grid; gap: 10px; justify-items: start; }
@@ -474,6 +479,8 @@ details.lean[open] > summary { margin-bottom: 4px; }
 #listView .metachart .hero h2 { font-size: 20px; }
 /* Phones: while searching, the metagame block steps aside so the matching decks sit right under the search box */
 body.searching #listView .metachart { display: none; }
+/* Phones: the "Vs. field" list is grouped by verdict itself, so the win-rate summary above it would only compete */
+@media (max-width: 1023px) { body.vsfield #listView .metachart { display: none; } }
 #listView .metachart .legend { display: none; }
 .metasub { display: flex; flex-wrap: wrap; align-items: center; column-gap: 4px; margin-top: 2px; }
 .metasub span { white-space: nowrap; }
@@ -621,6 +628,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       <span class="label" id="listCount"></span>
       <div class="seg" id="sortSeg" role="group" aria-label="Sort decks"></div>
     </div>
+    <p class="note" id="sortNote" hidden></p>
     <div class="decks" id="deckList"></div>
     <div class="card howto" id="howto">
       <h2>How to read this</h2>
@@ -628,7 +636,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
         <li><b>Win rate</b> is match wins excluding mirrors, with draws as half a win.</li>
         <li>On every bar the centre line is 50% (or no difference). The whisker is the 95% interval: the range the true value most likely sits in.</li>
         <li><b>Clear</b> means the whole interval is on one side of the line. <b>Lean</b> means it could still be even. Headings such as "Good against" list only Clear results, in solid colour; Lean ones are outlined, with their number in grey, and folded under "Could go either way".</li>
-        <li><b>Against the field</b> on a deck page is its expected match win rate if the opponents are the top decks in proportion to their share of lists. Matchups with few matches count close to even. Sort by <b>Vs. field</b> to rank every deck by it.</li>
+        <li><b>Against the field</b> on a deck page is its expected match win rate if the opponents are the top decks in proportion to their share of lists. Matchups with few matches count close to even. Sort by <b>Vs. field</b> to see it for every deck, grouped into favored, could be even and behind.</li>
         <li><b>Share of lists</b> counts published decklists, which are mostly MTGO's winning lists. Win rates count matches, which come mostly from paper events. The line under the title says how the current view splits.</li>
         <li><b>Card effects</b> compare lists of the same deck with and without a card. They show what winning lists play, which isn't always what makes them win. With dozens of cards, about 1 in 20 can look Clear by chance.</li>
         <li><b>Online</b> is MTGO: many lists, but match results only from Challenge top 8s. <b>Paper</b> is Melee, CardsRealm and Topdeck, with every round, mostly from Italy and Brazil.</li>
@@ -743,7 +751,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       <div class="eq">\[ E_a = \frac{\sum_b \text{share}_b\, \tilde p_b}{\sum_b \text{share}_b}, \qquad [L, U] = E_a \mp z \sqrt{\sum_b \Big(\frac{\text{share}_b}{\sum_c \text{share}_c}\Big)^2 v_b} \]</div>
       <p class="where">The sums run over the top <b data-k="topArchetypes"></b> decks in the view, the deck itself included; \(z = 1.959964\). The deck is Clear against the field when the whole interval is on one side of 50%. Decks outside the top <b data-k="topArchetypes"></b> are left out, and share of lists is mostly MTGO's winning lists (see Meta share), so this is the field those lists describe.</p>
       <p>When less than <b data-k="fieldThin"></b> of the field's weight comes from real matches, \(\sum_{b \ne a} \text{share}_b \frac{n_b}{n_b + k} \big/ \sum_{b \ne a} \text{share}_b\), the page says the estimate leans towards 50%. The <b>costliest matchup</b> is the opponent with the largest \(\text{share}_b\,(0.5 - \tilde p_b)\): the most expected match wins lost to one deck.</p>
-      <p>The deck list's <b>Vs. field</b> sort shows \(E_a\) and its interval for every deck and ranks by \(E_a\). As in the win-rate sort, decks with fewer than <b data-k="sortMin"></b> matches rank after the rest.</p>
+      <p>The deck list's <b>Vs. field</b> sort shows \(E_a\) and its interval for every deck, grouped by verdict (Clear above 50%, Lean, Clear below 50%) and ranked by \(E_a\) within each group. Decks with fewer than <b data-k="sortMin"></b> matches form a last group, as they rank last in the win-rate sort.</p>
     </section>
 
     <section class="card" id="m-summary" tabindex="-1">
@@ -1352,8 +1360,13 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     const all = decks();
     let rows = all.slice();
     seg($("#sortSeg"), [["share", "Most played"], ["wr", "Win rate"], ["field", "Vs. field"]], state.sort, (v) => { state.sort = v; store.set("sort", v); renderList(); });
-    // "Vs. field" shows and sorts by the expected win rate against the field (see fieldEstimate).
+    // "Vs. field" shows and sorts by the expected win rate against the field (see fieldEstimate), grouped by verdict.
     const vsField = state.sort === "field";
+    document.body.classList.toggle("vsfield", vsField);
+    const note = $("#sortNote");
+    note.hidden = !vsField;
+    if (vsField) note.textContent = "Expected match win rate at an event of the top " + all.length +
+      " decks, each as common as its share of lists. Under each number, its 95% interval.";
     const field = new Map(vsField ? all.map((d) => [d.name, d.matches ? fieldEstimate(d) : null]) : []);
     const key = (d) => vsField ? field.get(d.name)?.e : d.wr;
     // Win-rate sorts put decks with a usable sample first.
@@ -1363,12 +1376,17 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     $("#listCount").textContent = rows.length + (rows.length === 1 ? " deck" : " decks");
     const list = $("#deckList");
     if (!rows.length) { list.replaceChildren(h("div", { class: "empty inset" }, "No deck matches “" + state.q + "”.")); return; }
-    list.replaceChildren(...rows.map((d) => {
+    const verdict = (d) => {
+      const x = field.get(d.name);
+      if (d.matches < SORT_MIN || !x) return "few";
+      return x.lo > 0.5 ? "good" : x.hi < 0.5 ? "bad" : "even";
+    };
+    const row = (d) => {
       const x = vsField ? field.get(d.name) : d.matches ? { e: d.wr, lo: d.lo, hi: d.hi } : null;
       const sure = x && (x.lo > 0.5 || x.hi < 0.5);
-      // In the field sort a Lean estimate is grey, as everywhere else; the plain win rate keeps its usual weight.
+      // In the field sort a Lean estimate is grey, as everywhere else, and the interval is written out.
       const wr = h("div", { class: "wr" }, h("b", { class: "num" + (vsField && x && !sure ? " lean" : "") }, x ? pct(x.e) : "–"));
-      if (x) wr.append(h("div", { class: "mini" }, dbar(x.e, x.lo, x.hi, 0.5, 0.2)));
+      if (x) wr.append(vsField ? h("small", { class: "num" }, ci(x.lo, x.hi)) : h("div", { class: "mini" }, dbar(x.e, x.lo, x.hi, 0.5, 0.2)));
       return navA({
         class: "deckrow", href: hashOf("deck", d.name), "data-deck": d.name, "aria-current": d.name === state.deck ? "page" : null,
         "aria-label": d.name + " (" + colorWords(d.color) + "), " + pct(d.share, 1) + " of published lists, " +
@@ -1380,6 +1398,15 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
         h("div", { class: "name" }, d.name),
         h("div", { class: "meta num" }, mana(d.color), h("span", null, pct(d.share, 1) + " of lists,"), h("span", null, fmt(d.matches) + " matches"))),
       wr);
+    };
+    if (!vsField) { list.replaceChildren(...rows.map(row)); return; }
+    // Clear results lead, the ones that could be even are kept apart, thin samples go last.
+    const groups = [["good", "Favored against the field"], ["even", "Could be even"], ["bad", "Behind against the field"], ["few", "Under " + SORT_MIN + " matches"]];
+    list.replaceChildren(...groups.flatMap(([v, title]) => {
+      const items = rows.filter((d) => verdict(d) === v);
+      if (!items.length) return [];
+      return [h("div", { class: "subhead decksub" }, h("h3", { class: v === "good" || v === "bad" ? v : null }, title),
+        h("span", { class: "count" }, items.length + (items.length === 1 ? " deck" : " decks"))), ...items.map(row)];
     }));
   }
   // Pointing at a deck in the list marks its dot in the chart, and the other way round.
