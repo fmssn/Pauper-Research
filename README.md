@@ -64,6 +64,9 @@ see which cards move its win rate, overall and against a specific opponent.
 - Period (30 / 90 / 180 days), events (all / paper / online) and **pilot skill**
   (adjusted, the default, or raw) in the filter sheet. See
   [Pilot skill](#pilot-skill).
+- **Methods:** every formula behind the numbers, rendered from LaTeX, with the
+  settings of the current build (link at the bottom of the deck list, or
+  `#methods`).
 - **Card images:** the eye icon next to a card opens its Scryfall image full
   screen. By default the page links to Scryfall's image server. For hosts that
   block other sites, `--images sheets` (needs `pip install -e ".[images]"`)

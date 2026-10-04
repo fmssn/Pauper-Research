@@ -95,6 +95,9 @@ body[data-view="list"] #deckView, body[data-view="list"] #matchView,
 body[data-view="deck"] #listView, body[data-view="deck"] #matchView,
 body[data-view="match"] #listView, body[data-view="match"] #deckView { display: none; }
 #emptyDetail { display: none; }
+#methodsView { display: none; }
+body[data-view="methods"] #listView, body[data-view="methods"] #deckView, body[data-view="methods"] #matchView { display: none; }
+body[data-view="methods"] #methodsView { display: grid; }
 
 @media (min-width: 960px) {
   .app { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 0 24px; padding-inline: 16px; }
@@ -103,7 +106,25 @@ body[data-view="match"] #listView, body[data-view="match"] #deckView { display: 
   #listView { position: sticky; top: 64px; max-height: calc(100vh - 64px); overflow-y: auto; padding-right: 6px; padding-bottom: 24px; }
   body[data-view="list"] #emptyDetail { display: grid; place-items: center; min-height: 60vh; color: var(--muted); text-align: center; }
   body[data-view="deck"] .bar .iconbtn { visibility: hidden; }
+  body[data-view="methods"] #listView, body[data-view="methods"] #emptyDetail { display: none; }
+  body[data-view="methods"] #methodsView { grid-column: 1 / -1; max-width: 860px; width: 100%; justify-self: center; }
 }
+
+/* Methods */
+.methods h2 { font-size: 21px; font-weight: 800; font-stretch: 106%; }
+.methods h3 { font-size: 16px; font-weight: 800; font-stretch: 104%; }
+.methods p, .methods li { color: var(--ink-2); font-size: 15px; max-width: 68ch; }
+.methods ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.methods .eq { overflow-x: auto; overflow-y: hidden; padding: 4px 0; color: var(--ink); font-size: 15px; }
+.methods .where { font-size: 14px; color: var(--muted); }
+.methods code { font: 13px/1.4 ui-monospace, "SFMono-Regular", Menlo, monospace; background: var(--sunken); border-radius: 5px; padding: 1px 5px; }
+.methods table { border-collapse: collapse; font-size: 14px; width: 100%; }
+.methods th, .methods td { text-align: left; padding: 7px 10px 7px 0; border-top: 1px solid var(--line); vertical-align: top; }
+.methods th { font: 700 12px/1.2 var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.methods .tablewrap { overflow-x: auto; }
+.methods .toc { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
+.methods a { color: var(--good); }
+
 
 /* Deck list */
 .intro { display: grid; gap: 6px; }
@@ -319,6 +340,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
         <li><b>Card effects</b> compare lists of the same deck with and without a card. They show what winning lists play, which isn't always what makes them win. With dozens of cards, about 1 in 20 can look Clear by chance.</li>
         <li><b>Online</b> is MTGO: many lists, but match results only from Challenge top 8s. <b>Paper</b> is Melee, CardsRealm and Topdeck, with every round, mostly from Italy and Brazil.</li>
       </ul>
+      <button class="linkbtn" type="button" id="methodsLink">How every number is calculated</button>
       <p class="muted" id="generated" style="font-size:13px"></p>
     </div>
   </section>
@@ -326,6 +348,110 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
   <section class="view" id="deckView" aria-live="polite"></section>
   <section class="view" id="matchView" aria-live="polite"></section>
   <section class="view" id="emptyDetail"><p>Pick a deck to see its matchups and cards.</p></section>
+
+  <section class="view methods" id="methodsView" aria-labelledby="methodsTitle">
+    <div class="intro">
+      <span class="eyebrow">Methods</span>
+      <h1 id="methodsTitle">How every number is calculated</h1>
+      <p>The formulas behind each figure on this page, in the order you meet them. Values in <b>bold</b> are the settings this build used.</p>
+      <nav class="toc" aria-label="Sections">
+        <a href="#methods" data-jump="m-results">Results</a><a href="#methods" data-jump="m-share">Meta share</a>
+        <a href="#methods" data-jump="m-winrate">Win rate</a><a href="#methods" data-jump="m-wilson">Intervals</a>
+        <a href="#methods" data-jump="m-labels">Clear / Lean</a><a href="#methods" data-jump="m-cards">Cards</a>
+        <a href="#methods" data-jump="m-pilot">Pilot skill</a><a href="#methods" data-jump="m-thresholds">Thresholds</a>
+      </nav>
+    </div>
+
+    <section class="card" id="m-results">
+      <h2>Match results</h2>
+      <p>Each match is scored from the games won \(g_w\), lost \(g_l\) and drawn:</p>
+      <div class="eq">\[ s_m = \begin{cases} 1 & g_w > g_l \\ \tfrac12 & g_w = g_l \\ 0 & g_w < g_l \end{cases} \]</div>
+      <p>Byes and matches with no games are dropped. Every match is stored once from each player's side, so its two scores add up to 1.</p>
+    </section>
+
+    <section class="card" id="m-share">
+      <h2>Meta share</h2>
+      <div class="eq">\[ \text{share}_a = \frac{d_a}{\sum_b d_b} \]</div>
+      <p class="where">\(d_a\): published decklists of archetype \(a\) in the period. For MTGO this counts only the lists that are published (Challenge top 32, a sample of 5-0 League lists), so it is the share among winning decks, not of the whole field.</p>
+    </section>
+
+    <section class="card" id="m-winrate">
+      <h2>Win rate</h2>
+      <div class="eq">\[ \hat p_a = \frac{W_a}{n_a} = \frac{1}{|M_a|} \sum_{m \in M_a} s_m \]</div>
+      <p class="where">\(M_a\): matches played by decks of archetype \(a\) against any <em>other</em> archetype. Mirrors are left out because they are always 50%. Opponents with no published list count here but not in any matchup. A matchup's win rate uses the same formula, restricted to matches against one opposing archetype.</p>
+    </section>
+
+    <section class="card" id="m-wilson">
+      <h2>95% intervals (Wilson score)</h2>
+      <p>The whisker on every bar. With \(z = 1.959964\) (the 97.5th percentile of the normal distribution):</p>
+      <div class="eq">\[ \begin{gathered} \tilde p = \frac{\hat p + \frac{z^2}{2n}}{1 + \frac{z^2}{n}} \\ h = \frac{z}{1 + \frac{z^2}{n}} \sqrt{\frac{\hat p (1 - \hat p)}{n} + \frac{z^2}{4n^2}} \end{gathered} \]</div>
+      <div class="eq">\[ [L, U] = \big[\max(0,\ \tilde p - h),\ \min(1,\ \tilde p + h)\big] \]</div>
+      <p>Unlike \(\hat p \pm z\sqrt{\hat p(1-\hat p)/n}\), this stays inside 0–100% and behaves well at the small samples typical of matchups. With \(n = 30\) and \(\hat p = 0.5\) it is about ±17 points wide.</p>
+    </section>
+
+    <section class="card" id="m-labels">
+      <h2>Clear and Lean</h2>
+      <div class="eq">\[ \text{Clear} \iff L > c \ \text{ or } \ U < c \]</div>
+      <p class="where">Otherwise Lean. \(c = 0.5\) for win rates and matchups, \(c = 0\) for card differences. Clear means the whole interval is on one side of the line. With dozens of cards, about 1 in 20 can look Clear by chance.</p>
+      <p>In the reports, an archetype is flagged as <b>skewed</b> between online and paper when the two intervals don't overlap: \(L_\text{online} > U_\text{paper}\) or \(L_\text{paper} > U_\text{online}\).</p>
+    </section>
+
+    <section class="card" id="m-cards">
+      <h2>Card comparisons</h2>
+      <p>Within one archetype, decks playing card \(c\) (set \(D^+\)) are compared with decks that don't (\(D^-\)), pooling their non-mirror matches:</p>
+      <div class="eq">\[ \hat p^{+} = \frac{W^{+}}{n^{+}}, \quad \hat p^{-} = \frac{W^{-}}{n^{-}}, \quad \Delta = \hat p^{+} - \hat p^{-} \]</div>
+      <p>Its 95% interval uses Newcombe's hybrid score method, built from the two Wilson intervals \([L^\pm, U^\pm]\):</p>
+      <div class="eq">\[ \begin{gathered} L_\Delta = \Delta - \sqrt{(\hat p^{+} - L^{+})^2 + (U^{-} - \hat p^{-})^2} \\ U_\Delta = \Delta + \sqrt{(U^{+} - \hat p^{+})^2 + (\hat p^{-} - L^{-})^2} \end{gathered} \]</div>
+      <p>The same comparison per matchup counts only matches against one opponent. Play rate is \(|D^+| / (|D^+| + |D^-|)\). These are descriptive: lists with a card also differ in event, date and other cards.</p>
+    </section>
+
+    <section class="card" id="m-pilot">
+      <h2>Pilot skill</h2>
+      <h3>Model</h3>
+      <p>One regularized Bradley–Terry (logistic) model fits player ratings \(r\) and deck strengths \(\delta\) together, so neither gets credit for the other. For a match between players \(i\) and \(j\) on decks \(a\) and \(b\) in quarter \(q\):</p>
+      <div class="eq">\[ \begin{gathered} \Pr(i \text{ beats } j) = \sigma(\eta), \qquad \sigma(x) = \frac{1}{1 + e^{-x}} \\ \eta = (r_i - r_j) + (\delta_{a,q} - \delta_{b,q}) \end{gathered} \]</div>
+      <p class="where">Decks without a published list get their own "Unknown" level. Players are matched by name, normalized (Unicode NFKC, whitespace collapsed, case folded) and merged across sources. Mirror matches are included, since there the deck terms cancel. Draws enter as \(s = \tfrac12\). Names never leave the model.</p>
+      <h3>Fit</h3>
+      <p>Matches from the <b data-k="lookback"></b> days up to the end of the period, one fit per event scope, weighted by recency with a half-life of <b data-k="halfLife"></b> days:</p>
+      <div class="eq">\[ w_m = 0.5^{\,\text{age}_m / h} \]</div>
+      <p class="where">\(\text{age}_m\): days between the match and the end of the period; \(h\) = <b data-k="halfLife"></b> days.</p>
+      <div class="eq">\[ \begin{gathered} \min_{r,\,\delta}\ \sum_m w_m\, \mathcal{L}(\eta_m, s_m) \\ + \frac{\lambda}{2} \sum_i r_i^2 + \frac{\lambda_d}{2} \sum_{a,q} \delta_{a,q}^2 \\ \mathcal{L}(\eta, s) = \log\big(1 + e^{\eta}\big) - s\,\eta \end{gathered} \]</div>
+      <p class="where">\(\mathcal{L}\) is the log-loss of a prediction \(\sigma(\eta)\) for score \(s\). \(\lambda_d = \) <b data-k="deckLambda"></b> is a weak prior on deck strengths that keeps thin deck–quarters from running off. \(\lambda\) pulls player ratings towards average; a player with few matches stays close to 0.</p>
+      <p>\(\lambda\) is chosen per fit from \(\{\)<b data-k="grid"></b>\(\}\) by <b data-k="folds"></b>-fold cross-validation, holding out whole events, minimizing the weighted held-out log-loss, where \(\hat\eta_m^{(-k)}\) is predicted by the fit without fold \(F_k\):</p>
+      <div class="eq">\[ \hat\lambda = \arg\min_{\lambda} \frac{\sum_{k} \sum_{m \in F_k} w_m\, \mathcal{L}\big(\hat\eta_m^{(-k)}, s_m\big)}{\sum_m w_m} \]</div>
+      <p>In the current view: \(\hat\lambda = \) <b data-k="lam"></b>, <b data-k="rated"></b> of <b data-k="players"></b> players have 10+ matches.</p>
+      <p>The solver is Newton's method with a backtracking line search. Each step solves the sparse system with preconditioned conjugate gradients. \(X\) has one row per match with \(\pm 1\) in the players' and decks' columns, \(\theta = (r, \delta)\) and \(\Lambda\) holds the penalties:</p>
+      <div class="eq">\[ \begin{gathered} g = X^\top W\big(\sigma(\eta) - s\big) + \Lambda\theta \\ H = X^\top \operatorname{diag}\!\big(w\,\sigma(\eta)(1 - \sigma(\eta))\big) X + \Lambda \\ \theta \leftarrow \theta - t\,H^{-1} g \end{gathered} \]</div>
+
+      <h3>Pilot lift and adjusted win rate</h3>
+      <p>Each match gets a lift: the win chance with both players' ratings minus the win chance with both ratings at 0.</p>
+      <div class="eq">\[ \ell_m = \sigma(\eta_m) - \sigma\big(\eta_m - (r_i - r_j)\big) \]</div>
+      <div class="eq">\[ \bar\ell = \frac{1}{n} \sum_{m \in M} \ell_m, \qquad \hat p^{\,\text{adj}} = \hat p - \bar\ell \]</div>
+      <p class="where">over exactly the matches \(M\) behind \(\hat p\), so only the pilots change and the opponents stay the same. Card comparisons subtract each side's lift: \(\Delta^{\text{adj}} = \Delta - (\bar\ell^{+} - \bar\ell^{-})\).</p>
+
+      <h3>Adjusted intervals</h3>
+      <p>The ratings are refitted on \(B = \) <b data-k="bootstrap"></b> bootstrap samples. Each draws events with replacement, so event \(e\) appears \(c_e^{(b)}\) times and its matches get weight \(w_m c_{e(m)}^{(b)}\). \(\hat\lambda\) stays fixed. The spread of the lift across samples, \(s_\ell = \operatorname{sd}_b\big(\bar\ell^{(b)}\big)\) (for cards, of \(\bar\ell^{+(b)} - \bar\ell^{-(b)}\)), is added to each side of the Wilson or Newcombe interval:</p>
+      <div class="eq">\[ \begin{gathered} L^{\text{adj}} = \hat p^{\,\text{adj}} - \sqrt{(\hat p - L)^2 + (z\,s_\ell)^2} \\ U^{\text{adj}} = \hat p^{\,\text{adj}} + \sqrt{(U - \hat p)^2 + (z\,s_\ell)^2} \end{gathered} \]</div>
+      <p>Win-rate intervals are then clipped to [0, 1]. The adjustment is conservative: because ratings are shrunk towards average, only part of a pilot's edge is removed when they have few matches.</p>
+    </section>
+
+    <section class="card" id="m-thresholds">
+      <h2>Thresholds</h2>
+      <div class="tablewrap"><table>
+        <thead><tr><th>What</th><th>Rule</th></tr></thead>
+        <tbody>
+          <tr><td>Decks listed</td><td>Top <b data-k="topArchetypes"></b> archetypes by decklists</td></tr>
+          <tr><td>Win-rate sort</td><td>Decks with <b data-k="sortMin"></b>+ matches first</td></tr>
+          <tr><td>Matchups shown</td><td><b data-k="minMu"></b>+ matches</td></tr>
+          <tr><td>Card breakdowns</td><td>Top <b data-k="cardArchetypes"></b> archetypes; cards in <b data-k="minPlayRate"></b>+ of lists</td></tr>
+          <tr><td>Card comparison</td><td><b data-k="overallDecks"></b>+ lists and <b data-k="overallMatches"></b>+ matches with and without the card</td></tr>
+          <tr><td>Card comparison per matchup</td><td><b data-k="matchupTotal"></b>+ matches in the matchup; <b data-k="matchupDecks"></b>+ lists and <b data-k="matchupMatches"></b>+ matches on each side</td></tr>
+          <tr><td>Core cards</td><td>In <b data-k="corePlay"></b>+ of lists, so there's nothing to compare against</td></tr>
+        </tbody>
+      </table></div>
+      <p class="muted" style="font-size:13px">Formulas rendered with MathJax. If they show as plain TeX, the MathJax script couldn't load.</p>
+    </section>
+  </section>
 </main>
 
 <dialog class="sheet" id="filterSheet" aria-labelledby="sheetTitle">
@@ -370,7 +496,9 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
   "use strict";
   const DATA = JSON.parse(document.getElementById("data").textContent);
   const T = DATA.thresholds;
-  const MIN_MU = 8;
+  const MIN_MU = 8;          // matches before a matchup is listed
+  const SORT_MIN = 30;       // matches before a deck ranks in the win-rate sort
+  const CORE_PLAY = 0.85;    // play rate above which a card counts as core
   const PERIODS = { "30d": "30 days", "90d": "90 days", "180d": "180 days" };
   const SCOPES = { combined: "All events", paper: "Paper", online: "Online" };
   const SCOPE_NOTES = {
@@ -563,7 +691,8 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
   function go(view, deck, opp, push = true) {
     state.view = view; state.deck = deck || null; state.opp = opp || null;
     if (push) {
-      const hash = view === "deck" ? "#d-" + slug(deck) : view === "match" ? "#m-" + slug(deck) + "~" + slug(opp) : "#decks";
+      const hash = view === "deck" ? "#d-" + slug(deck) : view === "match" ? "#m-" + slug(deck) + "~" + slug(opp)
+        : view === "methods" ? "#methods" : "#decks";
       try { history.pushState(null, "", hash); } catch (e) { /* history unavailable in this frame */ }
     }
     render();
@@ -573,6 +702,7 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     let hash = "";
     try { hash = decodeURIComponent(location.hash.slice(1)); } catch (e) { hash = ""; }
     const all = decks(), find = (s) => (all.find((d) => slug(d.name) === s) || {}).name;
+    if (hash === "methods") return go("methods", null, null, false);
     if (hash.startsWith("d-") && find(hash.slice(2))) return go("deck", find(hash.slice(2)), null, false);
     if (hash.startsWith("m-")) {
       const [a, b] = hash.slice(2).split("~");
@@ -618,8 +748,8 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     const all = decks();
     let rows = all.slice();
     seg($("#sortSeg"), [["share", "Most played"], ["wr", "Win rate"]], state.sort, (v) => { state.sort = v; store.set("sort", v); renderList(); });
-    // Win-rate sort puts decks with a usable sample (30+ matches) first.
-    if (state.sort === "wr") rows.sort((a, b) => (b.matches >= 30) - (a.matches >= 30) || (b.wr ?? 0) - (a.wr ?? 0));
+    // Win-rate sort puts decks with a usable sample first.
+    if (state.sort === "wr") rows.sort((a, b) => (b.matches >= SORT_MIN) - (a.matches >= SORT_MIN) || (b.wr ?? 0) - (a.wr ?? 0));
     if (state.q) rows = rows.filter((d) => d.name.toLowerCase().includes(state.q));
     $("#listCount").textContent = rows.length + (rows.length === 1 ? " deck" : " decks");
     const list = $("#deckList");
@@ -688,8 +818,8 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
       const rows = cardRows(deck, state.board);
       if (!rows) { body.append(h("div", { class: "empty" }, "Card breakdowns cover the 30 most played decks in this view.")); return; }
       const compared = rows.filter((r) => r.delta != null);
-      const core = rows.filter((r) => r.delta == null && r.play >= 0.85);
-      const rare = rows.filter((r) => r.delta == null && r.play < 0.85);
+      const core = rows.filter((r) => r.delta == null && r.play >= CORE_PLAY);
+      const rare = rows.filter((r) => r.delta == null && r.play < CORE_PLAY);
       if (!compared.length) suggestMore(body, "Not enough lists with and without each card (" + T.overall.min_decks + "+ lists and " + T.overall.min_matches + "+ matches on each side) to compare them yet.");
       effectGroups(body, compared, (r) => "In " + pct(r.play) + " of lists · " + r.copies.toFixed(1) + " copies on average", "");
       if (core.length) body.append(h("div", { class: "group" }, h("div", { class: "subhead" }, h("h3", null, "Core cards")),
@@ -813,6 +943,44 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     view.replaceChildren(hero, sec);
   }
 
+  // ---------- methods ----------
+  // Settings shown on the methods page come from the build, so the page can't drift from the code.
+  function renderMethods() {
+    const M = DATA.methods || {}, pl = scope().pilot || {};
+    const vals = {
+      lookback: M.lookback_days, halfLife: M.half_life_days, deckLambda: M.deck_lambda, folds: M.cv_folds,
+      grid: (M.lambda_grid || []).join(", "), bootstrap: M.bootstrap,
+      lam: pl.lam == null ? "–" : pl.lam, rated: fmt(pl.rated || 0), players: fmt(pl.players || 0),
+      topArchetypes: T.topArchetypes, cardArchetypes: T.cardArchetypes, minPlayRate: pct(T.minPlayRate),
+      minMu: MIN_MU, sortMin: SORT_MIN, corePlay: pct(CORE_PLAY), overallDecks: T.overall.min_decks, overallMatches: T.overall.min_matches,
+      matchupTotal: T.matchupTotal, matchupDecks: T.matchup.min_decks, matchupMatches: T.matchup.min_matches,
+    };
+    document.querySelectorAll("#methodsView [data-k]").forEach((el) => { el.textContent = vals[el.dataset.k] ?? "–"; });
+    typeset();
+  }
+  // MathJax (SVG output, no font files) loads the first time the page is opened.
+  let mathjax = null;
+  function typeset() {
+    const el = $("#methodsView");
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetClear([el]);
+      window.MathJax.typesetPromise([el]).catch(() => {});
+      return;
+    }
+    if (mathjax) return;
+    window.MathJax = { tex: { inlineMath: [["\\(", "\\)"]] }, svg: { fontCache: "global" },
+      startup: { typeset: false, pageReady: () => window.MathJax.startup.defaultPageReady().then(typeset) } };
+    mathjax = document.createElement("script");
+    mathjax.src = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js";
+    mathjax.async = true;
+    document.head.appendChild(mathjax);
+  }
+  $("#methodsLink").addEventListener("click", () => go("methods"));
+  document.querySelectorAll("#methodsView [data-jump]").forEach((a) => a.addEventListener("click", (e) => {
+    e.preventDefault();
+    document.getElementById(a.dataset.jump).scrollIntoView({ behavior: "smooth", block: "start" });
+  }));
+
   // ---------- frame ----------
   function render() {
     const p = DATA.periods[state.period];
@@ -823,12 +991,14 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     const back = $("#backBtn");
     back.hidden = state.view === "list";
     back.setAttribute("aria-label", state.view === "match" ? "Back to " + state.deck : "Back to all decks");
-    $("#barTitle").textContent = state.view === "list" ? "Pauper Meta Lab" : state.view === "deck" ? state.deck : state.deck + " vs " + state.opp;
+    $("#barTitle").textContent = state.view === "list" ? "Pauper Meta Lab" : state.view === "methods" ? "Methods"
+      : state.view === "deck" ? state.deck : state.deck + " vs " + state.opp;
     $("#barSub").textContent = p.since + " to " + p.until;
     $("#generated").textContent = "Data built " + DATA.generated + " from fbettega/MTG_decklistcache. Archetypes from MTGOFormatData.";
     renderList();
     if (state.view === "deck") renderDeck();
     if (state.view === "match") renderMatch();
+    if (state.view === "methods") renderMethods();
   }
   fromHash();
 })();

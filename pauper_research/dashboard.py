@@ -105,7 +105,7 @@ def _scope_block(tables: dict[str, pd.DataFrame], colors: dict[str, str], pilot:
         "coverage": {"events": len(events), "decks": len(decks), "matches": len(matches) // 2,
                      "by_source": by_source},
         "archetypes": archetypes, "mu": mu, "cards": cards, "cardMu": card_mu,
-        "pilot": {"players": pilot.players, "rated": pilot.rated},
+        "pilot": {"players": pilot.players, "rated": pilot.rated, "lam": _r(pilot.lam)},
     }
 
 
@@ -133,7 +133,13 @@ def build_data(all_tables: dict[str, pd.DataFrame], bootstrap: int = ratings.BOO
         }
     return {"generated": pd.Timestamp.now(tz="UTC").strftime("%Y-%m-%d"), "periods": periods,
             "default_period": "90d",
-            "thresholds": {"overall": OVERALL_MIN, "matchup": MATCHUP_MIN, "matchupTotal": MATCHUP_MIN_TOTAL}}
+            "thresholds": {"overall": OVERALL_MIN, "matchup": MATCHUP_MIN, "matchupTotal": MATCHUP_MIN_TOTAL,
+                           "topArchetypes": TOP_ARCHETYPES, "cardArchetypes": CARD_ARCHETYPES,
+                           "minPlayRate": MIN_PLAY_RATE},
+            # Settings shown on the methods page.
+            "methods": {"lookback_days": ratings.LOOKBACK_DAYS, "half_life_days": ratings.HALF_LIFE_DAYS,
+                        "deck_lambda": ratings.DECK_LAMBDA, "lambda_grid": list(ratings.LAMBDA_GRID),
+                        "cv_folds": ratings.CV_FOLDS, "bootstrap": bootstrap}}
 
 
 def card_names(data: dict) -> list[str]:
