@@ -17,6 +17,7 @@
   --line-strong: #cdd2da;
   --good: #2a78d6;
   --bad: #e34948;
+  --good-ink: #1f66c1; --bad-ink: #c0302f;   /* good/bad as small text: 4.5:1+ on --bg and --sunken */
   --neutral: #9ba1a9;
   --focus: #2a78d6;
   --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -28,13 +29,13 @@
   :root:not([data-theme="light"]) {
     --bg: #11161e; --sunken: #19202a; --hover: #202833; --ink: #eef1f5; --ink-2: #c1c8d2; --muted: #8b94a3;
     --line: #262e3a; --line-strong: #37414f; --good: #3987e5; --bad: #e66767; --neutral: #6f757e; --focus: #5598e7;
-    color-scheme: dark;
+    --good-ink: #5598e7; --bad-ink: #ec7a7a; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #11161e; --sunken: #19202a; --hover: #202833; --ink: #eef1f5; --ink-2: #c1c8d2; --muted: #8b94a3;
   --line: #262e3a; --line-strong: #37414f; --good: #3987e5; --bad: #e66767; --neutral: #6f757e; --focus: #5598e7;
-  color-scheme: dark;
+  --good-ink: #5598e7; --bad-ink: #ec7a7a; color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -164,6 +165,8 @@ body[data-view="methods"] #methodsView { display: grid; }
   #deckView { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 48px; }
   #deckView > .hero, #deckView > .empty { grid-column: 1 / -1; }
   #deckView > .card { align-content: start; }
+  /* Matchups and cards side by side, builds and decisions across both below */
+  #deckView > .decisions { grid-column: 1 / -1; grid-row: 3; }
   #deckView .row { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 8.5em; }
 }
 
@@ -277,7 +280,7 @@ body[data-view="methods"] #methodsView { display: grid; }
 button.row { cursor: pointer; }
 button.row:hover { background: var(--hover); }
 button.row:hover .rname { text-decoration: underline; text-underline-offset: 3px; }
-.rname { font-size: 15px; font-weight: 600; line-height: 1.25; min-width: 0; }
+.rname { font-size: 15px; font-weight: 600; line-height: 1.3; min-width: 0; }
 .rsub { font-size: 13px; color: var(--muted); }
 .rval { display: flex; align-items: center; gap: 10px; justify-self: end; }
 .rval b { font-size: 17px; font-weight: 600; min-width: 2.6em; text-align: right; }
@@ -285,8 +288,8 @@ button.row:hover .rname { text-decoration: underline; text-underline-offset: 3px
 .row .ph { display: none; }
 .chev { width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .tag { font-size: 12px; font-weight: 600; white-space: nowrap; min-width: 2.6em; }
-.tag.clear.good { color: var(--good); }
-.tag.clear.bad { color: var(--bad); }
+.tag.clear.good { color: var(--good-ink); }
+.tag.clear.bad { color: var(--bad-ink); }
 .tag.lean { color: var(--muted); font-weight: 500; }
 .scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
 .row.scalerow { padding-top: 4px; border-top: 1px solid var(--line); }
@@ -329,11 +332,62 @@ details.more[open] > summary::before { content: "− "; }
 .chip b { font-variant-numeric: tabular-nums; font-weight: 600; margin-right: 4px; }
 .subhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding-bottom: 4px; border-bottom: 1px solid var(--line-strong); }
 .subhead h3 { font-size: 14px; }
-.subhead h3.good { color: var(--good); } .subhead h3.bad { color: var(--bad); }
+.subhead h3.good { color: var(--good-ink); } .subhead h3.bad { color: var(--bad-ink); }
 .subhead .count { font-size: 13px; color: var(--muted); }
 .group { display: grid; gap: 2px; }
 .group + .group { margin-top: 16px; }
 .compare { font-size: 12px; color: var(--muted); grid-column: 1 / -1; }
+
+/* Builds and decisions: option rows reuse .row; matchup chips and the annotated list are their own */
+.cardlink {
+  border: 0; background: none; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer;
+  text-decoration: underline dotted var(--line-strong); text-underline-offset: 3px;
+}
+.cardlink:hover { text-decoration-color: currentColor; }
+.subhead h3.lvl { font-size: 16px; }
+.subhead h4 { font-size: 14px; font-weight: 600; margin: 0; }
+.subhead .count.sure { color: var(--ink); font-weight: 500; }
+.mus { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.mchip {
+  border: 0; padding: 1px 7px; border-radius: 4px; background: var(--sunken); color: var(--ink-2);
+  font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer;
+}
+.mchip:hover, .mchip[aria-expanded="true"] { background: var(--hover); }
+.mchip b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.mchip.sure { font-weight: 500; box-shadow: inset 0 0 0 1px currentColor; }
+.mchip.sure.good { color: var(--good-ink); }
+.mchip.sure.bad { color: var(--bad-ink); }
+.mchip .mn { font-weight: 400; color: var(--ink-2); }
+.mus:not(.all) .mchip.extra { display: none; }
+.mmore { font-size: 12px; padding: 1px 4px; }
+.mudetail { flex-basis: 100%; color: var(--ink-2); font-size: 13px; margin-top: 2px; }
+.defs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.def { font-size: 12px; font-weight: 400; padding: 0 6px; border-radius: 4px; background: var(--sunken); color: var(--ink-2); }
+.listbtn { grid-column: 1 / -1; font-size: 13px; padding: 2px 0; }
+.bpanel { display: grid; gap: 8px; background: var(--sunken); border-radius: 6px; padding: 12px 14px; margin: 2px 0 8px; }
+.bhead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+.copy { display: inline-flex; align-items: baseline; gap: 8px; }
+.copybtn { font-size: 13px; padding: 2px 0; }
+.dlist { columns: 2 300px; column-gap: 32px; font-size: 14px; }
+.dlh { font-size: 12px; font-weight: 600; color: var(--ink-2); padding: 4px 0 2px; break-after: avoid; }
+.dlist + .dlist { border-top: 1px solid var(--line); padding-top: 6px; }
+.dl { break-inside: avoid; display: grid; grid-template-columns: 2.2em minmax(0, 1fr); column-gap: 6px; padding: 2px 0; }
+.dl .n { text-align: right; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.dl .n.slot { color: var(--ink-2); font-size: 12px; padding-top: 2px; }
+.dl .ann { grid-column: 2; font-size: 12.5px; color: var(--ink-2); }
+.dl.dec { box-shadow: inset 2px 0 0 var(--ink-2); margin-left: -8px; padding-left: 8px; }
+.dl.dec .dn { font-weight: 600; }
+.wnote { font-weight: 600; white-space: nowrap; }
+.wnote.good { color: var(--good-ink); } .wnote.bad { color: var(--bad-ink); }
+.also { font-size: 13px; color: var(--ink-2); line-height: 1.8; border-top: 1px solid var(--line); padding-top: 8px; }
+.dkey { font-size: 13px; color: var(--ink-2); max-width: 72ch; }
+.bpanel .dkey i { display: inline-block; width: 2px; height: 12px; background: var(--ink-2); margin-right: 6px; vertical-align: -1px; }
+/* Phones and touch: room to tap */
+@media (max-width: 1023px) {
+  .listbtn, .copybtn, .mmore { min-height: 40px; }
+  .mchip { padding: 5px 9px; }
+  .dl { padding: 4px 0; }
+}
 
 .howto { gap: 10px; font-size: 14px; color: var(--ink-2); }
 .howto h2 { font-size: 16px; }
@@ -504,7 +558,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       <nav class="toc" aria-label="Sections">
         <a href="#methods" data-jump="m-sources">Data sources</a><a href="#methods" data-jump="m-results">Results</a><a href="#methods" data-jump="m-share">Meta share</a>
         <a href="#methods" data-jump="m-winrate">Win rate</a><a href="#methods" data-jump="m-wilson">Intervals</a>
-        <a href="#methods" data-jump="m-labels">Clear / Lean</a><a href="#methods" data-jump="m-cards">Cards</a>
+        <a href="#methods" data-jump="m-labels">Clear / Lean</a><a href="#methods" data-jump="m-cards">Cards</a><a href="#methods" data-jump="m-builds">Builds</a>
         <a href="#methods" data-jump="m-pilot">Pilot skill</a><a href="#methods" data-jump="m-skill">Skill sensitivity</a>
         <a href="#methods" data-jump="m-thresholds">Thresholds</a><a href="#methods" data-jump="m-refs">References</a>
       </nav>
@@ -573,6 +627,37 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       <p>The same comparison per matchup counts only matches against one opponent. Play rate is \(|D^+| / (|D^+| + |D^-|)\). These are descriptive: lists with a card also differ in event, date and other cards.</p>
     </section>
 
+    <section class="card" id="m-builds" tabindex="-1">
+      <h2>Builds and decisions</h2>
+      <p>Each list \(l\) of a deck is a vector of copy counts \(x_{l,c}\), one per card \(c\), separately for the main deck (60 cards) and the sideboard (15). Snow-covered basics count as the basic. Decks with <b data-k="decMinLists"></b>+ lists in the view, among the top <b data-k="cardArchetypes"></b>, get this section.</p>
+      <h3>Builds</h3>
+      <p>A divisive tree of single-card questions. A question "\(k\)+ copies of \(c\)?" splits a set of lists \(S\) into \(S^{+} = \{l : x_{l,c} \ge k\}\) and \(S^{-}\). Its gain is the share of the spread in the <em>other</em> cards that the answer explains:</p>
+      <div class="eq">\[ \begin{gathered} G(c, k) = \frac{E_c(S) - E_c(S^{+}) - E_c(S^{-})}{E_c(S)} \\ E_c(S) = \sum_{l \in S} \sum_{c' \ne c} \big(x_{l,c'} - \bar x_{c'}(S)\big)^2 \end{gathered} \]</div>
+      <p class="where">\(\bar x_{c'}(S)\): average copies of \(c'\) in \(S\). At each node the question with the largest \(G\) is asked, if each side keeps at least \(\max(\)<b data-k="decTreeLists"></b>\(,\ \)<b data-k="decTreeShare"></b>\( \cdot N)\) lists (\(N\): the deck's lists) and \(G \ge\) <b data-k="decTreeGain"></b>. At most <b data-k="decTreeDepth"></b> questions deep. The leaves are the builds, largest first; the largest is the stock list. Each other build is named after the cards its questions ask about, as it plays them: the first it plays more of than the stock list ("Fireblast build"), else the first it plays fewer of ("No Fireblast build"), with its other question cards added when two builds would share a name. The tree is greedy: when two questions split the lists almost equally well, a few more lists can change their order.</p>
+      <p>A build's <b>typical list</b> is Frank Karsten's aggregate decklist: rank every (card, \(k\)-th copy) pair by the share of lists with \(x_{l,c} \ge k\) and keep the top 60 (15 for sideboards). It is shown spells first, then lands (from MTGOFormatData's card list), and can be copied in MTGO / Arena import format.</p>
+      <h3>Kinds of cards</h3>
+      <p>With \(f_c(k)\) the share of lists playing exactly \(k\) copies of \(c\), and \(q\) = <b data-k="decCore"></b>:</p>
+      <ul>
+        <li><b>Fixed</b>: \(\max_k f_c(k) \ge q\). Every list plays the same count (fixed at 0: not shown).</li>
+        <li><b>How many copies</b>: otherwise, if \(1 - f_c(0) \ge q\): nearly everyone plays it, in different numbers.</li>
+        <li><b>In or out</b>: the rest.</li>
+      </ul>
+      <h3>Slots</h3>
+      <p>Cards that replace each other: their combined copies \(T_A = \sum_{c \in A} x_{l,c}\) vary much less than each on its own. Starting from single cards that are not fixed, the two groups with the lowest ratio are merged while</p>
+      <div class="eq">\[ \rho(A, B) = \frac{\operatorname{Var}(T_A + T_B)}{\operatorname{Var}(T_A) + \operatorname{Var}(T_B)} < \rho_{\max} \]</div>
+      <p class="where">\(\rho_{\max}\) = <b data-k="decSlotRatio"></b>, at most <b data-k="decSlotMax"></b> cards. \(\rho = 1\) for unrelated cards; cards that swap one for one give \(\rho\) near 0. Basic lands stay out, because every list has 60 cards, so they trade off with everything. A group counts as a slot when <b data-k="decSlotSteady"></b>+ of lists are within one card of its most common total (so a slot can be "4–5" cards), and its <b data-k="decSlotOptions"></b> most common splits (each in <b data-k="decMinOption"></b>+ of lists) cover <b data-k="decSlotCover"></b>+ of lists.</p>
+      <h3>Decisions and their order</h3>
+      <p>Every slot, copy count and in/out card is a decision with options: the slot's splits, the copy counts in <b data-k="decMinOption"></b>+ of lists, or yes/no. Decisions are ranked by how open they are:</p>
+      <div class="eq">\[ \text{open} = 1 - \max_o \pi_o, \qquad \text{open}_{\text{in/out}} = 1 - |2\pi - 1| \]</div>
+      <p class="where">\(\pi_o\): share of lists with option \(o\); \(\pi\): share playing the card. Cards whose questions define the builds are shown with the builds instead. Inside a build's typical list, the same kinds are worked out from that build's lists alone, so another build never shows up as a choice.</p>
+      <h3>Win rates</h3>
+      <p>An option's win rate pools the non-mirror matches of the lists that chose it, with the Wilson interval and the pilot adjustment as for decks. Its bar and its Clear / Lean tag compare those lists with the deck's (or the build's) other lists, \(\Delta = \hat p^{+} - \hat p^{-}\), using the card comparison formula with its Newcombe interval. A question's verdict names the options that are Clear ahead (else Clear behind), or says there is no clear difference. In a build's typical list, a difference between two copy counts, two slot splits, or lists with and without a card is noted only when it is Clear with <b data-k="decMinWin"></b>+ matches on each side.</p>
+      <h3>Better and worse against</h3>
+      <p>For every opponent \(o\) that both sides met <b data-k="decMuMin"></b>+ times, lists with an option are compared with the deck's other lists: \(\Delta_o = \hat p^{+}_o - \hat p^{-}_o\) (pilot-adjusted, with its Newcombe interval \([L_o, U_o]\)). The <b data-k="decMuTop"></b> opponents each way with the largest</p>
+      <div class="eq">\[ z_o = \frac{\Delta_o}{(U_o - L_o)/2} \]</div>
+      <p class="where">are compared; the Clear ones are shown (outlined, with these lists' matches against the opponent) and the rest wait behind a button. Selecting one shows both records and the interval. Picking the most extreme of many opponents finds Clear ones by chance more often than 1 in 20, so trust a pattern that repeats (a build and the card that defines it) more than a single chip. Not shown for sideboards: what a list sideboards follows the field it expects.</p>
+    </section>
+
     <section class="card" id="m-pilot">
       <h2>Pilot skill</h2>
       <h3>Model</h3>
@@ -637,6 +722,8 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
           <tr><td>Card comparison per matchup</td><td><b data-k="matchupTotal"></b>+ matches in the matchup; <b data-k="matchupDecks"></b>+ lists and <b data-k="matchupMatches"></b>+ matches on each side</td></tr>
           <tr><td>Skill sensitivity</td><td><b data-k="skillMin"></b>+ matches in 12 months; leaning when at least <b data-k="skillLean"></b> away from 1</td></tr>
           <tr><td>Core cards</td><td>In <b data-k="corePlay"></b>+ of lists, so there's nothing to compare against</td></tr>
+          <tr><td>Builds and decisions</td><td>Top <b data-k="cardArchetypes"></b> archetypes with <b data-k="decMinLists"></b>+ lists; the <b data-k="decTop"></b> most open decisions listed first (<b data-k="decTopNarrow"></b> on phones)</td></tr>
+          <tr><td>Better / worse against</td><td><b data-k="decMuMin"></b>+ matches on each side against the opponent; <b data-k="decMuTop"></b> each way per option; main deck only</td></tr>
         </tbody>
       </table></div>
     </section>
@@ -972,15 +1059,23 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     ? "Win rates without the edge of stronger or weaker pilots. Player ratings come from the last 12 months of results (" + fmt((scope().pilot || {}).rated || 0) + " players with 10+ matches). Players are never shown."
     : "Plain results. A deck favored by strong players looks better than it is.";
   function renderSheet() {
-    seg($("#periodSeg"), periodOpts(), state.period, (v) => { setPeriod(v); renderSheet(); render(); });
-    seg($("#scopeSeg"), Object.entries(SCOPES), state.scope, (v) => { setScope(v); renderSheet(); render(); });
+    seg($("#periodSeg"), periodOpts(), state.period, (v) => { setPeriod(v); keepFocus($("#filterSheet"), renderSheet); render(); });
+    seg($("#scopeSeg"), Object.entries(SCOPES), state.scope, (v) => { setScope(v); keepFocus($("#filterSheet"), renderSheet); render(); });
     $("#scopeNote").textContent = SCOPE_NOTES[state.scope];
-    seg($("#adjustSeg"), ADJUST_OPTS, state.adjust, (v) => { setAdjust(v); renderSheet(); render(); });
+    seg($("#adjustSeg"), ADJUST_OPTS, state.adjust, (v) => { setAdjust(v); keepFocus($("#filterSheet"), renderSheet); render(); });
     $("#adjustNote").textContent = adjustNote();
     const p = DATA.periods[state.period], c = scope().coverage;
     $("#sheetCov").replaceChildren(
       h("div", null, h("b", { class: "num" }, fmt(c.matches)), " matches with results, ", h("b", { class: "num" }, fmt(c.decks)), " decklists, ", fmt(c.events), " events"),
       h("div", { class: "muted" }, p.since + " to " + p.until + ". Matches by source: " + (c.by_source.map((s) => s.source + " " + fmt(s.matches)).join(", ") || "none") + "."));
+  }
+  // Filters are redrawn on every change; put focus back on the button that was pressed.
+  function keepFocus(box, draw) {
+    const a = document.activeElement, seg = a && box.contains(a) && a.closest(".seg");
+    const key = seg && [seg.getAttribute("aria-label"), a.textContent];
+    draw();
+    if (key) [...box.querySelectorAll(".seg")].find((x) => x.getAttribute("aria-label") === key[0])
+      ?.querySelectorAll("button").forEach((b) => { if (b.textContent === key[1]) b.focus(); });
   }
   function renderBarFilters() {
     const group = (label, title, opts, current, pick) => {
@@ -1038,10 +1133,17 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     if (state.scope === "online") box.append(h("button", { class: "linkbtn", type: "button", onclick: () => { setScope("combined"); render(); } }, "Include paper events"));
     parent.append(box);
   }
+  // Every section with a board toggle registers here, so switching one switches them all.
+  let boardViews = [];
   function boardToggle(onChange) {
     const s = h("div", { class: "seg", role: "group", "aria-label": "Main deck or sideboard" });
-    const draw = () => seg(s, [["main", "Main deck"], ["side", "Sideboard"]], state.board, (v) => { state.board = v; store.set("board", v); draw(); onChange(); });
+    const draw = () => seg(s, [["main", "Main deck"], ["side", "Sideboard"]], state.board, (v) => {
+      state.board = v; store.set("board", v);
+      boardViews = boardViews.filter((x) => x.el.isConnected);
+      boardViews.forEach((x) => { x.draw(); x.onChange(); });
+    });
     draw();
+    boardViews.push({ el: s, draw, onChange });
     return s;
   }
   function matchupRow(deck, m) {
@@ -1096,6 +1198,282 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     draw();
     return h("section", { class: "card" }, h("header", null, h("h2", null, "Cards that move the win rate"),
       h("p", { class: "note" }, "Win rate of " + deck.name + " lists with each card minus lists without it, in percentage points. Open a matchup for the same comparison against one opponent.")),
+      boardToggle(draw), body);
+  }
+
+  // ---------- builds and decisions ----------
+  // Records come as [wins, matches, average pilot lift, its SD]; comparisons as
+  // [wins a, matches a, lift a, wins b, matches b, lift b, SD of the lift difference];
+  // matchups per option as [opponent, ...comparison]. See decisions.py.
+  const DT = T.decisions || {};
+  const DEC_TOP = 10;          // decisions listed before "more"
+  const DEC_TOP_NARROW = 5;    // ...on phones
+  const DEC_MIN_WIN = 30;      // matches on each side before a build's list notes a win-rate difference
+  const openBuilds = new Set();
+  const recRate = (r) => r && r[1] ? rate(r[0], r[1], r[2], r[3]) : null;
+  const recDiff = (x) => x ? diff(x[0], x[1], x[3], x[4], x[2], x[5], x[6]) : null;
+  const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
+  const ptsU = (x) => pts(x) + (Math.round(Math.abs(x * 100)) === 1 ? " pt" : " pts");
+  const LANDS = new Set(DATA.lands || []);
+  // A card name that opens its image. `tab: false` keeps it out of the tab order (long lists).
+  function cardName(name, tab = true) {
+    if (!hasImage(name)) return h("span", null, name);
+    return h("button", { class: "cardlink", type: "button", title: "Show card image", tabindex: tab ? null : "-1", onclick: (e) => showCard(name, e) }, name);
+  }
+  // "4", "2 or 4": the copies lists use when they play the card.
+  function usual(opts) {
+    const pos = opts.filter((o) => o[0] > 0);
+    if (!pos.length) return "";
+    const main = pos.filter((o) => o[1] >= 0.2).map((o) => o[0]);
+    return (main.length ? main : [pos[0][0]]).slice(0, 2).sort((a, b) => a - b).join(" or ");
+  }
+  // A slot split, "2 Counterspell + 2 Prohibit", as text or as card names.
+  const splitParts = (cards, counts) => counts.map((k, i) => [k, cards[i]]).filter(([k]) => k > 0);
+  const splitText = (cards, counts) => splitParts(cards, counts).map(([k, c]) => k + " " + c).join(" + ") || "none of these";
+  const splitNodes = (cards, counts, tab = true) => {
+    const parts = splitParts(cards, counts);
+    return parts.length ? parts.flatMap(([k, c], i) => [i ? h("span", { class: "muted" }, " + ") : null, k + " ", cardName(c, tab)]) : ["none of these"];
+  };
+  const orList = (names) => names.length < 2 ? names.join("") : names.slice(0, -1).join(", ") + " or " + names[names.length - 1];
+
+  // Sorts one group's decisions (the whole deck or a build). `skip`: cards that define the builds.
+  function classify(dec, skip) {
+    const slots = dec.slots.filter((s) => !s.cards.some((c) => skip.has(c)));
+    const inSlot = new Set(slots.flatMap((s) => s.cards));
+    const fixed = [], counts = [], inout = [];
+    for (const [card, [kind, opts, play, cmp, sides]] of Object.entries(dec.cards)) {
+      if (inSlot.has(card) || skip.has(card)) continue;
+      if (kind === "fixed") fixed.push([card, opts]);
+      else if (kind === "count") counts.push({ kind, card, opts, play, cmp, sides, open: 1 - opts[0][1] });
+      else inout.push({ kind, card, opts, play, cmp, sides, open: 1 - Math.abs(play - 0.5) * 2 });
+    }
+    fixed.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    return { fixed, counts, inout, slots: slots.map((s) => ({ ...s, open: 1 - s.configs[0][1] })) };
+  }
+  // A win-rate note for a build's list, "4 copies +6 pts vs 3": only when the difference is Clear and
+  // rests on enough matches. Returned with its separator, so a line without one stays clean.
+  function winNote(x, what, against) {
+    const d = recDiff(x);
+    if (!d || x[1] < DEC_MIN_WIN || x[4] < DEC_MIN_WIN || !(d[1] > 0 || d[2] < 0)) return [];
+    return [" · ", h("span", { class: "wnote " + (d[0] >= 0 ? "good" : "bad"), title: "95% interval " + pts(d[1]) + " to " + ptsU(d[2]) },
+      what + " " + ptsU(d[0]) + (against ? " " + against : ""))];
+  }
+  // A build's typical list (its aggregate decklist, so it adds up to 60 or 15). Cards that are a
+  // decision within the build are marked, with what its other lists do instead.
+  function annotatedList(b) {
+    const dec = classify(b.dec, new Set()), typical = new Map(b.list);
+    const kinds = new Map([...dec.counts, ...dec.inout].map((c) => [c.card, c]));
+    const lines = [], used = new Set();
+    // [copies, is a land, element]. Card names in the list stay out of the tab order: one per card is too many.
+    const isLand = (cards) => cards.every((c) => LANDS.has(c));
+    const line = (k, cards, n, name, note) => lines.push([k, isLand(cards), h("div", { class: "dl" + (note ? " dec" : "") }, n, h("span", { class: "dn" }, name), note)]);
+    // A slot is one line: how this typical list fills it, then the other common splits.
+    for (const s of dec.slots) {
+      const counts = s.cards.map((c) => typical.get(c) || 0), total = counts.reduce((a, k) => a + k, 0);
+      if (!total) continue;
+      s.cards.forEach((c) => used.add(c));
+      const parts = splitParts(s.cards, counts), same = (cf) => cf[0].every((k, i) => k === counts[i]);
+      const alts = s.configs.filter((cf) => !same(cf)).slice(0, 2);
+      line(total, parts.map((x) => x[1]), parts.length === 1 ? h("span", { class: "n" }, total) : h("span", { class: "n slot", title: "A slot of " + total + " cards" }, total),
+        parts.length === 1 ? cardName(parts[0][1], false) : splitNodes(s.cards, counts, false),
+        h("span", { class: "ann" }, alts.map((cf) => "or " + splitText(s.cards, cf[0]) + " (" + pct(cf[1]) + ")").join(", "),
+          winNote(s.cmp, "this split", "vs the next most common").slice(alts.length ? 0 : 1)));
+    }
+    for (const [card, k] of b.list) {
+      if (used.has(card)) continue;
+      used.add(card);
+      const c = kinds.get(card), n = h("span", { class: "n" }, k);
+      if (!c) { line(k, [card], n, cardName(card, false), null); continue; }
+      const others = c.opts.filter((o) => o[0] !== k);
+      const note = others.length ? "Others: " + others.map((o) => (o[0] || "none") + " (" + pct(o[1]) + ")").join(", ") : "";
+      // Copy counts compare the two most common counts ([more, fewer, comparison]), in/out cards with and without.
+      const win = !c.cmp ? [] : c.kind === "count" ? winNote(c.cmp[2], plural(c.cmp[0], "copy", "copies"), "vs " + c.cmp[1])
+        : winNote(c.cmp, "with it", "vs without");
+      line(k, [card], n, cardName(card, false), h("span", { class: "ann" }, note, win.slice(note ? 0 : 1)));
+    }
+    lines.sort((x, y) => y[0] - x[0]);
+    // Spells, then lands (when the build knows which cards are lands), as in a decklist.
+    const parts = LANDS.size ? [["Spells", lines.filter((l) => !l[1])], ["Lands", lines.filter((l) => l[1])]] : [["", lines]];
+    const also = dec.inout.filter((c) => !used.has(c.card)).sort((x, y) => y.play - x.play);
+    return h("div", { class: "bpanel" },
+      h("div", { class: "bhead" },
+        h("p", { class: "dkey" }, h("i"), "Marked: a decision, with what other lists of this build do instead. Win rates only where the difference is Clear. Select a card for its image."),
+        copyButton(b)),
+      parts.filter(([, ls]) => ls.length).map(([title, ls]) => h("div", { class: "dlist" },
+        title ? h("div", { class: "dlh" }, title + " (" + ls.reduce((a, l) => a + l[0], 0) + ")") : null, ls.map((l) => l[2]))),
+      also.length ? h("div", { class: "also" }, h("span", { class: "muted" }, "Also played by some: "),
+        also.flatMap((c, i) => [i ? " · " : "", cardName(c.card, false), h("span", { class: "muted num" }, " " + usual(c.opts) + "× in " + pct(c.play)), winNote(c.cmp, "with it", "")])) : null);
+  }
+  // Copies a build's typical list as "4 Lightning Bolt" lines (MTGO and Arena import), spells then lands.
+  function copyButton(b) {
+    const text = [...b.list.filter(([c]) => !LANDS.has(c)), ...b.list.filter(([c]) => LANDS.has(c))].map(([c, k]) => k + " " + c).join("\n");
+    const status = h("span", { class: "rsub", role: "status" });
+    const btn = h("button", { class: "linkbtn copybtn", type: "button", "aria-label": "Copy the typical list of " + b.name }, "Copy list");
+    btn.addEventListener("click", () => {
+      const done = (msg) => { status.textContent = msg; setTimeout(() => { status.textContent = ""; }, 2500); };
+      try { navigator.clipboard.writeText(text).then(() => done("Copied"), () => done("Couldn't copy")); } catch (e) { done("Couldn't copy"); }
+    });
+    return h("span", { class: "copy" }, btn, status);
+  }
+  // Opponents an option does best and worst against, compared with the deck's other lists.
+  // Each chip is a button that spells out its numbers below the chips, so they work on touch
+  // and keyboard too. Clear chips show; the rest wait behind a button.
+  let muId = 0;
+  // `mu`: null or undefined when not compared (sideboard, the "No" row of a yes/no question),
+  // empty when no opponent has enough matches on both sides; either way the row has no chips.
+  function muChips(mu) {
+    if (!mu || !mu.length) return null;
+    const box = h("div", { class: "compare mus" });
+    const all = decks(), id = "mu-" + ++muId;
+    const detail = h("p", { class: "mudetail", id, hidden: true, "aria-live": "polite" });
+    const chips = mu.map(([o, wA, nA, lA, wB, nB, lB, sd]) => {
+      const opp = all[o];
+      if (!opp) return null;
+      const [d, lo, hi, a, b] = diff(wA, nA, wB, nB, lA, lB, sd), sure = lo > 0 || hi < 0;
+      return { d, sure, n: nA, name: opp.name, text: opp.name + ": these lists " + pct(a) + " in " + fmt(nA) + " matches, the deck's other lists " + pct(b) + " in " + fmt(nB) +
+        ". " + pts(d) + " pts, 95% interval " + pts(lo) + " to " + pts(hi) + (sure ? " pts: Clear." : " pts: could be even.") };
+    }).filter(Boolean).sort((x, y) => y.sure - x.sure || Math.abs(y.d) - Math.abs(x.d));
+    chips.forEach((c) => {
+      const btn = h("button", { class: "mchip " + (c.d >= 0 ? "good" : "bad") + (c.sure ? " sure" : " extra"), type: "button",
+        "aria-expanded": "false", "aria-controls": id, "aria-label": c.name + " " + ptsU(c.d) + " in " + c.n + " matches" + (c.sure ? ", Clear" : ", could be even") + ": show numbers" },
+        c.name + " ", h("b", null, pts(c.d)), h("span", { class: "mn" }, " · " + c.n));
+      btn.addEventListener("click", () => {
+        const open = btn.getAttribute("aria-expanded") !== "true";
+        box.querySelectorAll(".mchip").forEach((x) => x.setAttribute("aria-expanded", "false"));
+        btn.setAttribute("aria-expanded", String(open));
+        detail.textContent = open ? c.text : ""; detail.hidden = !open;
+      });
+      box.append(btn);
+    });
+    const unsure = chips.filter((c) => !c.sure).length;
+    if (!chips.some((c) => c.sure)) box.prepend(h("span", null, "No clear differences against one opponent."));
+    if (unsure) {
+      const more = h("button", { class: "linkbtn mmore", type: "button" }, "+" + unsure + " not clear");
+      more.addEventListener("click", () => { box.classList.add("all"); more.remove(); });
+      box.append(more);
+    }
+    box.append(detail);
+    return box;
+  }
+  // One option (a build, a copy count, a slot split): share of lists and win rate with its interval.
+  // The tag compares it with the group's other lists: Clear when that interval excludes 0.
+  function optionRow(label, share, rec, cmp, mu, after) {
+    const r = recRate(rec), c = recDiff(cmp), n = rec ? rec[1] : 0;
+    const sure = !!c && (c[1] > 0 || c[2] < 0);
+    const vs = c ? ", " + ptsU(c[0]) + " against the other lists" : "";
+    const t = c ? tag(sure, c[0] >= 0) : null;
+    if (t) t.title = "Against the other lists: " + ptsU(c[0]) + ", 95% interval " + pts(c[1]) + " to " + ptsU(c[2]);
+    return h("div", { class: "row" },
+      h("div", { style: "min-width:0" }, h("div", { class: "rname" }, label),
+        h("div", { class: "rsub num" }, pct(share) + " of lists, " + (n ? fmt(n) + " matches" + vs : "no matches"))),
+      h("div", { class: "rval" }, t, r ? h("b", { class: "num" }, pct(r[0])) : h("b", { class: "num muted" }, "–")),
+      h("div", { class: "rbar" }, c ? dbar(c[0], c[1], c[2], 0, 0.2) : null),
+      muChips(mu), after);
+  }
+  // The question's verdict, from each option against the other lists: the clear ones, or "no clear difference".
+  function verdict(options) {
+    const clear = options.map((o) => [o.text, recDiff(o.cmp)]).filter(([, c]) => c && (c[1] > 0 || c[2] < 0));
+    const ahead = clear.filter(([, c]) => c[0] > 0), behind = clear.filter(([, c]) => c[0] < 0);
+    const text = ahead.length ? "Clearly ahead: " + ahead.map(([t]) => t).join(", ")
+      : behind.length ? "Clearly behind: " + behind.map(([t]) => t).join(", ") : "No clear difference";
+    return h("span", { class: "count" + (clear.length ? " sure" : "") }, text);
+  }
+  // A slot's size, "4" or "4–5" when its common splits differ in total.
+  function slotSize(s) {
+    const totals = s.configs.map((cf) => cf[0].reduce((a, k) => a + k, 0)), lo = Math.min(...totals), hi = Math.max(...totals);
+    return lo === hi ? String(lo) : lo + "–" + hi;
+  }
+  // The cards whose questions define a build, as it plays them: "4 Moon-Circuit Hacker", "no Fireblast".
+  function defining(b, stock) {
+    const own = new Map(b.list), st = new Map(stock.list);
+    return [...new Set(b.path.map((p) => p[0]))].map((c) => [c, own.get(c) || 0]).filter(([c, k]) => k !== (st.get(c) || 0));
+  }
+  function decisionsSection(deck) {
+    const body = h("div", { style: "display:grid;gap:8px" });
+    const draw = () => {
+      body.replaceChildren();
+      const all = (scope().decisions || {})[deck.i], data = all && all[state.board];
+      if (!data) {
+        const rows = (scope().archetypes[deck.i] || [])[2] || 0;
+        if (!all && rows < DT.minLists) suggestMore(body, "Builds need " + DT.minLists + "+ lists of a deck; this view has " + rows + ".");
+        else body.append(h("div", { class: "empty" }, all ? "No sideboards in this view." : "Builds cover the " + T.cardArchetypes + " most played decks in this view."));
+        return;
+      }
+      const main = state.board === "main", chips = (m) => main ? m : null;   // no matchups per option on the sideboard
+      body.append(h("p", { class: "dkey" }, "Bars: win rate against the deck's other lists, in points, with its 95% interval. " +
+        (main ? "Next to an opponent: the same against that opponent, then these lists' matches against it; outlined is Clear. Select one for its numbers. Opponents need " + DT.muMin + "+ matches on both sides. " : "") +
+        (state.adjust || !HAS_PILOT ? "" : "Not corrected for pilot skill.")));
+      // A build's typical list opens in place, so focus stays on its button.
+      const listToggle = (b) => {
+        const k = deck.name + "|" + state.board + "|" + b.name, id = "bl-" + slug(k);
+        const panel = h("div", { id }), btn = h("button", { class: "linkbtn listbtn", type: "button", "aria-controls": id });
+        const sync = () => {
+          const open = openBuilds.has(k);
+          btn.textContent = (open ? "Hide" : "Show") + " typical list";
+          btn.setAttribute("aria-label", btn.textContent + ": " + b.name);
+          btn.setAttribute("aria-expanded", String(open));
+          panel.hidden = !open;
+          if (open && !panel.firstChild) panel.append(annotatedList(b));
+        };
+        btn.addEventListener("click", () => { openBuilds.has(k) ? openBuilds.delete(k) : openBuilds.add(k); sync(); });
+        sync();
+        return [btn, panel];
+      };
+      const group = (title, summary, rows, top) => h("div", { class: "group" },
+        h("div", { class: "subhead" }, top ? h("h3", { class: "lvl" }, title) : h("h4", null, title), summary),
+        h("div", { class: "rows" }, rows, scaleRow("−20 pts", "0", "+20 pts")));
+
+      const ls = data.builds, stock = ls[0];
+      if (ls.length > 1) {
+        const rows = ls.flatMap((b) => {
+          const [btn, panel] = listToggle(b);
+          const defs = defining(b, stock);
+          const label = [b.name, h("div", { class: "defs" }, b === stock ? h("span", { class: "rsub" }, "The most common build")
+            : defs.map(([c, k]) => h("span", { class: "def" }, (k ? k + " " : "no ") + c)))];
+          return [optionRow(label, b.share, b.win, b.cmp, chips(b.mu), btn), panel];
+        });
+        body.append(group("Builds", verdict(ls.map((b) => ({ text: b.name, cmp: b.cmp }))), rows, true));
+      } else {
+        const [btn, panel] = listToggle(stock);
+        body.append(h("div", { class: "group" }, h("div", { class: "subhead" }, h("h3", { class: "lvl" }, "One build"), h("span", { class: "count" }, fmt(data.lists) + " lists")),
+          h("p", { class: "note" }, "No single card choice splits these lists into clearly different builds."), btn, panel));
+      }
+
+      // Decisions across the whole deck. Cards that define a build are shown with the builds above.
+      const skip = new Set(ls.length > 1 ? ls.flatMap((b) => b.path.map((p) => p[0])) : []);
+      const dec = classify(data.dec, skip);
+      const block = (q, options, open, extra) => ({ open, el: group(q, verdict(options),
+        [...options.map((o) => optionRow(o.label, o.share, o.rec, o.cmp, chips(o.mu))), ...(extra || [])]) });
+      const items = [
+        ...dec.slots.map((s) => block(["Which " + slotSize(s) + ": ", orList(s.cards), "?"],
+          s.configs.map(([counts, share, rec, cmp, mu]) => ({ label: splitNodes(s.cards, counts), text: splitText(s.cards, counts), share, rec, cmp, mu })), s.open,
+          s.other > 0.02 ? [h("div", { class: "row" }, h("div", { class: "rsub" }, "Other splits: " + pct(s.other) + " of lists"))] : null)),
+        ...dec.counts.filter((c) => c.sides).map((c) => block(["How many copies of ", cardName(c.card), "?"],
+          c.sides.map(([label, share, rec, cmp, mu]) => {
+            const text = label === "0" ? "None" : plural(+label, "copy", "copies");
+            return { label: text, text, share, rec, cmp, mu };
+          }), c.open)),
+        ...dec.inout.filter((c) => c.sides).map((c) => block(["Play ", cardName(c.card), "?"],
+          c.sides.map(([label, share, rec, cmp, mu]) => ({ label: label === "yes" ? "Yes, usually " + usual(c.opts) : "No",
+            text: label === "yes" ? "Yes" : "No", share, rec, cmp, mu })), c.open)),
+      ].sort((a, b) => b.open - a.open);
+      // Phones list fewer before "more"; a "more" that would hide a single decision isn't worth it.
+      let top = wide.matches ? DEC_TOP : DEC_TOP_NARROW;
+      if (items.length - top < 2) top = items.length;
+      body.append(h("div", { class: "subhead", style: "margin-top:16px" }, h("h3", { class: "lvl" }, "Decisions"),
+        h("span", { class: "count" }, items.length ? "Most open first" : "")));
+      if (!items.length) body.append(h("p", { class: "note" }, "Beyond the builds, these lists all play the same cards."));
+      items.slice(0, top).forEach((x) => body.append(x.el));
+      if (items.length > top) body.append(h("details", { class: "more" }, h("summary", null, (items.length - top) + " more, mostly settled"),
+        h("div", { style: "display:grid;gap:16px;margin-top:12px" }, items.slice(top).map((x) => x.el))));
+      if (dec.fixed.length) body.append(h("details", { class: "more" }, h("summary", null, plural(dec.fixed.length, "card", "cards") + " every list plays the same"),
+        h("div", { class: "chips", style: "margin-top:8px" }, dec.fixed.map(([c, k]) => cardChip(c, h("b", null, k), c)))));
+      if (!main) body.append(h("p", { class: "note" }, "Matchups per option are left out on the sideboard: what a list sideboards follows the field it expects."));
+    };
+    draw();
+    return h("section", { class: "card decisions" }, h("header", null, h("h2", null, "Builds and decisions"),
+      h("p", { class: "note" }, "The builds " + deck.name + " comes in, then the choices its lists make, most open first. Win rates are for the lists that made each choice: like card effects, they show what winning lists play, not what makes them win."),
+      h("button", { class: "linkbtn", type: "button", onclick: () => { go("methods"); const m = document.getElementById("m-builds"); m.scrollIntoView(); m.focus({ preventScroll: true }); } }, "How builds and decisions are found")),
       boardToggle(draw), body);
   }
 
@@ -1172,7 +1550,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     if (few.length) muSec.append(h("details", { class: "more" }, h("summary", null, few.length + " matchups with fewer than " + MIN_MU + " matches"),
       h("div", { class: "chips", style: "margin-top:8px" }, few.sort((a, b) => b.n - a.n).map((m) => h("span", { class: "chip" }, m.opp.name + " " + record(m.wins, m.n))))));
 
-    view.replaceChildren(hero, muSec, cardSection(deck));
+    view.replaceChildren(hero, muSec, decisionsSection(deck), cardSection(deck));
   }
 
   // ---------- matchup view ----------
@@ -1340,6 +1718,10 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       matchupTotal: T.matchupTotal, matchupDecks: T.matchup.min_decks, matchupMatches: T.matchup.min_matches,
       slopeLambda: M.slope_lambda, skillMin: M.skill_min_matches, skillLean: SKILL_LEAN,
       skillLeanHi: (1 + SKILL_LEAN).toFixed(2), skillLeanLo: (1 - SKILL_LEAN).toFixed(2),
+      decMinLists: DT.minLists, decCore: pct(DT.corePlay), decMinOption: pct(DT.minOption), decSlotOptions: DT.slotOptions,
+      decSlotRatio: DT.slotRatio, decSlotMax: DT.slotMax, decSlotSteady: pct(DT.slotSteady), decSlotCover: pct(DT.slotCover),
+      decTreeDepth: DT.treeDepth, decTreeShare: DT.treeMinShare, decTreeLists: DT.treeMinLists, decTreeGain: DT.treeMinGain,
+      decMuMin: DT.muMin, decMuTop: DT.muTop, decMinWin: DEC_MIN_WIN, decTop: DEC_TOP, decTopNarrow: DEC_TOP_NARROW,
       scopeOnline: (S.scopes?.online || []).join(", "), scopePaper: (S.scopes?.paper || []).join(", "),
       srcView: (PERIODS[state.period] || state.period) + ", " + SCOPES[state.scope].toLowerCase(),
     };
@@ -1403,7 +1785,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     const c = scope().coverage;
     $("#generated").textContent = fmt(c.matches) + " matches, " + fmt(c.decks) + " decklists and " + fmt(c.events) + " events in this view. Data built " +
       DATA.generated + " from fbettega/MTG_decklistcache. Archetypes from MTGOFormatData.";
-    renderBarFilters();
+    keepFocus($("#barFilters"), renderBarFilters);
     renderList();
     if (state.view === "list") renderOverview();
     if (state.view === "deck") renderDeck();

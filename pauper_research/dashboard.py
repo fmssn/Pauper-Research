@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import analysis, ratings, sources
+from . import analysis, decisions, ratings, sources
 from .archetypes import UNKNOWN
 
 TEMPLATE = Path(__file__).with_name("dashboard_template.html")
@@ -97,6 +97,14 @@ def _scope_block(tables: dict[str, pd.DataFrame], colors: dict[str, str], pilot:
         block["decks"] = int((decks["archetype"] == name).sum())
         cards[i] = block
 
+    # Builds and deckbuilding decisions, for the same decks as the card breakdowns.
+    rec = decisions.Records(matches, pilot)
+    builds = {}
+    for name in names[:CARD_ARCHETYPES]:
+        d = decisions.archetype(decks, tables["deck_cards"], name, rec, idx)
+        if d:
+            builds[idx[name]] = d
+
     # Skill sensitivity per listed deck (from the 12-month fit, so the same in every period).
     skill = {}
     sk = pilot.skill
@@ -121,7 +129,7 @@ def _scope_block(tables: dict[str, pd.DataFrame], colors: dict[str, str], pilot:
     return {
         "coverage": {"events": len(events), "decks": len(decks), "matches": len(matches) // 2,
                      "by_source": by_source},
-        "archetypes": archetypes, "mu": mu, "cards": cards, "cardMu": card_mu, "skill": skill,
+        "archetypes": archetypes, "mu": mu, "cards": cards, "cardMu": card_mu, "skill": skill, "decisions": builds,
         "pilot": {"players": pilot.players, "rated": pilot.rated, "lam": _r(pilot.lam)},
     }
 
@@ -152,7 +160,14 @@ def build_data(all_tables: dict[str, pd.DataFrame], bootstrap: int = ratings.BOO
             "default_period": "90d",
             "thresholds": {"overall": OVERALL_MIN, "matchup": MATCHUP_MIN, "matchupTotal": MATCHUP_MIN_TOTAL,
                            "topArchetypes": TOP_ARCHETYPES, "cardArchetypes": CARD_ARCHETYPES,
-                           "minPlayRate": MIN_PLAY_RATE},
+                           "minPlayRate": MIN_PLAY_RATE,
+                           "decisions": {"minLists": decisions.MIN_LISTS, "corePlay": decisions.CORE_PLAY,
+                                         "minOption": decisions.MIN_OPTION_SHARE, "slotOptions": decisions.MAX_SLOT_OPTIONS,
+                                         "slotRatio": decisions.SLOT_RATIO, "slotMax": decisions.SLOT_MAX,
+                                         "slotSteady": decisions.SLOT_STEADY, "slotCover": decisions.SLOT_MIN_COVER,
+                                         "treeDepth": decisions.TREE_DEPTH, "treeMinShare": decisions.TREE_MIN_SHARE,
+                                         "treeMinLists": decisions.TREE_MIN_LISTS, "treeMinGain": decisions.TREE_MIN_GAIN,
+                                         "muMin": decisions.MU_MIN_MATCHES, "muTop": decisions.MU_TOP}},
             # Settings shown on the methods page.
             "methods": {"lookback_days": ratings.LOOKBACK_DAYS, "half_life_days": ratings.HALF_LIFE_DAYS,
                         "deck_lambda": ratings.DECK_LAMBDA, "lambda_grid": list(ratings.LAMBDA_GRID),
@@ -171,7 +186,21 @@ def card_names(data: dict) -> list[str]:
             for i in sorted(block["cards"], key=int):
                 for board in ("main", "side"):
                     names.update((r[0], None) for r in block["cards"][i][board])
+            for i in sorted(block.get("decisions", {}), key=int):
+                for b in block["decisions"][i].values():
+                    names.update((c, None) for c, _ in b["list"])
+                    for dec in [b["dec"]] + [x["dec"] for x in b["builds"]]:
+                        names.update((c, None) for c in dec["cards"])
     return list(names)
+
+
+def land_names(format_dir: Path = sources.FORMAT_DIR) -> set[str]:
+    """Land names from MTGOFormatData's card colors, so typical lists can put lands last.
+    Empty when the format data hasn't been fetched."""
+    path = format_dir / "Formats" / "card_colors.json"
+    if not path.exists():
+        return set()
+    return {e["Name"] for e in json.loads(path.read_text(encoding="utf-8-sig")).get("Lands") or []}
 
 
 def render(data: dict, standalone: bool = True) -> str:
@@ -193,6 +222,8 @@ def write(all_tables: dict[str, pd.DataFrame], out: Path, standalone: bool = Tru
     from . import scryfall
 
     data = build_data(all_tables, bootstrap)
+    lands = land_names() | decisions.BASICS
+    data["lands"] = [c for c in card_names(data) if c in lands]
     if images == "url":
         data["images"] = scryfall.url_index(card_names(data))
     elif images == "sheets":

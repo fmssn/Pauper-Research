@@ -67,7 +67,19 @@ width; from 1600px the deck view shows matchups and cards side by side.
   Click a dot to open the deck. Phones instead get a list of those decks that
   are clearly above or below 50%, above the deck list.
 - **Deck page:** good and bad matchups, most certain first, each with its 95%
-  interval and a Clear / Lean label; then the cards whose lists win more or less.
+  interval and a Clear / Lean label; then the deck's builds and decisions (see
+  below); then the cards whose lists win more or less.
+- **Builds and decisions** (top 30 decks with 80+ lists in the view): the builds
+  a deck comes in, each with its share, win rate, the opponents it does best and
+  worst against compared with the deck's other lists (30+ matches on each side),
+  and an expandable typical list (spells, then lands) that marks the decisions
+  within that build and can be copied in MTGO / Arena format. Then the decisions across the
+  deck, most open first: slots (cards that replace each other, shown as the splits
+  lists use), copy counts ("18 or 19 Island") and in/out cards, each option with
+  its share of lists, win rate and matchups. Every option is tagged Clear or Lean
+  against the other lists, and every question says which options are clearly
+  ahead or that there is no clear difference. Main deck and sideboard; no
+  matchups per option on the sideboard.
 - **Matchup page:** the head-to-head record, plus card comparisons counting
   only matches against that opponent. Shown only when the sample allows it
   (25+ matches in the matchup, 3+ lists and 10+ matches on each side of a card).
@@ -115,6 +127,16 @@ A snapshot for July to September 2026 is in [reports/2026-Q3](reports/2026-Q3/co
   with 30 matches, a cell is only accurate to about ±17 points.
 - **Meta share** is the share of *published* decklists, so for MTGO it means
   "share among the top 32 and 5-0 lists", not share of the whole field.
+- **Builds** come from a tree of single-card questions ("4+ Moon-Circuit
+  Hacker?"), each the one that best predicts the rest of the list, up to 3 deep;
+  each build's typical list is Frank Karsten's aggregate decklist. A card is
+  **fixed** when one copy count is in 85%+ of lists, a **copy-count decision**
+  when 85%+ play it in varying numbers, else **in or out**. **Slots** are groups
+  of up to 5 cards whose summed copies vary much less than each alone
+  (Var(A + B) / (Var A + Var B) < 0.6) and stay within one card of a usual total
+  in 80%+ of lists. Option win rates use the same intervals and pilot adjustment
+  as everything else. The opponents an option does best and worst against are
+  picked from many, so some look Clear by chance: treat them as leads.
 - **Sources** are not weighted: every list and every match counts the same,
   whatever site it comes from. A pooled figure is therefore the average of the
   per-source figures weighted by each source's share of the data behind it:
