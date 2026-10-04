@@ -1,0 +1,991 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deck Decisions Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap">
+<style>
+/* Tokens copied from the dashboard, plus two hues for card relations:
+   --swap (orange, "instead of") and --with (violet, "goes with"). Win rates keep --good / --bad. */
+:root {
+  --bg: #ffffff; --sunken: #f4f5f6; --hover: #eef0f2; --ink: #1b2230; --ink-2: #464e5c; --muted: #6a7282;
+  --line: #e5e8ed; --line-strong: #cdd2da; --good: #2a78d6; --bad: #e34948; --neutral: #9ba1a9; --focus: #2a78d6;
+  --swap: #eb6834; --with: #4a3aa7; --mid: #f0efec;
+  --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-head: "Source Serif 4", Georgia, serif;
+  --mana-W: #f4eed2; --mana-U: #a9cdea; --mana-B: #b7aca3; --mana-R: #ec9f80; --mana-G: #9cc598; --mana-C: #d3d5d9;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161e; --sunken: #19202a; --hover: #202833; --ink: #eef1f5; --ink-2: #c1c8d2; --muted: #8b94a3;
+    --line: #262e3a; --line-strong: #37414f; --good: #3987e5; --bad: #e66767; --neutral: #6f757e; --focus: #5598e7;
+    --swap: #d95926; --with: #9085e9; --mid: #383835; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161e; --sunken: #19202a; --hover: #202833; --ink: #eef1f5; --ink-2: #c1c8d2; --muted: #8b94a3;
+  --line: #262e3a; --line-strong: #37414f; --good: #3987e5; --bad: #e66767; --neutral: #6f757e; --focus: #5598e7;
+  --swap: #d95926; --with: #9085e9; --mid: #383835; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); margin: 0; font: 15px/1.45 var(--font); padding-bottom: 60px; }
+button, select { font: inherit; color: inherit; }
+h1, h2, h3 { margin: 0; font-weight: 600; text-wrap: balance; }
+h1, h2 { font-family: var(--font-head); }
+p { margin: 0; }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.note { color: var(--ink-2); font-size: 14px; max-width: 78ch; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+
+.bar { position: sticky; top: 0; z-index: 10; background: var(--bg); border-bottom: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 16px; }
+.brand { font-family: var(--font-head); font-size: 18px; font-weight: 600; margin-right: auto; }
+.brand small { font-family: var(--font); font-size: 12px; font-weight: 500; color: var(--muted); margin-left: 6px; }
+select { height: 34px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--bg); padding: 0 8px; max-width: 100%; }
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; background: none; padding: 0 12px; height: 32px; cursor: pointer; font-size: 14px; }
+.seg button + button { border-left: 1px solid var(--line-strong); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.tabs { display: flex; gap: 2px; padding: 0 16px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tabs button { border: 0; background: none; padding: 12px 14px 10px; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; color: var(--ink-2); font-weight: 500; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.tabs .k { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--sunken); font-size: 12px; margin-right: 6px; }
+main { padding: 20px 16px; max-width: 1280px; margin: 0 auto; display: grid; gap: 22px; }
+section { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+.subhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding-bottom: 4px; border-bottom: 1px solid var(--line-strong); }
+.subhead h3 { font-size: 16px; }
+.hero { display: grid; gap: 6px; }
+.hero h1 { font-size: 28px; }
+.pitch { border-left: 3px solid var(--line-strong); padding: 4px 0 4px 12px; color: var(--ink-2); max-width: 80ch; }
+.pitch b { color: var(--ink); }
+
+/* 60-card anatomy bar */
+.anat { display: flex; height: 30px; border-radius: 6px; overflow: hidden; gap: 2px; }
+.anat > div { display: grid; place-items: center; font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; min-width: 0; }
+.anat .core { background: var(--ink-2); color: var(--bg); }
+.anat .flex { background: repeating-linear-gradient(45deg, var(--sunken), var(--sunken) 6px, var(--hover) 6px, var(--hover) 12px); color: var(--ink); border: 1px dashed var(--line-strong); }
+.legendrow { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--ink-2); }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; background: var(--sunken); font-size: 13px; }
+.chip b { font-variant-numeric: tabular-nums; }
+.chip.var { box-shadow: inset 0 0 0 1px var(--swap); }
+.card-n { cursor: default; text-decoration: underline dotted var(--line-strong); text-underline-offset: 3px; }
+
+.grid2 { display: grid; gap: 16px; }
+@media (min-width: 1000px) { .grid2 { grid-template-columns: 1fr 1fr; align-items: start; } }
+.box { border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 10px; background: var(--bg); }
+.box h4 { margin: 0; font-size: 15px; font-weight: 600; }
+
+/* slot stacked bars */
+.slotbar { display: flex; height: 26px; gap: 2px; }
+.slotbar > div { border-radius: 4px; display: flex; align-items: center; padding: 0 6px; font-size: 12px; overflow: hidden; white-space: nowrap; color: #fff; min-width: 3px; }
+.slotlegend { display: grid; gap: 4px; font-size: 13px; }
+.slotlegend .r { display: grid; grid-template-columns: 14px 1fr auto auto; gap: 8px; align-items: center; }
+
+/* copy distribution mini columns */
+.dist { display: inline-grid; grid-template-columns: repeat(5, 9px); gap: 2px; align-items: end; height: 22px; vertical-align: middle; }
+.dist > i { display: block; background: var(--ink-2); border-radius: 2px 2px 0 0; min-height: 1px; }
+.dist > i.zero { background: var(--line-strong); }
+
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th { text-align: left; font-size: 12px; font-weight: 500; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line-strong); }
+td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+td.r, th.r { text-align: right; }
+.tablewrap { overflow-x: auto; }
+
+/* swap rows */
+.swaps { display: grid; }
+.swap { display: grid; grid-template-columns: 1fr auto 1fr; gap: 6px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: center; }
+.swap .a { text-align: right; }
+.swap .x { color: var(--swap); font-weight: 600; font-size: 13px; }
+.swap .meta { grid-column: 1 / -1; font-size: 13px; color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 4px 16px; justify-content: center; }
+.venn { display: inline-flex; height: 10px; width: 160px; border-radius: 3px; overflow: hidden; vertical-align: middle; gap: 1px; }
+.venn i { display: block; height: 100%; }
+
+/* win bars */
+.wr { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.wrbar { position: relative; width: 120px; height: 14px; }
+.wrbar .axis { position: absolute; left: 0; right: 0; top: 7px; border-top: 1px solid var(--line); }
+.wrbar .mid { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--line-strong); }
+.wrbar .ci { position: absolute; top: 5px; height: 4px; border-radius: 2px; background: var(--neutral); opacity: .55; }
+.wrbar .pt { position: absolute; top: 2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; border: 2px solid var(--bg); }
+.tag { font-size: 11px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; }
+.tag.clear { background: var(--ink); color: var(--bg); }
+.tag.noise { background: var(--sunken); color: var(--muted); }
+
+/* heatmap */
+.heat { overflow-x: auto; }
+.heat svg text { font: 11px var(--font); fill: var(--ink-2); }
+
+/* tree */
+.tree { overflow-x: auto; padding-bottom: 6px; }
+.tnode { display: flex; align-items: center; }
+.tnode > .kids { display: grid; gap: 8px; padding-left: 26px; position: relative; }
+.tnode > .kids::before { content: ""; position: absolute; left: 10px; top: 22px; bottom: 22px; border-left: 2px solid var(--line-strong); }
+.tnode > .kids > .tnode { position: relative; }
+.tnode > .kids > .tnode::before { content: ""; position: absolute; left: -16px; width: 16px; top: 50%; border-top: 2px solid var(--line-strong); }
+.nbox { min-width: 190px; max-width: 230px; border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 10px; background: var(--bg); cursor: pointer; text-align: left; display: grid; gap: 3px; flex: none; }
+.nbox:hover { background: var(--hover); }
+.nbox[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 0; }
+.nbox .ans { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+.nbox .ans.yes { color: var(--with); }
+.nbox .ans.no { color: var(--swap); }
+.nbox .q { font-weight: 600; font-size: 14px; }
+.nbox .s { font-size: 12px; color: var(--muted); }
+.nbox .share { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.nbox .share i { display: block; height: 100%; background: var(--ink-2); }
+.nbox.leaf { border-style: dashed; }
+.decklist { columns: 2 220px; column-gap: 24px; font-size: 14px; }
+.decklist div { break-inside: avoid; display: grid; grid-template-columns: 22px 1fr; padding: 1px 0; }
+.decklist .plus { color: var(--with); font-weight: 600; }
+.decklist .lbl { display: block; font-size: 12px; color: var(--muted); font-weight: 500; padding-top: 6px; }
+
+/* notes */
+.prose { max-width: 82ch; display: grid; gap: 12px; }
+.prose h2 { font-size: 22px; margin-top: 10px; }
+.prose h3 { font-size: 17px; margin-top: 6px; }
+.prose ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.verdict { display: grid; gap: 8px; }
+@media (min-width: 900px) { .verdict { grid-template-columns: repeat(3, 1fr); } }
+
+main > *, .grid2 > *, section, .box { min-width: 0; }
+.box { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 700px) {
+  .bar { position: static; }
+  .slotlegend .r { grid-template-columns: 14px 1fr auto; }
+  .slotlegend .r > .wr, .slotlegend .r > .muted:last-child { grid-column: 2 / -1; }
+  .swap .meta { justify-content: flex-start; }
+}
+.drows { display: grid; }
+.drow { display: grid; grid-template-columns: minmax(180px, 1.1fr) minmax(200px, 1.3fr) minmax(250px, 1fr); gap: 6px 18px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.dname { display: grid; gap: 1px; }
+.dname .muted { font-size: 13px; }
+.dmeta { font-size: 13px; color: var(--ink-2); }
+@media (max-width: 860px) { .drow { grid-template-columns: minmax(0, 1fr); } }
+.opts { display: flex; gap: 3px; min-width: 0; }
+.opt { display: grid; gap: 3px; min-width: 0; font-size: 12px; white-space: nowrap; }
+.optbar { height: 8px; border-radius: 3px; background: var(--ink-2); }
+.configs td { padding: 6px; }
+.configs th { padding: 4px 6px; }
+.sharecell { display: grid; grid-template-columns: 60px auto; align-items: center; gap: 6px; }
+.sharecell i { display: block; height: 8px; border-radius: 3px; background: var(--ink-2); }
+.shells { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+.shell { border: 1px solid var(--line-strong); border-radius: 10px; padding: 12px; background: var(--bg); cursor: pointer; text-align: left; display: grid; gap: 8px; align-content: start; }
+.shell:hover { background: var(--hover); }
+.shell[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: -1px; }
+.shell .nm { font-weight: 600; font-size: 15px; }
+.shell .s { font-size: 13px; color: var(--muted); }
+.shell .share { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.shell .share i { display: block; height: 100%; background: var(--ink-2); }
+.pathchips { display: flex; flex-wrap: wrap; gap: 4px; }
+.pc { font-size: 12px; padding: 1px 7px; border-radius: 999px; background: var(--sunken); }
+.pc.yes { box-shadow: inset 0 0 0 1px var(--with); }
+.pc.no { box-shadow: inset 0 0 0 1px var(--swap); color: var(--ink-2); }
+/* condensed variants */
+.wtag { font-size: 12px; font-weight: 600; padding: 1px 6px; border-radius: 4px; white-space: nowrap; margin-left: 6px; }
+.wtag.up { color: var(--good); background: color-mix(in oklab, var(--good) 12%, transparent); }
+.wtag.down { color: var(--bad); background: color-mix(in oklab, var(--bad) 12%, transparent); }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pills button { border: 1px solid var(--line-strong); background: var(--bg); border-radius: 999px; padding: 5px 12px; cursor: pointer; display: inline-flex; gap: 8px; font-size: 14px; }
+.pills button span { color: var(--muted); }
+.pills button[aria-checked="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.pills button[aria-checked="true"] span { color: inherit; opacity: .75; }
+.dlist { columns: 2 340px; column-gap: 32px; }
+.dl { break-inside: avoid; display: grid; grid-template-columns: 26px 1fr; column-gap: 6px; padding: 3px 0; font-size: 15px; }
+.dl .n { text-align: right; color: var(--ink-2); }
+.dl .ann { grid-column: 2; font-size: 12.5px; color: var(--ink-2); }
+.dl.dec { border-left: 3px solid var(--with); padding-left: 6px; margin-left: -9px; background: color-mix(in oklab, var(--with) 6%, transparent); border-radius: 0 4px 4px 0; }
+.also { font-size: 14px; line-height: 1.9; border-top: 1px solid var(--line); padding-top: 8px; }
+.stack { display: flex; height: 26px; gap: 2px; border-radius: 6px; overflow: hidden; }
+.stack > div { background: var(--ink-2); color: var(--bg); font-size: 12px; display: flex; align-items: center; padding: 0 8px; white-space: nowrap; overflow: hidden; }
+.buildrows { display: grid; }
+.brow { display: grid; grid-template-columns: minmax(150px, 220px) 44px 1fr 44px; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+@media (max-width: 700px) { .brow { grid-template-columns: 1fr auto; } .brow .pathchips { grid-column: 1 / -1; } }
+.decrows { display: grid; gap: 4px; }
+.decrow { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.4fr); gap: 4px 16px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); }
+@media (max-width: 760px) { .decrow { grid-template-columns: minmax(0, 1fr); } }
+.dq { font-size: 14.5px; }
+.seg2 { display: flex; height: 24px; gap: 2px; min-width: 0; }
+.seg2 > div { border-radius: 4px; display: flex; align-items: center; padding: 0 6px; overflow: hidden; white-space: nowrap; font-size: 12px; min-width: 4px; }
+.seg2 .s0 { background: var(--ink-2); color: var(--bg); }
+.seg2 .s1 { background: color-mix(in oklab, var(--ink-2) 55%, var(--bg)); color: var(--ink); }
+.seg2 .s2, .seg2 .s3 { background: color-mix(in oklab, var(--ink-2) 30%, var(--bg)); color: var(--ink); }
+.seg2 .so { background: var(--sunken); color: var(--muted); }
+details.more summary { cursor: pointer; color: var(--ink-2); font-size: 14px; padding: 6px 0; }
+table.cmp { width: auto; min-width: 100%; }
+table.cmp th, table.cmp td { padding: 5px 10px; }
+table.cmp td:first-child { white-space: nowrap; }
+.cnum { text-align: center; min-width: 96px; }
+.bh { color: var(--ink); font-weight: 600; font-size: 13px; white-space: normal; max-width: 150px; margin: 0 auto; }
+td.cnum.more { background: color-mix(in oklab, var(--with) 16%, transparent); }
+td.cnum.less { background: color-mix(in oklab, var(--swap) 16%, transparent); }
+.sp { font-size: 11.5px; color: var(--muted); }
+tr.grp td { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; padding-top: 14px; border-bottom: 1px solid var(--line-strong); }
+.keybox { display: grid; gap: 4px; font-size: 13px; color: var(--ink-2); background: var(--sunken); border-radius: 8px; padding: 10px 12px; }
+.decblock { display: grid; gap: 6px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.decblock .dq { font-weight: 600; font-size: 15px; }
+.opts3 { display: grid; grid-template-columns: minmax(170px, 1.1fr) 110px 230px minmax(240px, 2fr); column-gap: 14px; font-size: 14px; }
+.orow { display: contents; }
+.orow > * { padding: 6px 0; border-top: 1px solid var(--line); align-self: stretch; display: flex; align-items: center; }
+.orow:first-child > * { border-top: 0; }
+.olabel { flex-direction: column; justify-content: center; align-items: flex-start !important; }
+.omu { flex-wrap: wrap; gap: 4px; align-content: center; }
+.omu.span2 { grid-row: span 2; border-left: 2px solid var(--line-strong); padding-left: 12px; }
+.mcap { width: 100%; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.ohead > * { font-size: 12px; color: var(--muted); font-weight: 500; padding-bottom: 2px; }
+.oshare { display: flex; align-items: center; gap: 6px; }
+.oshare i { display: block; height: 8px; border-radius: 3px; background: var(--ink-2); }
+.mchip { font-size: 12px; padding: 1px 7px; border-radius: 999px; white-space: nowrap; cursor: default; }
+.mchip.up { background: color-mix(in oklab, var(--good) 16%, transparent); color: var(--ink); box-shadow: inset 0 0 0 1px var(--good); }
+.mchip.down { background: color-mix(in oklab, var(--bad) 14%, transparent); color: var(--ink); box-shadow: inset 0 0 0 1px var(--bad); }
+.mchip.faint { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line-strong); }
+@media (max-width: 900px) {
+  .opts3 { grid-template-columns: minmax(0, 1fr); }
+  .orow { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; border-top: 1px solid var(--line); padding: 4px 0; }
+  .orow:first-child { border-top: 0; }
+  .orow > * { border-top: 0; padding: 2px 0; }
+  .orow .owin, .orow .omu { grid-column: 1 / -1; }
+  .omu.span2 { grid-row: auto; border-left: 0; padding-left: 0; }
+  .ohead { display: none; }
+}
+.listbtn { margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line-strong); background: var(--bg); border-radius: 6px; padding: 2px 9px; font-size: 12.5px; cursor: pointer; color: var(--ink-2); }
+.listbtn:hover { background: var(--hover); color: var(--ink); }
+.listbtn .chev { display: inline-block; transition: transform .15s ease; }
+.listbtn[aria-expanded="true"] { color: var(--ink); }
+.listbtn[aria-expanded="true"] .chev { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .listbtn .chev { transition: none; } }
+.bpanel { grid-column: 1 / -1; background: var(--sunken); border-radius: 8px; padding: 12px 14px; margin: 4px 0 10px; }
+.bpanel .dl.dec { background: color-mix(in oklab, var(--with) 9%, var(--sunken)); }
+.alist { display: grid; gap: 8px; }
+.dl .n.slotn { color: var(--muted); font-size: 12px; }
+.peek { position: fixed; z-index: 40; pointer-events: none; width: 220px; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.35); display: none; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="brand">Deck decisions <small>prototype</small></div>
+  <select id="deck" aria-label="Deck"></select>
+  <div class="seg" id="board" role="group" aria-label="Board"></div>
+  <div class="seg" id="theme" role="group" aria-label="Theme"></div>
+</div>
+<nav class="tabs" id="tabs" role="tablist"></nav>
+<main id="main"></main>
+<div class="tip" id="tip"></div>
+<img class="peek" id="peek" alt="">
+<script src="data.js"></script>
+<script>
+"use strict";
+const D = window.DATA;
+const $ = (s) => document.querySelector(s);
+function h(tag, attrs, ...kids) {
+  const el = document.createElementNS(tag === "svg" || attrs?.svg ? "http://www.w3.org/2000/svg" : "http://www.w3.org/1999/xhtml", tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false || k === "svg") continue;
+    if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k === "style" && typeof v === "object") Object.assign(el.style, v);
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of kids.flat(Infinity)) if (c != null && c !== false) el.append(c.nodeType ? c : document.createTextNode(c));
+  return el;
+}
+const S = (tag, attrs, ...kids) => h(tag, Object.assign({ svg: true }, attrs), ...kids);
+const pct = (x, d = 0) => x == null ? "–" : (x * 100).toFixed(d) + "%";
+const pts = (x) => x == null ? "–" : (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(1) + " pts";
+const cp = (x) => x == null ? "–" : (Math.abs(x - Math.round(x)) < 0.05 ? String(Math.round(x)) : x.toFixed(1));
+const store = { get(k, d) { try { return localStorage.getItem("dd." + k) ?? d; } catch { return d; } },
+                set(k, v) { try { localStorage.setItem("dd." + k, v); } catch {} } };
+
+const TABS = [["A", "", "Current"], ["v1", "1", "Annotated list"], ["v2", "2", "Ranked decisions"], ["v3", "3", "Builds side by side"], ["notes", "", "How it works"]];
+const state = { deck: store.get("deck", D.decks[0].name), board: store.get("board", "main"), tab: store.get("tab", "v1"), node: null, v1: null, v2open: new Set(), level: store.get("level", "95") };
+if (!TABS.some((t) => t[0] === state.tab)) state.tab = "A";
+if (!D.decks.some((d) => d.name === state.deck)) state.deck = D.decks[0].name;
+
+// ---------- theme ----------
+function applyTheme(t) { if (t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t); }
+function seg(el, opts, cur, onPick) {
+  el.replaceChildren(...opts.map(([v, label]) => h("button", { type: "button", "aria-pressed": String(v === cur), onclick: () => onPick(v) }, label)));
+}
+function drawControls() {
+  const theme = store.get("theme", "auto"); applyTheme(theme);
+  seg($("#theme"), [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]], theme, (v) => { store.set("theme", v); drawControls(); render(); });
+  seg($("#board"), [["main", "Main deck"], ["side", "Sideboard"]], state.board, (v) => { state.board = v; state.node = null; state.v1 = null; state.v2open.clear(); store.set("board", v); drawControls(); render(); });
+  $("#tabs").replaceChildren(...TABS.map(([v, k, label]) => h("button", { role: "tab", "aria-selected": String(v === state.tab), onclick: () => { state.tab = v; store.set("tab", v); drawControls(); render(); } },
+    k ? h("span", { class: "k" }, k) : null, label)));
+}
+const sel = $("#deck");
+for (const d of D.decks) sel.append(h("option", { value: d.name }, d.name + " · " + d.lists + " lists"));
+sel.value = state.deck;
+sel.onchange = () => { state.deck = sel.value; state.node = null; state.v1 = null; state.v2open.clear(); store.set("deck", sel.value); render(); };
+
+// ---------- card image peek (Scryfall) ----------
+const peek = $("#peek");
+function cardName(name, extra) {
+  return h("span", { class: "card-n", onmouseenter: (e) => showPeek(name, e), onmousemove: movePeek, onmouseleave: () => { peek.style.display = "none"; } }, name, extra || null);
+}
+function showPeek(name, e) {
+  if (matchMedia("(hover: none)").matches) return;
+  peek.src = "https://api.scryfall.com/cards/named?format=image&version=normal&exact=" + encodeURIComponent(name);
+  peek.style.display = "block"; movePeek(e);
+}
+function movePeek(e) {
+  const x = e.clientX + 18 + 220 > innerWidth ? e.clientX - 238 : e.clientX + 18;
+  peek.style.left = x + "px"; peek.style.top = Math.max(8, Math.min(innerHeight - 320, e.clientY - 150)) + "px";
+}
+
+// ---------- tooltips ----------
+const tip = $("#tip");
+function showTip(e, html) { tip.innerHTML = html; tip.style.display = "block"; moveTip(e); }
+function moveTip(e) { tip.style.left = Math.min(innerWidth - 270, e.clientX + 14) + "px"; tip.style.top = (e.clientY + 14) + "px"; }
+function hideTip() { tip.style.display = "none"; }
+
+// ---------- shared pieces ----------
+function wrBar(w, lo = 0.3, hi = 0.7, mid = 0.5) {
+  if (!w || !w.n) return h("span", { class: "muted" }, "no matches");
+  const x = (v) => Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100)) + "%";
+  const sure = w.lo > mid || w.hi < mid;
+  const col = w.wr >= mid ? "var(--good)" : "var(--bad)";
+  return h("span", { class: "wr", title: pct(w.wr, 1) + " (95%: " + pct(w.lo) + "–" + pct(w.hi) + ") in " + w.n + " matches" },
+    h("span", { class: "wrbar" }, h("span", { class: "axis" }), h("span", { class: "mid", style: { left: x(mid) } }),
+      h("span", { class: "ci", style: { left: x(w.lo), width: "calc(" + x(w.hi) + " - " + x(w.lo) + ")" } }),
+      h("span", { class: "pt", style: { left: x(w.wr), background: sure ? col : "var(--neutral)" } })),
+    h("b", { class: "num" }, pct(w.wr)), h("span", { class: "muted num", style: { fontSize: "12px", whiteSpace: "nowrap" } }, w.n + " matches"));
+}
+function diffBar(d) {
+  if (!d) return h("span", { class: "muted" }, "too few matches");
+  const sure = d.lo > 0 || d.hi < 0;
+  const x = (v) => Math.max(0, Math.min(100, (v + 0.25) / 0.5 * 100)) + "%";
+  const col = d.d >= 0 ? "var(--good)" : "var(--bad)";
+  return h("span", { class: "wr", title: "95% interval " + pts(d.lo) + " to " + pts(d.hi) },
+    h("span", { class: "wrbar" }, h("span", { class: "axis" }), h("span", { class: "mid", style: { left: "50%" } }),
+      h("span", { class: "ci", style: { left: x(d.lo), width: "calc(" + x(d.hi) + " - " + x(d.lo) + ")" } }),
+      h("span", { class: "pt", style: { left: x(d.d), background: sure ? col : "var(--neutral)" } })),
+    h("b", { class: "num" }, pts(d.d)), h("span", { class: "tag " + (sure ? "clear" : "noise") }, sure ? "clear" : "noise"));
+}
+function deck() { return D.decks.find((d) => d.name === state.deck); }
+function block() { return deck().boards[state.board]; }
+const SIZE = () => state.board === "main" ? 60 : 15;
+
+// Cards every list plays the same; the rest is what lists decide on.
+function fixedCount(b) {
+  return b.tiers.core.reduce((acc, c) => {
+    if (!c.countDecision) return acc + c.opts[0][0];
+    const common = c.opts.filter((o) => o[1] >= 0.1).map((o) => o[0]);
+    return acc + Math.min(...common);
+  }, 0);
+}
+function anatomy(b) {
+  const core = Math.min(SIZE(), Math.round(fixedCount(b))), flex = SIZE() - core;
+  return h("div", { style: { display: "grid", gap: "6px" } },
+    h("div", { class: "anat", role: "img", "aria-label": core + " fixed cards and " + flex + " decided by the player" },
+      h("div", { class: "core", style: { flex: core } }, core + " fixed"),
+      flex > 0 ? h("div", { class: "flex", style: { flex: flex } }, flex + " you decide") : null),
+    h("div", { class: "legendrow" },
+      h("span", null, h("i", { class: "sw", style: { background: "var(--ink-2)" } }), "Fixed: what nearly every list plays (for copy-count choices, the lowest common count)"),
+      h("span", null, h("i", { class: "sw", style: { border: "1px dashed var(--line-strong)", background: "var(--sunken)" } }), "You decide: extra copies, slots and in/out cards")));
+}
+function coreChips(b) {
+  return h("div", { class: "chips" }, b.tiers.core.map((c) => h("span", { class: "chip" + (c.countDecision ? " var" : ""), title: c.countDecision ? "Copy count varies" : null },
+    h("b", null, c.countDecision ? usualRange(c.opts) : c.opts[0][0]), cardName(c.card))));
+}
+function header(pitch) {
+  const d = deck(), b = block();
+  return h("section", { class: "hero" },
+    h("h1", null, d.name, h("span", { class: "muted", style: { fontSize: "16px", fontFamily: "var(--font)", fontWeight: 400, marginLeft: "10px" } }, state.board === "main" ? "main deck" : "sideboard")),
+    h("p", { class: "note num" }, d.lists + " lists from " + D.meta.since + " to " + D.meta.until + ", " + d.withMatches + " of them with match results (" + (d.win.n || 0) + " non-mirror matches, " + pct(d.win.wr, 1) + " pilot-adjusted)."),
+    pitch ? h("p", { class: "pitch" }, pitch) : null,
+    anatomy(b));
+}
+
+// =====================================================================================
+// A: the deck as decisions — fixed core, copy counts, slots, in/out cards
+// =====================================================================================
+// "4", "2 or 4": the copies lists use when they play the card.
+function usual(opts) {
+  if (!opts || !opts.length) return "";
+  const main = opts.filter((o) => o[1] >= 0.2).map((o) => o[0]);
+  return (main.length ? main : [opts[0][0]]).slice(0, 2).sort((a, b) => a - b).join(" or ");
+}
+function asCopies(opts) {
+  const u = usual(opts);
+  return u === "1" ? "1 copy" : u + " copies";
+}
+function optionBar(opts, maxShown = 4) {
+  const shown = opts.slice(0, maxShown), rest = 1 - shown.reduce((a, o) => a + o[1], 0);
+  return h("div", { class: "opts", role: "img", "aria-label": shown.map((o) => o[0] + " copies in " + pct(o[1])).join(", ") },
+    shown.map((o, i) => h("div", { class: "opt", style: { flex: Math.max(o[1], 0.07) } },
+      h("div", { class: "optbar", style: { opacity: 1 - i * 0.2 } }), h("span", { class: "num" }, h("b", null, o[0]), " · " + pct(o[1])))),
+    rest > 0.02 ? h("div", { class: "opt", style: { flex: Math.max(rest, 0.07) } }, h("div", { class: "optbar", style: { background: "var(--line-strong)" } }), h("span", { class: "muted num" }, "other " + pct(rest))) : null);
+}
+function comboText(cards, counts) {
+  const parts = counts.map((k, i) => k ? k + " " + cards[i].card : null).filter(Boolean);
+  return parts.length ? parts : ["none of these"];
+}
+// "18 or 19", "10–13": the counts that cover most lists.
+function usualRange(opts) {
+  const pos = opts.filter((o) => o[0] > 0);
+  let acc = 0; const vals = [];
+  for (const o of pos) { vals.push(o[0]); acc += o[1]; if (acc >= 0.8) break; }
+  vals.sort((a, b) => a - b);
+  return vals.length <= 2 ? vals.join(" or ") : vals[0] + "–" + vals[vals.length - 1];
+}
+function renderA(m) {
+  const b = block();
+  m.append(header(h("span", null, "The builds this deck comes in, what every list plays, and then the decisions: how many copies of a staple, how to fill a slot (cards that replace each other), and which cards are simply in or out.")));
+  const shells = shellSection(b);
+  if (shells) m.append(shells);
+  const core = b.tiers.core;
+  // Count decisions that belong to a slot are shown with the slot instead.
+  const slotCards = new Set(((b.A || {}).slots || []).flatMap((s) => s.cards.map((c) => c.card)));
+  const fixed = core.filter((c) => !c.countDecision), counted = core.filter((c) => c.countDecision && !slotCards.has(c.card));
+  m.append(h("section", null,
+    h("div", { class: "subhead" }, h("h3", null, "Fixed core"), h("span", { class: "muted", style: { fontSize: "13px" } }, "in " + pct(D.meta.settings.corePlay) + "+ of lists, nearly always the same count")),
+    h("div", { class: "chips" }, fixed.map((c) => h("span", { class: "chip", title: "In " + pct(c.play) + " of lists; " + c.opts[0][0] + " copies in " + pct(c.opts[0][1]) }, h("b", null, c.opts[0][0]), cardName(c.card))))));
+
+  if (counted.length) m.append(h("section", null,
+    h("div", { class: "subhead" }, h("h3", null, "How many copies"), h("span", { class: "muted", style: { fontSize: "13px" } }, "everyone plays these; the count is the decision")),
+    h("div", { class: "drows" }, counted.map((c) => {
+      const w = (b.countWin || {})[c.card];
+      const none = c.opts.find((o) => o[0] === 0);
+      return h("div", { class: "drow" },
+        h("div", { class: "dname" }, h("span", null, h("b", { class: "num" }, usualRange(c.opts) + " "), cardName(c.card)),
+          none ? h("span", { class: "muted num" }, pct(none[1]) + " of lists play none") : null),
+        optionBar(c.opts),
+        h("div", { class: "dwin" }, w ? [h("span", { class: "muted num" }, w.hi + " vs " + w.lo + " copies: "), diffBar(w.win)] : null));
+    }))));
+
+  if (!b.A) { m.append(h("p", { class: "note" }, "No flexible cards to analyse.")); return; }
+  const slots = b.A.slots;
+  const inSlot = new Set(slots.flatMap((s) => s.cards.map((c) => c.card)));
+  m.append(h("section", null,
+    h("div", { class: "subhead" }, h("h3", null, "Slots: cards that replace each other"), h("span", { class: "muted", style: { fontSize: "13px" } }, "the total stays the same; how to split it is the decision")),
+    slots.length ? h("div", { class: "grid2" }, slots.map((s) => slotBox(s))) : h("p", { class: "note" }, "No groups of cards that clearly replace each other.")));
+
+  const swapsOf = {};
+  for (const p of b.A.pairs) if (p.kind === "swap") { (swapsOf[p.a] ||= []).push(p.b); (swapsOf[p.b] ||= []).push(p.a); }
+  const loose = b.tiers.flex.filter((c) => !inSlot.has(c.card));
+  if (loose.length) m.append(h("section", null,
+    h("div", { class: "subhead" }, h("h3", null, "In or out"), h("span", { class: "muted", style: { fontSize: "13px" } }, "played by some lists, not part of a slot")),
+    h("div", { class: "drows" }, loose.map((c) => h("div", { class: "drow" },
+      h("div", { class: "dname" }, cardName(c.card), h("span", { class: "muted num" }, "in " + pct(c.play) + " of lists, usually " + asCopies(c.played))),
+      h("div", { class: "dmeta" }, (swapsOf[c.card] || []).length ? ["usually instead of ", (swapsOf[c.card] || []).slice(0, 2).map((x, i) => [i ? ", " : "", cardName(x)])] : h("span", { class: "muted" }, "no single card it replaces")),
+      h("div", { class: "dwin" }, h("span", { class: "muted" }, "with vs without: "), diffBar(b.cardWin[c.card])))))));
+
+  // Trade-offs not already shown inside a slot, and packages.
+  const sameSlot = (p) => slots.some((s) => s.cards.some((c) => c.card === p.a) && s.cards.some((c) => c.card === p.b));
+  const swaps = b.A.pairs.filter((p) => p.kind === "swap" && !sameSlot(p));
+  const withs = b.A.pairs.filter((p) => p.kind === "with").sort((a, b2) => b2.phi - a.phi);
+  m.append(h("div", { class: "grid2" },
+    h("section", null, h("div", { class: "subhead" }, h("h3", null, "Other trade-offs"), h("span", { class: "muted", style: { fontSize: "13px" } }, "rarely in the same list")),
+      h("div", { class: "legendrow" }, h("span", null, h("i", { class: "sw", style: { background: "var(--swap)" } }), "only the left card"), h("span", null, h("i", { class: "sw", style: { background: "var(--ink)" } }), "both"),
+        h("span", null, h("i", { class: "sw", style: { background: "var(--with)" } }), "only the right card"), h("span", null, h("i", { class: "sw", style: { background: "var(--line)" } }), "neither")),
+      swaps.length ? h("div", { class: "swaps" }, swaps.slice(0, 10).map(swapRow)) : h("p", { class: "note" }, "None beyond the slots above.")),
+    h("section", null, h("div", { class: "subhead" }, h("h3", null, "Packages: cards that come together")),
+      withs.length ? h("div", { class: "swaps" }, withs.slice(0, 8).map((p) => h("div", { class: "swap" },
+        h("div", { class: "a" }, cardName(p.a)), h("div", { class: "x", style: { color: "var(--with)" } }, "+"), h("div", null, cardName(p.b)),
+        h("div", { class: "meta num" }, "Together in " + p.both + " lists, " + Math.round(p.expBoth) + " expected if unrelated")))) : h("p", { class: "note" }, "No clear packages."),
+      heatmap(b.A.matrix))));
+}
+function slotBox(s) {
+  const names = s.cards.map((c) => c.card);
+  return h("div", { class: "box" },
+    h("div", null, h("h4", null, (s.totals[1] && s.totals[1][1] >= 0.25 ? Math.min(s.mode, s.totals[1][0]) + " or " + Math.max(s.mode, s.totals[1][0]) + " cards" : s.mode + " card" + (s.mode === 1 ? "" : "s")) + ": " + names.slice(0, -1).join(", ") + (names.length > 1 ? " or " : "") + names[names.length - 1]),
+      h("p", { class: "muted num", style: { fontSize: "13px" } }, "Exactly " + s.mode + " in " + pct(s.modeShare) + " of lists" + (s.totals[1] ? ", " + s.totals[1][0] + " in " + pct(s.totals[1][1]) : "") + ".")),
+    h("table", { class: "configs" },
+      h("thead", null, h("tr", null, h("th", null, "How lists fill it"), h("th", null, "Lists"), h("th", null, "Win rate"))),
+      h("tbody", null, s.configs.map((cf) => h("tr", null,
+        h("td", null, comboText(s.cards, cf.counts).map((t, j) => [j ? h("span", { class: "muted" }, " + ") : null, t])),
+        h("td", { class: "num" }, h("div", { class: "sharecell" }, h("i", { style: { width: Math.max(2, Math.round(cf.share * 60)) + "px" } }), h("span", null, pct(cf.share)))),
+        h("td", null, cf.win && cf.win.n ? wrBar(cf.win, 0.3, 0.7) : h("span", { class: "muted", style: { fontSize: "12px" } }, "too few lists")))),
+        s.otherLists ? h("tr", null, h("td", { class: "muted" }, "other mixes"), h("td", { class: "num muted" }, pct(s.otherLists / deck().lists)), h("td", null)) : null)));
+}
+function swapRow(p) {
+  const n = p.both + p.onlyA + p.onlyB + p.neither;
+  const seg2 = (v, c) => h("i", { style: { flex: v, background: c } });
+  return h("div", { class: "swap" },
+    h("div", { class: "a" }, cardName(p.a)), h("div", { class: "x" }, "⇄"), h("div", null, cardName(p.b)),
+    h("div", { class: "meta num" },
+      h("span", { class: "venn", title: "only A · both · only B · neither" }, seg2(p.onlyA, "var(--swap)"), seg2(p.both, "var(--ink)"), seg2(p.onlyB, "var(--with)"), seg2(p.neither, "var(--line)")),
+      h("span", null, "Both in " + p.both + " of " + n + " lists (" + Math.round(p.expBoth) + " if unrelated)"),
+      p.win ? h("span", null, "Only “" + short(p.a) + "” vs only “" + short(p.b) + "”: ", diffBar(p.win)) : null));
+}
+const short = (s) => s.length > 18 ? s.split(" ")[0] : s;
+function heatmap(mx) {
+  const n = mx.cards.length; if (n < 3) return null;
+  const cell = 18, lab = 150, W = lab + n * cell + 4, H = lab + n * cell + 4;
+  const col = (v) => {
+    const a = Math.min(1, Math.abs(v) / 0.7);
+    return v < 0 ? `color-mix(in oklab, var(--swap) ${a * 100}%, var(--mid))` : `color-mix(in oklab, var(--with) ${a * 100}%, var(--mid))`;
+  };
+  const svg = S("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img", "aria-label": "Correlation of copy counts between flexible cards" });
+  mx.cards.forEach((c, i) => {
+    svg.append(S("text", { x: lab - 6, y: lab + i * cell + 13, "text-anchor": "end" }, c.length > 22 ? c.slice(0, 21) + "…" : c));
+    svg.append(S("text", { transform: `translate(${lab + i * cell + 13},${lab - 6}) rotate(-60)` }, c.length > 22 ? c.slice(0, 21) + "…" : c));
+    mx.cards.forEach((c2, j) => {
+      if (i === j) return;
+      const v = mx.corr[i][j];
+      svg.append(S("rect", { x: lab + j * cell, y: lab + i * cell, width: cell - 2, height: cell - 2, rx: 3, fill: col(v),
+        onmouseenter: (e) => showTip(e, `<b>${c}</b> and <b>${c2}</b><br>correlation of copies ${v.toFixed(2)}<br>${v < -0.15 ? "replace each other" : v > 0.15 ? "go together" : "unrelated"}`),
+        onmousemove: moveTip, onmouseleave: hideTip }));
+    });
+  });
+  return h("details", { class: "box" }, h("summary", { style: { cursor: "pointer", fontWeight: 500 } }, "All flexible cards against each other (matrix)"),
+    h("div", { class: "legendrow" }, h("span", null, h("i", { class: "sw", style: { background: "var(--swap)" } }), "replace each other"), h("span", null, h("i", { class: "sw", style: { background: "var(--with)" } }), "go together"), h("span", { class: "muted" }, "Ordered so related cards sit next to each other.")),
+    h("div", { class: "heat" }, svg));
+}
+
+// =====================================================================================
+// C: build tree
+// =====================================================================================
+function nodeAt(root, key) { let n = root; for (const c of key) n = c === "y" ? n.yes : n.no; return n; }
+// "Play Faerie Miscreant?" / "Play 19 or more Mountain?"
+function qText(n) { return n.k > 1 ? n.k + " or more " + n.card + "?" : n.card + "?"; }
+function pathText(path) {
+  if (!path.length) return "All lists";
+  return path.map(([c, k, yes]) => yes ? (k > 1 ? k + "+ " : "") + c : (k > 1 ? (k - 1 === 0 ? "no " : "at most " + (k - 1) + " ") + c : "no " + c)).join(" · ");
+}
+// One side of a split: "4 · in 95%" (usual copies, share of lists playing it), or "—".
+function sideText(sd) {
+  if (!sd || sd.play < 0.03) return h("span", { class: "muted" }, "—");
+  return h("span", { class: "num" }, h("b", null, usual(sd.opts) || "–"), h("span", { class: "muted" }, sd.play >= 0.97 ? " · all" : " · in " + pct(sd.play)));
+}
+// Shell = a leaf of the question tree. Cards in a grid, the selected one in detail below,
+// the tree itself folded away for those who want to see how the shells were found.
+function leaves(n, key = "", out = []) {
+  if (!n.yes) out.push({ n, key });
+  else { leaves(n.yes, key + "y", out); leaves(n.no, key + "n", out); }
+  return out;
+}
+// The cards that define a shell (those its questions asked about), with the shell's usual count.
+function defining(n) {
+  const typ = new Map(n.list);
+  return [...new Set(n.path.map((st) => st[0]))].map((c) => [c, typ.get(c) || 0]);
+}
+const defText = ([c, k]) => (k ? k + " " : "no ") + c;
+function shellSection(b) {
+  const sec = h("section", null);
+  if (!b.C) return null;
+  const root = b.C, ls = leaves(root).sort((x, y) => y.n.lists - x.n.lists);
+  if (state.node == null || !nodeAt(root, state.node)) state.node = ls[0].key;
+  stockKey = ls[0].key;
+  sec.append(h("div", { class: "subhead" }, h("h3", null, "Shells"),
+    h("span", { class: "muted", style: { fontSize: "13px" } }, ls.length > 1 ? ls.length + " builds, found from the card choices that best split the lists" : "one build dominates")));
+  if (ls.length > 1) sec.append(h("div", { class: "shells" }, ls.map(({ n, key }) => h("button", { type: "button", class: "shell", "aria-pressed": String(state.node === key), onclick: () => { state.node = key; render(); } },
+    h("span", { class: "nm" }, shellName(n)),
+    h("span", { class: "pathchips" }, defining(n).map((d) => h("span", { class: "pc " + (d[1] ? "yes" : "no") }, defText(d)))),
+    h("span", { class: "s num" }, n.lists + " lists · " + pct(n.share) + " of the deck"),
+    h("span", { class: "share" }, h("i", { style: { width: pct(n.share) } })),
+    wrBar(n.win)))));
+  if (root.yes) sec.append(h("details", { class: "box", open: state.treeOpen || null, ontoggle: (e) => { state.treeOpen = e.target.open; } },
+    h("summary", { style: { cursor: "pointer", fontWeight: 500 } }, "How the shells were found: the questions"),
+    h("p", { class: "note" }, "Each question is the single card choice that best predicts the rest of the list; answer it and the next one follows. Click a question to see what changes with the answer."),
+    h("div", { class: "tree" }, treeNode(root, "", null))));
+  sec.append(nodeDetail(root, state.node));
+  return sec;
+}
+function treeNode(n, key, ans) {
+  const leaf = !n.yes;
+  const w = n.win;
+  const box = h("button", { type: "button", class: "nbox" + (leaf ? " leaf" : ""), "aria-pressed": String(state.node === key), onclick: () => { state.node = key; render(); } },
+    ans ? h("span", { class: "ans " + ans }, ans === "yes" ? "Yes" : "No") : h("span", { class: "ans" }, "Start"),
+    leaf ? h("span", { class: "q" }, "Shell: " + (n.path.length ? shellName(n) : "one build")) : h("span", { class: "q" }, "Play " + qText(n)),
+    h("span", { class: "s num" }, n.lists + " lists · " + pct(n.share) + (w && w.n ? " · " + pct(w.wr) + " win" : "")),
+    h("span", { class: "share" }, h("i", { style: { width: pct(n.share) } })));
+  if (leaf) return h("div", { class: "tnode" }, box);
+  return h("div", { class: "tnode" }, box, h("div", { class: "kids" }, treeNode(n.yes, key + "y", "yes"), treeNode(n.no, key + "n", "no")));
+}
+// Name a shell by what it adds to the deck's typical list; else by what it drops.
+let stockKey = null;  // the largest shell, called "Stock list"
+function shellName(n) {
+  if (n.path.length && stockKey != null && n.path.map((st) => st[2] ? "y" : "n").join("") === stockKey) return "Stock list";
+  const fixed = new Set(block().tiers.core.filter((c) => !c.countDecision).map((c) => c.card));
+  const adds = n.vsAll.filter(([c, k]) => k > 0 && !fixed.has(c) && !BASIC_NAMES.has(c)).sort((a, b) => b[1] - a[1]).slice(0, 2);
+  if (adds.length) return "+ " + adds.map(([c]) => c).join(", + ");
+  const drops = n.vsAll.filter(([c, k]) => k < 0 && !BASIC_NAMES.has(c)).sort((a, b) => a[1] - b[1]).slice(0, 2);
+  return drops.length ? "Typical, minus " + drops.map(([c]) => c).join(", ") : "The typical list";
+}
+const BASIC_NAMES = new Set(["Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"]);
+function nodeDetail(root, key) {
+  const n = nodeAt(root, key);
+  const d = h("div", { style: { display: "grid", gap: "10px" } });
+  d.append(h("h4", { style: { margin: "4px 0 0", fontSize: "15px" } }, (n.yes ? "Question: play " + qText(n) : key ? "Shell: " + shellName(n) : "All lists"),
+    h("span", { class: "muted num", style: { fontWeight: 400, fontSize: "13px" } }, "  ·  " + n.lists + " lists, " + pct(n.share) + " of the deck" + (key && !n.yes ? " · " + defining(n).map(defText).join(", ") : key ? " · " + pathText(n.path) : ""))));
+  const left = h("div", { class: "box" }, h("h4", null, "Typical list"), h("div", { class: "note", style: { display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" } }, "Win rate", wrBar(n.win)), decklist(n));
+  const right = h("div", { class: "box" });
+  if (n.yes) {
+    right.append(h("h4", null, "The next question: play " + qText(n)),
+      h("p", { class: "note" }, "This answer explains " + pct(n.gain) + " of how the rest of the list varies. What else changes with it: usual copies, and the share of lists that play the card at all."),
+      h("table", null, h("thead", null, h("tr", null, h("th", null, "Card"), h("th", null, "If yes (" + n.yes.lists + " lists)"), h("th", null, "If no (" + n.no.lists + " lists)"))),
+        h("tbody", null, h("tr", null, h("td", null, h("b", null, cardName(n.card))), h("td", null, sideText(n.split)), h("td", null, sideText(n.rest))),
+          n.moves.map((mv) => h("tr", null, h("td", null, cardName(mv.card)), h("td", null, sideText(mv.yes)), h("td", null, sideText(mv.no)))))),
+      h("div", { style: { display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", fontSize: "13px" } }, h("span", { class: "muted" }, "Yes-lists vs no-lists:"), diffBar(n.diff)));
+  } else {
+    right.append(h("h4", null, "How this shell differs from the typical " + deck().name),
+      n.vsAll.length ? h("div", { class: "chips" }, n.vsAll.slice(0, 16).map(([c, k]) => h("span", { class: "chip", style: { boxShadow: "inset 0 0 0 1px " + (k > 0 ? "var(--with)" : "var(--swap)") } }, h("b", null, (k > 0 ? "+" : "−") + Math.abs(k)), cardName(c))))
+        : h("p", { class: "note" }, "Same as the overall typical list."),
+      h("p", { class: "muted", style: { fontSize: "13px" } }, "Pick another shell above to compare."));
+  }
+  d.append(h("div", { class: "grid2" }, left, right));
+  return d;
+}
+function decklist(n) {
+  const coreSet = new Set(block().tiers.core.map((c) => c.card));
+  const changed = new Map(n.vsAll.map(([c, k]) => [c, k]));
+  const rows = n.list;
+  const core = rows.filter(([c]) => coreSet.has(c)), flex = rows.filter(([c]) => !coreSet.has(c));
+  const row = ([c, k]) => h("div", null, h("span", { class: "num" + ((changed.get(c) || 0) > 0 ? " plus" : "") }, k), cardName(c));
+  return h("div", { class: "decklist" },
+    flex.length ? h("div", { class: "lbl" }, "Flexible picks (" + flex.reduce((a, r) => a + r[1], 0) + ")") : null, flex.map(row),
+    h("div", { class: "lbl" }, "Core (" + core.reduce((a, r) => a + r[1], 0) + ")"), core.map(row));
+}
+
+// =====================================================================================
+// Condensed variants. Shared rules, from the design critique:
+//  - decisions are computed within a shell, so other builds don't show up as "choices";
+//  - the core is shown once, collapsed or as plain lines;
+//  - trade-offs, packages and the matrix are cut (the shells explain them);
+//  - a win rate is shown only when it is clear and rests on enough matches.
+// =====================================================================================
+const MIN_WIN = () => D.meta.settings.minWinMatches;
+function allShells(b) {
+  if (!b.C) return [];
+  const ls = leaves(b.C).sort((x, y) => y.n.lists - x.n.lists);
+  stockKey = ls[0].key;
+  // Short, unique names: the shell's most distinctive added card not already used as a name.
+  const used = new Set();
+  for (const { n } of ls) delete n.short;
+  for (const { n } of ls) {
+    const nm = n.path.length ? shellName(n) : "One build";
+    let short = nm;
+    if (nm.startsWith("+ ")) {
+      const fixed = new Set(block().tiers.core.filter((c) => !c.countDecision).map((c) => c.card));
+      const adds = n.vsAll.filter(([c, k]) => k > 0 && !fixed.has(c) && !BASIC_NAMES.has(c)).sort((a, b2) => b2[1] - a[1]).map(([c]) => c);
+      const pick = adds.find((c) => !used.has(c)) || adds[0];
+      used.add(pick);
+      short = pick + " build";
+    } else if (nm.startsWith("Typical, minus ")) short = "No " + nm.slice(15).split(", ")[0] + " build";
+    let k = 2, base = short;
+    while (ls.some((l) => l.n !== n && l.n.short === short)) short = base + " " + k++;
+    n.short = short;
+  }
+  return ls;
+}
+function shortName(n) { return n.short || (n.path.length ? shellName(n) : "One build"); }
+// Defining cards whose count differs from the stock list: what makes this build different.
+function versusStock(n, stock) {
+  const st = new Map(stock.list);
+  return defining(n).filter(([c, k]) => k !== (st.get(c) || 0));
+}
+// The defining cards of all shells: their differences are the shells, not decisions.
+function definingSet(ls) { return new Set(ls.flatMap(({ n }) => n.path.map((p) => p[0]))); }
+// Sorted decisions for one group of lists (a shell, or the whole deck).
+function classify(dec, skip = new Set()) {
+  const slots = dec.slots.filter((s) => !s.cards.some((c) => skip.has(c)));
+  const inSlot = new Set(slots.flatMap((s) => s.cards));
+  const fixed = [], counts = [], inout = [];
+  for (const [card, v] of Object.entries(dec.cards)) {
+    if (inSlot.has(card) || skip.has(card)) continue;
+    const top = v.opts[0];
+    if (top[1] >= D.meta.settings.corePlay) { if (top[0] > 0) fixed.push([card, top[0]]); continue; }
+    if (v.play >= D.meta.settings.corePlay) counts.push({ card, ...v, open: 1 - top[1] });
+    else if (v.play >= D.meta.settings.flexMinPlay) inout.push({ card, ...v, open: 1 - Math.abs(v.play - 0.5) * 2 });
+  }
+  slots.forEach((s) => { s.open = 1 - s.configs[0].share; });
+  fixed.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  return { fixed, counts, inout, slots };
+}
+// A clear, well-founded difference, or null.
+function clearDiff(d) {
+  if (!d || d.a.n < MIN_WIN() || d.b.n < MIN_WIN()) return null;
+  return d.lo > 0 || d.hi < 0 ? d : null;
+}
+function winTag(d, label) {
+  const c = clearDiff(d);
+  if (!c) return null;
+  return h("span", { class: "wtag " + (c.d > 0 ? "up" : "down"), title: (label || "") + " 95% interval " + pts(c.lo) + " to " + pts(c.hi) + ", pilot-adjusted" },
+    (c.d > 0 ? "▲ " : "▼ ") + (label ? label + " " : "") + pts(c.d));
+}
+const winPct = (w) => w && w.n >= MIN_WIN() ? pct(w.wr) : "–";
+function slotLine(s, cf) { return comboText(s.cards.map((c) => ({ card: c })), cf.counts).join(" + "); }
+function miniHeader(extra) {
+  const d = deck();
+  return h("section", { class: "hero" },
+    h("h1", null, d.name, h("span", { class: "muted", style: { fontSize: "16px", fontFamily: "var(--font)", fontWeight: 400, marginLeft: "10px" } }, state.board === "main" ? "main deck" : "sideboard")),
+    h("p", { class: "note num" }, d.lists + " lists in the last " + D.meta.days + " days · " + winPct(d.win) + " win rate (pilot-adjusted)"),
+    extra || null);
+}
+
+// ---------- Variant 1: the annotated decklist ----------
+function renderV1(m) {
+  const b = block(), ls = allShells(b);
+  m.append(miniHeader());
+  if (!ls.length) { m.append(h("p", { class: "note" }, "Too few lists to analyse.")); return; }
+  if (!ls.some((l) => l.key === state.v1)) state.v1 = ls[0].key;
+  const cur = ls.find((l) => l.key === state.v1).n;
+  if (ls.length > 1) m.append(h("div", { class: "pills", role: "radiogroup", "aria-label": "Build" }, ls.map(({ n, key }) =>
+    h("button", { type: "button", role: "radio", "aria-checked": String(key === state.v1), onclick: () => { state.v1 = key; render(); } },
+      h("b", null, shortName(n)), h("span", { class: "num" }, pct(n.share))))));
+  const al = annotatedList(cur);
+  m.append(h("section", null,
+    h("div", { class: "subhead" }, h("h3", null, ls.length > 1 ? shellName(cur) === "Stock list" ? "Stock list" : shortName(cur) : "Typical list"),
+      h("span", { class: "muted num", style: { fontSize: "13px" } }, cur.lists + " lists · " + winPct(cur.win) + " win · " + al.nDec + " decisions")),
+    ls.length > 1 && cur.path.length ? h("p", { class: "note" }, cur === ls[0].n ? "The most common build." : ["Differs from the stock list by ", versusStock(cur, ls[0].n).map(defText).join(", "), "."],) : null,
+    al.el));
+}
+// One build's typical list, with its decisions marked and the alternatives other lists of
+// the build play. Shared by the annotated list (variant 1) and the build dropdowns (variant 2).
+function annotatedList(cur) {
+  const dec = classify(cur.dec);
+  const lines = [];   // [sortCount, node]
+  const used = new Set();
+  for (const s of dec.slots) {
+    const top = s.configs[0], alt = s.configs.slice(1, 3);
+    s.cards.forEach((c) => used.add(c));
+    // A slot fills several cards' worth of the list; the left column marks the slot, the line names each card's copies.
+    // With a single card in the usual split, the count sits in the left column as for any card.
+    const single = top.counts.filter((k) => k > 0).length === 1;
+    const parts = comboText(s.cards.map((c) => ({ card: c })), top.counts);
+    lines.push([s.total, h("div", { class: "dl dec" }, single ? h("span", { class: "n num" }, top.counts.find((k) => k > 0))
+        : h("span", { class: "n num slotn", title: "a slot of " + s.total + " cards" }, s.total),
+      h("span", null, (single ? [parts[0].replace(/^\d+ /, "")] : parts).map((t, j) => [j ? h("span", { class: "muted" }, " + ") : null, t])),
+      h("span", { class: "ann" }, "or " + alt.map((cf) => slotLine(s, cf) + " (" + pct(cf.share) + ")").join(", or "), " ", winTag(diffOf(top.win, alt[0] && alt[0].win))))]);
+  }
+  for (const c of dec.counts) {
+    used.add(c.card);
+    const k = c.opts[0][0], others = c.opts.slice(1).filter((o) => o[1] >= 0.05);
+    lines.push([k, h("div", { class: "dl dec" }, h("span", { class: "n num" }, k), cardName(c.card),
+      h("span", { class: "ann" }, others.map((o) => (o[0] || "none") + " in " + pct(o[1])).join(", "), " ", winTag(c.win, c.winLabel ? c.winLabel[0] + " vs " + c.winLabel[1] : "")))]);
+  }
+  const also = [];
+  for (const c of dec.inout) {
+    used.add(c.card);
+    const k = usual(c.opts.filter((o) => o[0] > 0));
+    if (c.play >= 0.5) lines.push([+String(k).split(" ")[0], h("div", { class: "dl dec" }, h("span", { class: "n num" }, k), cardName(c.card), h("span", { class: "ann" }, "in " + pct(c.play) + " of lists", " ", winTag(c.win, "with it")))]);
+    else also.push(c);
+  }
+  for (const [card, k] of dec.fixed) if (!used.has(card)) lines.push([k, h("div", { class: "dl" }, h("span", { class: "n num" }, k), cardName(card))]);
+  lines.sort((a, b2) => b2[0] - a[0]);
+  const nDec = dec.slots.length + dec.counts.length + dec.inout.length;
+  return { nDec, el: h("div", { class: "alist" },
+    h("div", { class: "legendrow" }, h("span", null, h("i", { class: "sw", style: { background: "var(--with)" } }), "a decision: what other lists of this build do instead"), h("span", { class: "muted" }, "Win rates only where the difference is clear.")),
+    h("div", { class: "dlist" }, lines.map((l) => l[1])),
+    also.length ? h("div", { class: "also" }, h("span", { class: "muted" }, "Also played by some: "), also.sort((a, b2) => b2.play - a.play).map((c, i) => [i ? " · " : "", cardName(c.card), h("span", { class: "muted num" }, " " + usual(c.opts.filter((o) => o[0] > 0)) + "× in " + pct(c.play)), winTag(c.win, "")])) : null) };
+}
+function diffOf(a, b) {
+  if (!a || !b || !a.n || !b.n) return null;
+  const [lo, hi] = newcombe(a.w, a.n, b.w, b.n);
+  const shift = (a.wr - a.raw) - (b.wr - b.raw);
+  return { a, b, d: a.wr - b.wr, lo: lo + shift, hi: hi + shift };
+}
+// Newcombe hybrid score interval for a difference of two proportions (as in analysis.py).
+function wilsonJS(w, n, z = 1.959964) {
+  const p = w / n, den = 1 + z * z / n, c = (p + z * z / (2 * n)) / den, hw = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / den;
+  return [Math.max(0, c - hw), Math.min(1, c + hw)];
+}
+function newcombe(w1, n1, w2, n2, z = 1.959964) {
+  const p1 = w1 / n1, p2 = w2 / n2, [l1, u1] = wilsonJS(w1, n1, z), [l2, u2] = wilsonJS(w2, n2, z), d = p1 - p2;
+  return [d - Math.sqrt((p1 - l1) ** 2 + (u2 - p2) ** 2), d + Math.sqrt((u1 - p1) ** 2 + (p2 - l2) ** 2)];
+}
+
+// Interval level for variant 2 (95% as on the dashboard, or 90% to test). Intervals are
+// recomputed here from the stored wins and matches, moved by the pilot adjustment.
+const Z = { "95": 1.959964, "90": 1.644854 };
+const zNow = () => Z[state.level] || Z["95"];
+function withLevel(w) {
+  if (!w || !w.n || w.w == null || w.raw == null) return w;
+  const [l, u] = wilsonJS(w.w, w.n, zNow()), shift = w.wr - w.raw;
+  return { ...w, lo: l + shift, hi: u + shift };
+}
+// [opponent, diff, lo, hi, n a, adj a, n b, adj b, raw a, raw b] -> interval at the current level.
+function muCI(e) {
+  const [, , lo, hi, na, wa, nb, wb, ra, rb] = e;
+  if (ra == null) return [lo, hi];
+  const [l, u] = newcombe(ra * na, na, rb * nb, nb, zNow()), shift = (wa - ra) - (wb - rb);
+  return [l + shift, u + shift];
+}
+
+// ---------- Variant 2: ranked decisions ----------
+// Every build and every option of a decision gets: how often it's played, its win rate with
+// its interval, and the opponents it does better or worse against than the deck's other lists.
+function renderV2(m) {
+  const b = block(), ls = allShells(b);
+  m.append(miniHeader());
+  if (!ls.length) { m.append(h("p", { class: "note" }, "Too few lists to analyse.")); return; }
+  const lv = h("div", { class: "seg", role: "group", "aria-label": "Interval level" });
+  seg(lv, [["95", "95%"], ["90", "90%"]], state.level, (v) => { state.level = v; store.set("level", v); render(); });
+  m.append(h("div", { class: "keybox" },
+    h("div", { style: { display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" } }, h("b", null, "Intervals"), lv,
+      h("span", { class: "muted" }, state.level === "90" ? "90%: narrower, more chips count as clear, and twice as many of those are chance." : "95%, as on the dashboard.")),
+    h("span", null, h("b", null, "Win rate"), " pilot-adjusted; the bar is the " + state.level + "% interval, the dashed line 50%."),
+    h("span", null, h("b", null, "Better / worse against"), ": opponents where these lists did better (▲) or worse (▼) than the deck's other lists, with " + D.meta.settings.muMinMatches + "+ matches on each side."),
+    h("span", null, h("span", { class: "mchip up" }, "▲ clear"), " the interval excludes zero · ", h("span", { class: "mchip up faint" }, "▲ faded"), " could be chance. Hover for numbers."),
+    h("span", { class: "muted" }, "Each row checks every opponent and shows the most extreme, so expect about " + (state.level === "90" ? "1 in 10" : "1 in 20") + " compared matchups to look “clear” by chance. Trust a pattern more when it repeats across rows (e.g. a build and the card that defines it).")));
+  if (ls.length > 1) m.append(h("section", null,
+    h("div", { class: "subhead" }, h("h3", null, ls.length + " builds")),
+    h("div", { class: "opts3" }, optHead("Build"),
+      ls.map(({ n, key }) => {
+        const open = state.v2open.has(key);
+        const al = open ? annotatedList(n) : null;
+        const toggle = h("button", { type: "button", class: "listbtn", "aria-expanded": String(open), "aria-controls": "bl-" + key,
+          onclick: () => { open ? state.v2open.delete(key) : state.v2open.add(key); render(); } },
+          h("span", { class: "chev", "aria-hidden": "true" }, "▸"), open ? "Hide list" : "Show list");
+        return [optRow(
+          h("div", null, h("b", null, shortName(n)), h("div", { class: "pathchips", style: { marginTop: "3px" } },
+            n === ls[0].n ? h("span", { class: "muted", style: { fontSize: "12px" } }, "the most common build")
+              : versusStock(n, ls[0].n).map((d) => h("span", { class: "pc " + (d[1] ? "yes" : "no") }, defText(d)))), toggle),
+          n.share, n.win, n.mu),
+          open ? h("div", { class: "bpanel", id: "bl-" + key },
+            h("p", { class: "muted num", style: { fontSize: "13px", margin: "0 0 6px" } }, (n === ls[0].n ? "Typical stock list" : "Typical " + shortName(n).replace(/ build$/, "") + " list") + " · " + n.lists + " lists · " + al.nDec + " decisions"), al.el) : null];
+      }))));
+  const skip = definingSet(ls);
+  const dec = classify(b.C.dec, skip);
+  const all = [
+    ...dec.slots.map((s) => ({ open: s.open, el: decBlock("Which " + s.total + ": " + s.cards.join(", ").replace(/, ([^,]*)$/, " or $1") + "?",
+      s.configs.map((cf) => [slotLine(s, cf), cf.share, cf.win, cf.mu]), s.other) })),
+    ...dec.counts.filter((c) => c.sides).map((c) => ({ open: c.open, el: decBlock("How many " + c.card + "?",
+      c.sides.map((sd) => [sd.label === "0" ? "none" : sd.label + (sd.label === "1" ? " copy" : " copies"), sd.share, sd.win, sd.mu])) })),
+    ...dec.inout.filter((c) => c.sides).map((c) => ({ open: c.open, el: decBlock("Play " + c.card + "?",
+      c.sides.map((sd) => [sd.label === "yes" ? "Yes, usually " + usual(c.opts.filter((o) => o[0] > 0)) + "×" : "No", sd.share, sd.win, sd.mu]), 0, true) })),
+  ].sort((a, b2) => b2.open - a.open);
+  const TOP = 10;
+  m.append(h("section", null,
+    h("div", { class: "subhead" }, h("h3", null, "The decisions"), h("span", { class: "muted", style: { fontSize: "13px" } }, "most open first · build-defining cards are above")),
+    all.slice(0, TOP).map((x) => x.el),
+    all.length > TOP ? h("details", { class: "more" }, h("summary", null, (all.length - TOP) + " more, mostly settled"), all.slice(TOP).map((x) => x.el)) : null,
+    h("details", { class: "more" }, h("summary", null, dec.fixed.length + " cards every list plays the same"),
+      h("div", { class: "chips", style: { marginTop: "8px" } }, dec.fixed.map(([c, k]) => h("span", { class: "chip" }, h("b", null, k), cardName(c)))))));
+}
+function optHead(first) {
+  return h("div", { class: "orow ohead" }, h("span", null, first), h("span", null, "Played"), h("span", null, "Win rate"), h("span", null, "Better / worse against"));
+}
+// One option: label, share of lists, win rate with interval, matchup chips.
+function optRow(label, share, win, mu, muMode) {
+  // muMode: undefined = own matchups; "span" = one cell for both rows of a yes/no decision; "none" = no cell.
+  return h("div", { class: "orow" },
+    h("div", { class: "olabel" }, label),
+    h("div", { class: "oshare num" }, h("i", { style: { width: Math.max(2, Math.round(share * 64)) + "px" } }), pct(share)),
+    h("div", { class: "owin" }, win && win.n ? wrBar(withLevel(win), 0.3, 0.7) : h("span", { class: "muted", style: { fontSize: "12px" } }, "no matches")),
+    muMode === "none" ? null : h("div", { class: "omu" + (muMode === "span" ? " span2" : "") },
+      muMode === "span" ? h("span", { class: "mcap" }, "With it vs without") : null, muChips(mu)));
+}
+function muChips(mu) {
+  if (!mu || !mu.length) return h("span", { class: "muted", style: { fontSize: "12px" } }, "too few matches per opponent");
+  return mu.map((e) => {
+    const [opp, d, , , na, wa, nb, wb] = e, [lo, hi] = muCI(e);
+    const clear = lo > 0 || hi < 0;
+    return h("span", { class: "mchip " + (d > 0 ? "up" : "down") + (clear ? "" : " faint"),
+      title: opp + ": " + pct(wa) + " in " + na + " matches, other lists " + pct(wb) + " in " + nb + ". Difference " + pts(d) + " (" + state.level + "%: " + pts(lo) + " to " + pts(hi) + ")" + (clear ? "" : ", could be chance") + "." },
+      (d > 0 ? "▲ " : "▼ ") + opp + " ", h("b", { class: "num" }, (d > 0 ? "+" : "−") + Math.round(Math.abs(d) * 100)));
+  });
+}
+// A decision: the question, then one row per option. With `pair` (yes/no), both rows share
+// one matchup cell: lists with the card against lists without it.
+function decBlock(q, opts, other, pair) {
+  return h("div", { class: "decblock" },
+    h("div", { class: "dq" }, q),
+    h("div", { class: "opts3" }, opts.map(([label, share, win, mu], i) => optRow(h("span", null, label), share, win, mu, pair ? (i === 0 ? "span" : "none") : undefined)),
+      other > 0.02 ? h("div", { class: "orow" }, h("div", { class: "olabel muted" }, "other ways"), h("div", { class: "oshare num muted" }, pct(other)), h("div"), h("div")) : null));
+}
+
+// ---------- Variant 3: builds side by side ----------
+function renderV3(m) {
+  const b = block(), ls = allShells(b);
+  m.append(miniHeader());
+  if (!ls.length) { m.append(h("p", { class: "note" }, "Too few lists to analyse.")); return; }
+  const lists = ls.map(({ n }) => new Map(n.list));
+  const decs = ls.map(({ n }) => n.dec.cards);
+  const cards = [...new Set(ls.flatMap(({ n }) => n.list.map((x) => x[0])))];
+  const typ = (i, c) => lists[i].get(c) || 0;
+  const split = (i, c) => { const v = decs[i][c]; return v && v.opts[0][1] < D.meta.settings.corePlay ? v : null; };
+  const differs = [], within = [], same = [];
+  for (const c of cards) {
+    const ks = ls.map((_, i) => typ(i, c));
+    // A build differs when it plays 2+ copies more or fewer than the stock list; smaller gaps are noise.
+    const gap = Math.max(...ks.map((k) => Math.abs(k - ks[0])));
+    if (gap >= 2) differs.push([c, gap]);
+    else if (ls.some((_, i) => split(i, c) && altText(split(i, c), typ(i, c)))) within.push([c, Math.max(...ls.map((_, i) => split(i, c) ? 1 - split(i, c).opts[0][1] : 0))]);
+    else same.push([c, ks[0]]);
+  }
+  differs.sort((a, b2) => b2[1] - a[1]); within.sort((a, b2) => b2[1] - a[1]); same.sort((a, b2) => b2[1] - a[1]);
+  const cell = (i, c) => {
+    const k = typ(i, c), base = typ(0, c), sp = split(i, c);
+    const cls = i > 0 && k > base ? "more" : i > 0 && k < base ? "less" : "";
+    return h("td", { class: "cnum " + cls, title: sp ? "In this build: " + sp.opts.map((o) => o[0] + " in " + pct(o[1])).join(", ") : null },
+      h("b", { class: "num" }, k || "–"), sp && altText(sp, k) ? h("span", { class: "sp num" }, " " + altText(sp, k)) : null);
+  };
+  const row = ([c]) => h("tr", null, h("td", null, cardName(c)), ls.map((_, i) => cell(i, c)));
+  const groupRow = (label, n) => h("tr", { class: "grp" }, h("td", { colspan: ls.length + 1 }, label, h("span", { class: "muted" }, " · " + n)));
+  m.append(h("section", null,
+    h("div", { class: "subhead" }, h("h3", null, ls.length > 1 ? "Builds side by side" : "One build"), h("span", { class: "muted", style: { fontSize: "13px" } }, "typical copies per build · “or 3”: a quarter or more of that build's lists play 3")),
+    h("div", { class: "tablewrap" }, h("table", { class: "cmp" },
+      h("thead", null, h("tr", null, h("th", null),
+        ls.map(({ n }) => h("th", { class: "cnum" }, h("div", { class: "bh" }, shortName(n)), h("div", { class: "muted num" }, pct(n.share) + " · " + winPct(n.win)))))),
+      h("tbody", null,
+        ls.length > 1 && differs.length ? [groupRow("What sets the builds apart", differs.length), differs.map(row)] : null,
+        within.length ? [groupRow("Decided within a build", within.length), within.map(row)] : null))),
+    h("div", { class: "legendrow" }, h("span", null, h("i", { class: "sw", style: { background: "color-mix(in oklab, var(--with) 30%, transparent)" } }), "more than the stock list"), h("span", null, h("i", { class: "sw", style: { background: "color-mix(in oklab, var(--swap) 30%, transparent)" } }), "fewer"), h("span", { class: "muted" }, "Hover a cell for the full split.")),
+    h("details", { class: "more" }, h("summary", null, same.length + " cards the same in every build"),
+      h("div", { class: "chips", style: { marginTop: "8px" } }, same.map(([c, k]) => h("span", { class: "chip" }, h("b", null, k), cardName(c)))))));
+}
+// "or 3": a common alternative (25%+ of the build's lists) to the typical count.
+function altText(sp, k) {
+  const alt = sp.opts.find((o) => o[0] !== k);
+  return alt && alt[1] >= 0.25 ? "or " + (alt[0] || "none") : "";
+}
+
+// =====================================================================================
+// notes
+// =====================================================================================
+function renderNotes(m) {
+  const s = D.meta.settings;
+  m.append(h("div", { class: "prose" },
+    h("h1", { style: { fontSize: "30px" } }, "Which cards are real decisions?"),
+    h("p", { class: "note" }, "Prototype built on " + D.decks.length + " decks with " + D.meta.days + " days of data (" + D.meta.since + " to " + D.meta.until + ", all events). Pick a deck above. Hover a card name for its image."),
+    h("h2", null, "The question, in statistics terms"),
+    h("p", null, "Each list of a deck is a vector of copy counts: one number per card. The question “if you take X, you usually don't take Y” is about how these numbers move together across lists, which makes it multivariate statistics. PCA is one tool for it, but it gives abstract axes that mix unrelated cards. Each part of the page uses a tool that gives a direct answer:"),
+    h("ul", null,
+      h("li", null, h("b", null, "Shells: "), "a divisive tree (as in monothetic clustering). At each step it picks the one card choice (“4+ Moon-Circuit Hacker?”) that best predicts the rest of the list. The leaves are the shells, each with a typical list built by Frank Karsten's aggregate method: the 60 most common (card, nth copy) pairs."),
+      h("li", null, h("b", null, "Fixed core: "), "cards in nearly every list with nearly always the same count."),
+      h("li", null, h("b", null, "How many copies: "), "cards everyone plays, but in different numbers (“18 or 19 Mountain”)."),
+      h("li", null, h("b", null, "Slots: "), "groups of cards whose combined copies vary much less than each card alone, i.e. they replace each other. Shown as the actual splits lists use."),
+      h("li", null, h("b", null, "In or out, trade-offs and packages: "), "how often two cards appear together compared with chance (φ coefficient).")),
+    h("h3", null, "One trap: every list has 60 cards"),
+    h("p", null, "Copy counts are compositional: one more copy of anything means one less of something else. So every card is slightly negatively related to every other card, and naive methods find “swaps” everywhere (the first version of slot detection merged the whole flexible part into one slot). The page guards against it: swaps must be clearly below what chance would give, slots must hold a steady total, basic lands stay out of slots (they trade with everything), and snow-covered basics count as basics."),
+    h("p", null, "The shells are greedy: when two questions split the lists almost equally well, a few more lists can swap their order. The shells themselves tend to stay the same."),
+    h("h2", null, "Win rates"),
+    h("p", null, "Every side of a decision gets the pilot-adjusted win rate used on the dashboard (raw win rate minus the average pilot lift), with a 95% interval. In this prototype the interval is the Wilson / Newcombe interval moved to the adjusted value; the pilot model's own uncertainty isn't added yet (no bootstrap). Expect most choices to be ", h("b", null, "noise"), ": popular options are popular because they're close in strength, and only about 40% of lists have match results. The real value is the construction picture; the win rate is a check."),
+    h("h2", null, "Settings used"),
+    h("ul", { class: "num" },
+      h("li", null, "Core: in " + pct(s.corePlay) + "+ of lists (as on the dashboard). Flexible: in " + pct(s.flexMinPlay) + "–" + pct(s.corePlay) + ", or core with a varying copy count."),
+      h("li", null, "Swap: φ ≤ " + s.swapPhi + ", together in at most " + pct(s.swapMaxBoth) + " of the lists chance would give, and 5+ lists with only one of the two. Only cards in under " + pct(s.corePlay) + " of lists. Package: φ ≥ " + s.withPhi + "."),
+      h("li", null, "Copy-count decision: a card in " + pct(s.corePlay) + "+ of lists whose most common count is in under 75% of them. Win rate compares the two most common counts."),
+      h("li", null, "Slot: groups merge while Var(A+B) / (Var A + Var B) < " + s.slotRatio + ", at most 5 cards, basics excluded; shown only if " + pct(s.slotSteady) + "+ of lists are within one card of its usual total."),
+      h("li", null, "Shells: up to " + s.treeDepth + " questions deep; each side needs " + pct(s.treeMinShare) + "+ of lists, and a question must explain " + pct(s.treeMinGain) + "+ of the remaining spread.")),
+    h("h2", null, "Other methods considered"),
+    h("ul", null,
+      h("li", null, h("b", null, "NMF / topic models (LDA): "), "split each list into additive “packages”. Good for formats with many packages, but they need a chosen number of packages and Pauper decks mostly have 1–3 decisions."),
+      h("li", null, h("b", null, "Graphical lasso / Ising model: "), "a network of direct card links that controls for the other cards (it partly removes the 60-card effect). More rigorous than A, but harder to explain; a possible upgrade for A's swap detection."),
+      h("li", null, h("b", null, "PCA (tried, dropped): "), "each axis a seesaw of cards, every list on a map. It finds package-against-package trade-offs, but later axes mix unrelated cards and basic land counts creep in."),
+      h("li", null, h("b", null, "Hierarchical clustering of lists: "), "finds shells too, but without a reason. The tree gives every split a card that explains it.")),
+  ));
+}
+
+// ---------- render ----------
+addEventListener("scroll", () => { peek.style.display = "none"; hideTip(); }, { passive: true });
+function render() {
+  const m = $("#main");
+  peek.style.display = "none";
+  m.replaceChildren();
+  hideTip();
+  ({ notes: renderNotes, A: renderA, v1: renderV1, v2: renderV2, v3: renderV3 })[state.tab](m);
+}
+drawControls();
+render();
+</script>
+</body>
+</html>
