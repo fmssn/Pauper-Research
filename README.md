@@ -62,9 +62,10 @@ width; from 1600px the deck view shows matchups and cards side by side.
 
 - **Decks:** every top archetype with meta share (share of published lists) and
   win rate. Search (`/` jumps to the search box) and sort by share, win rate or
-  **Vs. field**, which shows and ranks by each deck's expected win rate against
-  the field (see below; grey when it could be even); the number is the
-  deck's position in the current sort. A line under the title says where the
+  **Vs. field**, which shows each deck's expected win rate against the field
+  with its interval (see below), grouped into favored, could be even, behind
+  and under 30 matches; on phones it replaces the metagame summary. The number
+  is the deck's position in the current sort. A line under the title says where the
   current view's lists and match results come from (e.g. "Share of lists: 56%
   MTGO. Win rates: 95% paper."), since the two come from different sources.
 - **Metagame chart:** meta share (log scale) against win rate with its 95%
@@ -157,7 +158,8 @@ A snapshot for July to September 2026 is in [reports/2026-Q3](reports/2026-Q3/co
   close to even. The interval adds up the matchups' posterior variances, weighted
   by share squared. The costliest matchup is the one losing the most expected
   match wins, share × (50% − matchup win rate). The deck list's "Vs. field" sort
-  ranks by it, decks with fewer than 30 matches last, as in the win-rate sort.
+  groups decks by this verdict and ranks by it within each group; decks with
+  fewer than 30 matches form a last group.
 - **Builds** come from a tree of single-card questions ("4+ Moon-Circuit
   Hacker?"), each the one that best predicts the rest of the list, up to 3 deep;
   each build's typical list is Frank Karsten's aggregate decklist. A card is
