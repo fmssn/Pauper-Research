@@ -1,7 +1,10 @@
 <title>Pauper Meta Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap">
+<!-- Fonts load without blocking the first paint; the system fallbacks show until they arrive. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap"></noscript>
+<script>try { const t = JSON.parse(localStorage.getItem("pml2.theme")); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) { /* storage unavailable */ }</script>
 <style>
 /* Layout: mobile-first. One column of stacked views (decks -> deck -> matchup).
    From 1024px the deck list is a sidebar on the left, the filters sit in the top bar,
@@ -12,13 +15,19 @@
   --hover: #eef0f2;
   --ink: #1b2230;
   --ink-2: #464e5c;
-  --muted: #6a7282;
+  --muted: #5f6776;
   --line: #e5e8ed;
   --line-strong: #cdd2da;
+  /* Bars' 50% line and input borders: 3:1 against every surface */
+  --ui-line: #7d8490;
+  /* Fills (bars, dots) and the darker text versions that read at 4.5:1 on every surface */
   --good: #2a78d6;
   --bad: #e34948;
-  --neutral: #9ba1a9;
-  --focus: #2a78d6;
+  --good-ink: #1f66bd;
+  --bad-ink: #c42f2e;
+  --neutral: #878d96;
+  --focus: #1f66bd;
+  --bar-h: 57px;
   --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-head: "Source Serif 4", Georgia, serif;
   --mana-W: #f4eed2; --mana-U: #a9cdea; --mana-B: #b7aca3; --mana-R: #ec9f80; --mana-G: #9cc598; --mana-C: #d3d5d9;
@@ -27,15 +36,18 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #11161e; --sunken: #19202a; --hover: #202833; --ink: #eef1f5; --ink-2: #c1c8d2; --muted: #8b94a3;
-    --line: #262e3a; --line-strong: #37414f; --good: #3987e5; --bad: #e66767; --neutral: #6f757e; --focus: #5598e7;
+    --line: #262e3a; --line-strong: #37414f; --ui-line: #68727f; --good: #3987e5; --bad: #e66767;
+    --good-ink: #5c9df0; --bad-ink: #ef7676; --neutral: #7a818b; --focus: #5598e7;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #11161e; --sunken: #19202a; --hover: #202833; --ink: #eef1f5; --ink-2: #c1c8d2; --muted: #8b94a3;
-  --line: #262e3a; --line-strong: #37414f; --good: #3987e5; --bad: #e66767; --neutral: #6f757e; --focus: #5598e7;
+  --line: #262e3a; --line-strong: #37414f; --ui-line: #68727f; --good: #3987e5; --bad: #e66767;
+  --good-ink: #5c9df0; --bad-ink: #ef7676; --neutral: #7a818b; --focus: #5598e7;
   color-scheme: dark;
 }
+:root[data-theme="light"] { color-scheme: light; }
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -48,11 +60,23 @@ body {
 button { font: inherit; color: inherit; }
 button, a, input { touch-action: manipulation; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+/* Headings that receive focus after navigation don't need a ring: the page change is the cue. */
+[tabindex="-1"]:focus { outline: none; }
+::selection { background: color-mix(in srgb, var(--good) 28%, transparent); }
 h1, h2, h3 { font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: -0.005em; }
 p { margin: 0; }
 .num { font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
+.small { font-size: 13px; }
+.minw0 { min-width: 0; }
+.stack { display: grid; gap: 8px; }
 .label { font-size: 13px; font-weight: 500; color: var(--muted); }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.skip {
+  position: absolute; left: 8px; top: -60px; z-index: 30; padding: 10px 14px; border-radius: 6px;
+  background: var(--ink); color: var(--bg); font-weight: 600; text-decoration: none;
+}
+.skip:focus { top: 8px; }
 
 /* App bar */
 .bar {
@@ -84,6 +108,11 @@ body:not([data-view="list"]) .brand, body[data-view="list"] .ctx { display: none
 .iconbtn[hidden] { display: none; }
 .iconbtn:hover { background: var(--hover); }
 .iconbtn svg { width: 20px; height: 20px; stroke: var(--ink); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.themebtn { color: var(--ink-2); }
+.themebtn svg { stroke: currentColor; }
+.themebtn .t-light, .themebtn .t-dark { display: none; }
+:root[data-theme="light"] .themebtn .t-auto, :root[data-theme="dark"] .themebtn .t-auto { display: none; }
+:root[data-theme="light"] .themebtn .t-light, :root[data-theme="dark"] .themebtn .t-dark { display: block; }
 .chipbtn {
   display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; flex: none;
   border-radius: 6px; border: 1px solid var(--line-strong); background: var(--bg); cursor: pointer;
@@ -123,7 +152,7 @@ body[data-view="methods"] #methodsView { display: grid; }
   .bar { padding-inline: 16px 24px; }
   .barfilters { display: flex; }
   #filterBtn { display: none; }
-  .bar .iconbtn { display: none; }
+  .bar .iconbtn:not(.themebtn) { display: none; }
   body:not([data-view="list"]) .brand { display: grid; }
   .brand { flex: none; padding-left: 0; }
   .ctx { display: none !important; }
@@ -140,13 +169,16 @@ body[data-view="methods"] #methodsView { display: grid; }
   .view { padding-inline: 32px 0; padding-top: 28px; }
   body[data-view] #listView { display: grid; }
   #listView {
-    position: sticky; top: 57px; max-height: calc(100vh - 57px); overflow-y: auto;
+    position: sticky; top: var(--bar-h); max-height: calc(100vh - var(--bar-h)); overflow-y: auto;
     padding: 20px 20px 24px 0; border-right: 1px solid var(--line); gap: 16px;
   }
   body[data-view="list"] #emptyDetail { display: grid; }
   body:not([data-view="list"]) #listView .intro { display: none; }
   body[data-view="methods"] #listView, body[data-view="methods"] #emptyDetail { display: none; }
   body[data-view="methods"] #methodsView { grid-column: 1 / -1; max-width: 760px; width: 100%; justify-self: center; padding-inline: 0; }
+  /* The section list stays in reach while reading */
+  #methodsView .toc { position: sticky; top: var(--bar-h); z-index: 5; background: var(--bg); padding-block: 10px; border-bottom: 1px solid var(--line); }
+  #methodsView .card { scroll-margin-top: calc(var(--bar-h) + 56px); }
   #matchView { max-width: 1200px; }
 }
 /* Narrow desktops: make room for the breadcrumbs. The period and event buttons read fine without a label. */
@@ -178,9 +210,13 @@ body[data-view="methods"] #methodsView { display: grid; }
 /* Methods */
 .methods h2 { font-size: 18px; }
 .methods h3 { font-size: 15px; }
-.methods .intro p { max-width: 68ch; }
-.methods p, .methods li { color: var(--ink-2); font-size: 15px; max-width: 68ch; }
+.methods .intro p { max-width: 62ch; }
+.methods p, .methods li { color: var(--ink-2); font-size: 15px; max-width: 62ch; }
+.methods .short { display: grid; gap: 8px; padding: 14px 16px; border-radius: 6px; background: var(--sunken); }
+.methods .short h2 { font-size: 16px; }
+.methods .short li b { color: var(--ink); }
 .methods ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.methods .card { scroll-margin-top: var(--bar-h); }
 .methods .eq { overflow-x: auto; overflow-y: hidden; padding: 4px 0; color: var(--ink); font-size: 15px; }
 .methods .where { font-size: 14px; color: var(--muted); }
 .methods code { font: 13px/1.4 ui-monospace, "SFMono-Regular", Menlo, monospace; background: var(--sunken); border-radius: 4px; padding: 1px 5px; }
@@ -189,11 +225,13 @@ body[data-view="methods"] #methodsView { display: grid; }
 .methods th { font-size: 13px; font-weight: 500; color: var(--muted); }
 .methods .tablewrap { overflow-x: auto; }
 .methods .toc { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
-.methods a { color: var(--good); }
+.methods a { color: var(--good-ink); text-underline-offset: 3px; }
 
 /* Deck list */
 .intro { display: grid; gap: 6px; }
-.intro h1, .hero h1 { font-family: var(--font-head); font-weight: 600; letter-spacing: -0.01em; }
+.intro h1, .hero h1, .metachart .hero h2 { font-family: var(--font-head); font-weight: 600; letter-spacing: -0.01em; }
+.srcline { font-size: 13px; color: var(--muted); max-width: 52ch; }
+.srcline b { color: var(--ink-2); font-weight: 600; }
 .intro h1 { font-size: 28px; line-height: 1.15; }
 .intro p { color: var(--ink-2); max-width: 46ch; }
 @media (min-width: 1024px) {
@@ -202,10 +240,11 @@ body[data-view="methods"] #methodsView { display: grid; }
 }
 .search { position: relative; display: block; }
 .search input {
-  width: 100%; height: 40px; border-radius: 6px; border: 1px solid var(--line-strong);
+  width: 100%; height: 44px; border-radius: 6px; border: 1px solid var(--ui-line);
   background: var(--bg); color: var(--ink); font: 16px var(--font); padding: 0 12px 0 36px;
 }
-.search svg { position: absolute; left: 11px; top: 11px; width: 18px; height: 18px; stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round; }
+.search input::placeholder { color: var(--muted); opacity: 1; }
+.search svg { position: absolute; left: 11px; top: 13px; width: 18px; height: 18px; stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round; }
 @media (min-width: 1024px) { .search input { font-size: 14px; height: 36px; } .search svg { top: 9px; } }
 .listhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .listhead .seg button { height: 30px; font-size: 13px; padding: 0 10px; }
@@ -214,11 +253,11 @@ body[data-view="methods"] #methodsView { display: grid; }
 .deckrow {
   display: grid; grid-template-columns: 1.6em minmax(0, 1fr) auto; align-items: center; gap: 10px;
   min-height: 56px; padding: 8px 8px 8px 4px; border: 0; border-top: 1px solid var(--line);
-  background: transparent; text-align: left; cursor: pointer; width: 100%;
+  background: transparent; text-align: left; cursor: pointer; width: 100%; color: inherit; text-decoration: none;
 }
 .deckrow:first-child { border-top: 0; }
-.deckrow:hover { background: var(--hover); }
-.deckrow[aria-current="true"] { background: var(--sunken); box-shadow: inset 2px 0 0 var(--ink); }
+.deckrow:hover, .deckrow.hl { background: var(--hover); }
+.deckrow[aria-current="page"] { background: var(--sunken); box-shadow: inset 2px 0 0 var(--ink); }
 .deckrow .name { font-size: 15px; font-weight: 600; line-height: 1.25; }
 /* Colors lead the second line, so deck names line up however many colors a deck has */
 .deckrow .meta { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; column-gap: 4px; margin-top: 2px; }
@@ -274,9 +313,9 @@ body[data-view="methods"] #methodsView { display: grid; }
   padding: 10px 0; border: 0; border-top: 1px solid var(--line); text-align: left; width: 100%; background: transparent;
 }
 .row:first-child { border-top: 0; }
-button.row { cursor: pointer; }
-button.row:hover { background: var(--hover); }
-button.row:hover .rname { text-decoration: underline; text-underline-offset: 3px; }
+a.row { cursor: pointer; color: inherit; text-decoration: none; }
+a.row:hover { background: var(--hover); }
+a.row:hover .rname { text-decoration: underline; text-underline-offset: 3px; }
 .rname { font-size: 15px; font-weight: 600; line-height: 1.25; min-width: 0; }
 .rsub { font-size: 13px; color: var(--muted); }
 .rval { display: flex; align-items: center; gap: 10px; justify-self: end; }
@@ -285,8 +324,8 @@ button.row:hover .rname { text-decoration: underline; text-underline-offset: 3px
 .row .ph { display: none; }
 .chev { width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .tag { font-size: 12px; font-weight: 600; white-space: nowrap; min-width: 2.6em; }
-.tag.clear.good { color: var(--good); }
-.tag.clear.bad { color: var(--bad); }
+.tag.clear.good { color: var(--good-ink); }
+.tag.clear.bad { color: var(--bad-ink); }
 .tag.lean { color: var(--muted); font-weight: 500; }
 .scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
 .row.scalerow { padding-top: 4px; border-top: 1px solid var(--line); }
@@ -304,32 +343,42 @@ button.row:hover .rname { text-decoration: underline; text-underline-offset: 3px
 /* Diverging bar: centre line = 50% (or 0 pts), fill to the value, whisker = 95% interval */
 .dbar { position: relative; height: 18px; }
 .dbar .track { position: absolute; left: 0; right: 0; top: 8px; height: 2px; background: var(--line); }
-.dbar .mid { position: absolute; left: 50%; top: 1px; bottom: 1px; width: 1px; background: var(--line-strong); }
+.dbar .mid { position: absolute; left: 50%; top: 1px; bottom: 1px; width: 1px; background: var(--ui-line); }
 .dbar .fill { position: absolute; top: 5px; height: 8px; border-radius: 2px; }
 .dbar .ci { position: absolute; top: 8px; height: 2px; background: currentColor; opacity: 0.6; }
 .dbar .ci::before, .dbar .ci::after { content: ""; position: absolute; top: -3px; width: 1.5px; height: 8px; background: currentColor; }
 .dbar .ci::before { left: 0; } .dbar .ci::after { right: 0; }
 .dbar.good { color: var(--good); } .dbar.good .fill { background: var(--good); }
 .dbar.bad { color: var(--bad); } .dbar.bad .fill { background: var(--bad); }
-.dbar.unsure .fill { opacity: 0.4; }
+/* Lean: an outline in the direction's colour instead of a solid fill */
+.dbar.unsure .fill { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }
 
+.deckrow .mini { width: 72px; }
+.empty.inset { margin: 12px; }
+.note.pad { padding: 8px 0; }
 .empty { padding: 14px; border-radius: 6px; background: var(--sunken); color: var(--ink-2); font-size: 14px; display: grid; gap: 10px; justify-items: start; }
 .linkbtn {
-  border: 0; background: none; padding: 4px 0; color: var(--good); font-weight: 500; cursor: pointer;
+  border: 0; background: none; padding: 4px 0; color: var(--good-ink); font-weight: 500; cursor: pointer;
   text-decoration: underline; text-underline-offset: 3px; text-align: left; justify-self: start;
 }
+.linkbtn.inline { padding: 0; }
 details.more > summary {
   list-style: none; cursor: pointer; padding: 10px 0 0; color: var(--ink-2); font-weight: 500; font-size: 14px;
 }
 details.more > summary::-webkit-details-marker { display: none; }
 details.more > summary::before { content: "+ "; }
 details.more[open] > summary::before { content: "− "; }
+details.lean > summary { padding-top: 0; }
+details.lean > summary .count { margin-left: 6px; font-weight: 400; color: var(--muted); font-size: 13px; }
+details.lean[open] > summary { margin-bottom: 4px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { padding: 4px 9px; border-radius: 4px; background: var(--sunken); font-size: 13px; }
+.chips.spaced { margin-top: 8px; }
+.chip { display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 4px; background: var(--sunken); font-size: 13px; }
 .chip b { font-variant-numeric: tabular-nums; font-weight: 600; margin-right: 4px; }
 .subhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding-bottom: 4px; border-bottom: 1px solid var(--line-strong); }
 .subhead h3 { font-size: 14px; }
-.subhead h3.good { color: var(--good); } .subhead h3.bad { color: var(--bad); }
+.subhead h3.good, .subhead h2.good { color: var(--good-ink); } .subhead h3.bad, .subhead h2.bad { color: var(--bad-ink); }
+.subhead h2 { font-size: 14px; }
 .subhead .count { font-size: 13px; color: var(--muted); }
 .group { display: grid; gap: 2px; }
 .group + .group { margin-top: 16px; }
@@ -342,8 +391,12 @@ details.more[open] > summary::before { content: "− "; }
 
 /* Metagame: a list of clear winners and losers above the deck list on phones, the chart beside it on desktop */
 .metachart { display: grid; gap: 14px; min-width: 0; }
+.metachart .hero h2 { font-size: 30px; line-height: 1.1; }
+@media (min-width: 1024px) { .metachart .hero h2 { font-size: 36px; } }
 #listView .metachart .hero { gap: 6px; }
-#listView .metachart h1 { font-size: 20px; }
+#listView .metachart .hero h2 { font-size: 20px; }
+/* Phones: while searching, the metagame block steps aside so the matching decks sit right under the search box */
+body.searching #listView .metachart { display: none; }
 #listView .metachart .legend { display: none; }
 .metasub { display: flex; flex-wrap: wrap; align-items: center; column-gap: 4px; margin-top: 2px; }
 .metasub span { white-space: nowrap; }
@@ -355,11 +408,13 @@ details.more[open] > summary::before { content: "− "; }
 .overview text { font: 12px var(--font); fill: var(--muted); font-variant-numeric: tabular-nums; }
 .overview .lbl { fill: var(--ink-2); }
 .overview .grid { stroke: var(--line); }
-.overview .axis50 { stroke: var(--line-strong); }
+.overview .axis50 { stroke: var(--ui-line); }
 .overview .pt { cursor: pointer; }
 .overview .pt:focus { outline: none; }
-.overview .pt:focus-visible .dot, .overview .pt:hover .dot { stroke: var(--ink); }
+.overview .pt:hover .dot, .overview .pt.hl .dot { stroke: var(--ink); }
 .overview .dot { stroke: var(--bg); stroke-width: 2; }
+.overview .ring { fill: none; stroke: none; }
+.overview .pt:focus-visible .ring { stroke: var(--focus); stroke-width: 2; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--ink-2); }
 .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
 .tip {
@@ -380,7 +435,12 @@ dialog.sheet::backdrop { background: rgba(10, 12, 15, 0.45); }
 .sheet-body h2 { font-size: 20px; }
 .field { display: grid; gap: 8px; }
 .field .seg { display: flex; }
-.field .seg button { flex: 1; height: 38px; }
+.field .seg button { flex: 1; height: 44px; }
+/* All notes share one cell and only the current one is visible, so the box is as tall as the longest
+   and the controls below don't move when the choice changes. */
+#scopeNote { display: grid; }
+#scopeNote span { grid-area: 1 / 1; visibility: hidden; }
+#scopeNote span.on { visibility: visible; }
 .cov { font-size: 14px; color: var(--ink-2); display: grid; gap: 4px; }
 .primary {
   height: 46px; border: 0; border-radius: 6px; background: var(--ink); color: var(--bg);
@@ -432,9 +492,22 @@ dialog.viewer.peek .cardimg { width: 100%; }
 dialog.viewer.peek .viewer-cap { background: rgba(17, 19, 23, 0.92); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 8px; padding: 8px 12px; gap: 4px; }
 dialog.viewer.peek .viewer-cap b { font-size: 16px; }
 dialog.viewer.peek .viewer-cap small { font-size: 11px; }
+/* Touch screens: every control at least 44px tall (card chips 40px, they are a dense cloud) */
+@media (max-width: 1023px) {
+  .chipbtn, .listhead .seg button, .seg button { height: 44px; }
+  .eye { width: 44px; height: 44px; margin: -12px -6px; }
+  .linkbtn { min-height: 44px; }
+  .linkbtn.inline { min-height: 0; }
+  details.more > summary { padding: 12px 0; }
+  button.chip, .chips .chip { min-height: 40px; }
+  .methods .toc a { display: inline-flex; align-items: center; min-height: 36px; }
+}
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
 </style>
+<!--/head-->
 
+<a class="skip" href="#decks" id="skipLink">Skip to content</a>
+<p class="sr-only" id="status" role="status" aria-live="polite"></p>
 <div class="bar" role="banner">
   <button class="iconbtn" id="backBtn" type="button" aria-label="Back" hidden>
     <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
@@ -446,6 +519,11 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
   <a class="barlink" id="methodsBarLink" href="#methods" aria-label="Methods: how every number is calculated">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>Methods</span>
   </a>
+  <button class="iconbtn themebtn" id="themeBtn" type="button">
+    <svg class="t-auto" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>
+    <svg class="t-light" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    <svg class="t-dark" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+  </button>
   <button class="chipbtn" id="filterBtn" type="button" aria-haspopup="dialog">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg><span id="filterLabel" class="long"></span><span id="filterShort" class="short"></span>
   </button>
@@ -454,12 +532,13 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
 <main class="app">
   <section class="view" id="listView" aria-label="Decks">
     <div class="intro">
-      <h1>Pick a deck</h1>
+      <h1 tabindex="-1">Pick a deck</h1>
       <p>MTG Pauper tournament results. See what a deck beats, what beats it, and which cards move its win rate.</p>
+      <p class="srcline" id="srcLine"></p>
     </div>
     <label class="search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
-      <input id="search" type="search" placeholder="Search decks" autocomplete="off" aria-label="Search decks">
+      <input id="search" type="search" placeholder="Search decks" autocomplete="off" aria-label="Search decks" aria-keyshortcuts="/">
     </label>
     <div class="listhead">
       <span class="label" id="listCount"></span>
@@ -471,21 +550,22 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       <ul>
         <li><b>Win rate</b> is match wins excluding mirrors, with draws as half a win.</li>
         <li>On every bar the centre line is 50% (or no difference). The whisker is the 95% interval: the range the true value most likely sits in.</li>
-        <li><b>Clear</b> means the whole interval is on one side of the line. <b>Lean</b> means it could still be even.</li>
+        <li><b>Clear</b> means the whole interval is on one side of the line. <b>Lean</b> means it could still be even. Headings such as "Good against" list only Clear results, in solid colour; Lean ones are outlined and folded under "Could go either way".</li>
+        <li><b>Share of lists</b> counts published decklists, which are mostly MTGO's winning lists. Win rates count matches, which come mostly from paper events. The line under the title says how the current view splits.</li>
         <li><b>Card effects</b> compare lists of the same deck with and without a card. They show what winning lists play, which isn't always what makes them win. With dozens of cards, about 1 in 20 can look Clear by chance.</li>
         <li><b>Online</b> is MTGO: many lists, but match results only from Challenge top 8s. <b>Paper</b> is Melee, CardsRealm and Topdeck, with every round, mostly from Italy and Brazil.</li>
       </ul>
       <button class="linkbtn" type="button" id="methodsLink">How every number is calculated</button>
-      <p class="muted" id="generated" style="font-size:13px"></p>
+      <p class="muted small" id="generated"></p>
     </div>
   </section>
 
-  <section class="view" id="deckView" aria-live="polite"></section>
-  <section class="view" id="matchView" aria-live="polite"></section>
+  <section class="view" id="deckView" aria-label="Deck"></section>
+  <section class="view" id="matchView" aria-label="Matchup"></section>
   <section class="view" id="emptyDetail" aria-labelledby="overviewTitle">
     <div class="metachart" id="metaChart">
       <div class="hero">
-        <h1 id="overviewTitle">Metagame</h1>
+        <h2 id="overviewTitle">Metagame</h2>
         <p class="note" id="overviewNote"></p>
       </div>
       <div class="overview" id="overview"></div>
@@ -499,16 +579,27 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
 
   <section class="view methods" id="methodsView" aria-labelledby="methodsTitle">
     <div class="intro">
-      <h1 id="methodsTitle">How every number is calculated</h1>
+      <h1 id="methodsTitle" tabindex="-1">How every number is calculated</h1>
       <p>The formulas behind each figure on this page, in the order you meet them. Values in <b>bold</b> are the settings this build used.</p>
-      <nav class="toc" aria-label="Sections">
+      <button class="linkbtn" type="button" id="methodsBack" hidden></button>
+    </div>
+    <section class="short" aria-labelledby="shortTitle">
+      <h2 id="shortTitle">The short version</h2>
+      <ul>
+        <li><b>Win rate</b> is the share of matches a deck wins against other decks, with draws as half a win.</li>
+        <li>Every figure has a <b>95% interval</b>: the range the true value most likely sits in. Small samples give wide intervals.</li>
+        <li><b>Clear</b> means the whole interval is on one side of 50% (or of no difference). <b>Lean</b> means it could still be even, so treat it as a hint, not a result.</li>
+        <li><b>Share of lists</b> and <b>win rate</b> come from different data: published lists are mostly MTGO, match results mostly paper. See Data sources.</li>
+        <li>With <b>pilot skill correction</b> on, a deck doesn't get credit for being played by strong players.</li>
+      </ul>
+    </section>
+    <nav class="toc" aria-label="Sections">
         <a href="#methods" data-jump="m-sources">Data sources</a><a href="#methods" data-jump="m-results">Results</a><a href="#methods" data-jump="m-share">Meta share</a>
         <a href="#methods" data-jump="m-winrate">Win rate</a><a href="#methods" data-jump="m-wilson">Intervals</a>
         <a href="#methods" data-jump="m-labels">Clear / Lean</a><a href="#methods" data-jump="m-cards">Cards</a>
         <a href="#methods" data-jump="m-pilot">Pilot skill</a><a href="#methods" data-jump="m-skill">Skill sensitivity</a>
         <a href="#methods" data-jump="m-thresholds">Thresholds</a><a href="#methods" data-jump="m-refs">References</a>
-      </nav>
-    </div>
+    </nav>
 
     <section class="card" id="m-sources">
       <h2>Data sources</h2>
@@ -561,6 +652,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       <h2>Clear and Lean</h2>
       <div class="eq">\[ \text{Clear} \iff L > c \ \text{ or } \ U < c \]</div>
       <p class="where">Otherwise Lean. \(c = 0.5\) for win rates and matchups, \(c = 0\) for card differences. Clear means the whole interval is on one side of the line. With dozens of cards, about 1 in 20 can look Clear by chance.</p>
+      <p>The labels decide how results are grouped. "Good against" and "Bad against" on a deck page, and "Lists with it win more" and "win less" for cards, hold only Clear results, drawn as solid bars. Lean results are drawn as outlined bars in a folded "Could go either way" group, which opens by itself when nothing in the section is Clear. Deck pages sort Clear matchups by how far the interval is from 50%: good ones by \(L\), bad ones by \(U\).</p>
       <p>In the reports, an archetype is flagged as <b>skewed</b> between online and paper when the two intervals don't overlap: \(L_\text{online} > U_\text{paper}\) or \(L_\text{paper} > U_\text{online}\).</p>
     </section>
 
@@ -651,7 +743,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
         <li>Efron, B. (1979). Bootstrap methods: another look at the jackknife. <em>The Annals of Statistics</em>, 7(1), 1–26. Used for: intervals of the pilot lift and skill sensitivity (resampling whole events).</li>
         <li>Badaro, MTGOArchetypeParser. Used for: archetype detection, ported to Python with the rules from MTGOFormatData.</li>
       </ul>
-      <p class="muted" style="font-size:13px">Formulas rendered with MathJax. If they show as plain TeX, the MathJax script couldn't load.</p>
+      <p class="muted small">Formulas rendered with MathJax. If they show as plain TeX, the MathJax script couldn't load.</p>
     </section>
   </section>
 </main>
@@ -674,7 +766,8 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       <p class="note" id="adjustNote"></p>
     </div>
     <div class="cov" id="sheetCov"></div>
-    <button class="primary" value="close">Show results</button>
+    <p class="srcline" id="sheetSrc"></p>
+    <button class="primary" value="close">Done</button>
   </form>
 </dialog>
 
@@ -745,7 +838,19 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
   const fmt = (n) => Number(n).toLocaleString("en-US");
   const pct = (x, d = 0) => x == null || isNaN(x) ? "–" : (x * 100).toFixed(d) + "%";
   const pts = (x) => x == null || isNaN(x) ? "–" : (x > 0.0005 ? "+" : x < -0.0005 ? "−" : "±") + Math.abs(x * 100).toFixed(0);
-  const ci = (lo, hi) => isNaN(lo) ? "–" : Math.round(lo * 100) + "–" + Math.round(hi * 100) + "%";
+  // A bound that rounds to exactly 50 but isn't 50 keeps a decimal, so a Clear interval never reads as touching 50%.
+  const bound = (x) => Math.round(x * 100) === 50 && Math.abs(x - 0.5) > 5e-5 ? (x * 100).toFixed(1) : String(Math.round(x * 100));
+  const ci = (lo, hi) => isNaN(lo) ? "–" : bound(lo) + "–" + bound(hi) + "%";
+  const ptsUnit = (x) => pts(x) + (Math.round(Math.abs(x * 100)) === 1 ? " pt" : " pts");
+  const possessive = (name) => name + (name.endsWith("s") ? "’" : "’s");
+  const COLOR_NAMES = { W: "white", U: "blue", B: "black", R: "red", G: "green", C: "colorless" };
+  const colorWords = (color) => !color || color === "C" ? "colorless" : color.split("").map((c) => COLOR_NAMES[c] || c).join("-");
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const day = (iso) => { const [y, m, d] = iso.split("-").map(Number); return [MONTHS[m - 1] + " " + d, y]; };
+  const dateRange = (since, until) => {
+    const [a, ya] = day(since), [b, yb] = day(until);
+    return ya === yb ? a + " – " + b + ", " + yb : a + ", " + ya + " – " + b + ", " + yb;
+  };
   const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const record = (w, n) => { const f = (x) => Number.isInteger(x) ? x : x.toFixed(1); return f(w) + "–" + f(n - w); };
 
@@ -907,41 +1012,90 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
   $("#viewer").addEventListener("click", (e) => { if (!e.target.closest("a")) closeViewer(); });
   function cardChip(name, ...content) {
     if (!hasImage(name)) return h("span", { class: "chip" }, ...content);
-    return h("button", { class: "chip", type: "button", "aria-label": "Show card image: " + name, onclick: (e) => showCard(name, e) }, ...content, eyeIcon());
+    // The visible text (copies, play rate) stays the accessible name; "show image" is added for screen readers.
+    return h("button", { class: "chip", type: "button", onclick: (e) => showCard(name, e) }, ...content, h("span", { class: "sr-only" }, ", show card image"), eyeIcon());
   }
 
   // ---------- navigation ----------
-  function go(view, deck, opp, push = true) {
+  const hashOf = (view, deck, opp) => view === "deck" ? "#d-" + slug(deck) : view === "match" ? "#m-" + slug(deck) + "~" + slug(opp)
+    : view === "methods" ? "#methods" : "#decks";
+  // Where Methods was opened from, so its back button returns there.
+  let methodsFrom = null;
+  function go(view, deck, opp, push = true, focus = true) {
+    if (view === "methods" && state.view !== "methods") methodsFrom = state.view === "list" ? null : { view: state.view, deck: state.deck, opp: state.opp };
     state.view = view; state.deck = deck || null; state.opp = opp || null;
     if (push) {
-      const hash = view === "deck" ? "#d-" + slug(deck) : view === "match" ? "#m-" + slug(deck) + "~" + slug(opp)
-        : view === "methods" ? "#methods" : "#decks";
-      try { history.pushState(null, "", hash); } catch (e) { /* history unavailable in this frame */ }
+      try { history.pushState(null, "", hashOf(view, deck, opp)); } catch (e) { /* history unavailable in this frame */ }
     }
     render();
     window.scrollTo(0, 0);
+    if (focus) focusView();
   }
-  function fromHash() {
+  // After a page change, focus the new page's heading so keyboard and screen-reader users start there.
+  function focusView() {
+    const h1 = state.view === "list" ? $("#listView .intro h1") : $({ deck: "#deckView", match: "#matchView", methods: "#methodsView" }[state.view] + " h1");
+    if (!h1) return;
+    h1.setAttribute("tabindex", "-1");
+    h1.focus({ preventScroll: true });
+  }
+  const backTarget = () => state.view === "methods" && methodsFrom ? methodsFrom
+    : state.view === "match" ? { view: "deck", deck: state.deck } : { view: "list" };
+  const backLabel = (t) => t.view === "match" ? t.deck + " vs " + t.opp : t.view === "deck" ? t.deck : "all decks";
+  const goBack = () => { const t = backTarget(); go(t.view, t.deck, t.opp); };
+  function fromHash(focus) {
     let hash = "";
     try { hash = decodeURIComponent(location.hash.slice(1)); } catch (e) { hash = ""; }
     const all = decks(), find = (s) => (all.find((d) => slug(d.name) === s) || {}).name;
-    if (hash === "methods") return go("methods", null, null, false);
-    if (hash.startsWith("d-") && find(hash.slice(2))) return go("deck", find(hash.slice(2)), null, false);
+    if (hash === "methods") return go("methods", null, null, false, focus);
+    if (hash.startsWith("d-") && find(hash.slice(2))) return go("deck", find(hash.slice(2)), null, false, focus);
     if (hash.startsWith("m-")) {
       const [a, b] = hash.slice(2).split("~");
-      if (find(a) && find(b)) return go("match", find(a), find(b), false);
+      if (find(a) && find(b)) return go("match", find(a), find(b), false, focus);
     }
-    go("list", null, null, false);
+    go("list", null, null, false, focus);
   }
-  window.addEventListener("popstate", fromHash);
-  $("#backBtn").addEventListener("click", () => { if (state.view === "match") go("deck", state.deck); else go("list"); });
+  window.addEventListener("popstate", () => fromHash(true));
+  $("#backBtn").addEventListener("click", goBack);
+  $("#methodsBack").addEventListener("click", goBack);
   // Plain clicks navigate in place; modified clicks keep the link's own behavior (new tab etc.).
   const navLink = (el, to) => el.addEventListener("click", (e) => {
     if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     e.preventDefault(); to();
   });
+  // A real link (so it can open in a new tab or be copied) that navigates in place on a plain click.
+  function navA(attrs, to, ...kids) { const a = h("a", attrs, ...kids); navLink(a, to); return a; }
   navLink($("#homeLink"), () => go("list"));
   navLink($("#methodsBarLink"), () => go("methods"));
+  $("#skipLink").addEventListener("click", (e) => { e.preventDefault(); focusView(); });
+  // "/" jumps to the deck search, as on most sites with a search box.
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || e.target.closest("input, textarea, select, [contenteditable]") || document.querySelector("dialog[open]")) return;
+    e.preventDefault();
+    if (state.view === "methods" || (!wide.matches && state.view !== "list")) go("list", null, null, true, false);
+    $("#search").focus();
+  });
+
+  // Screen readers hear one short line after a change, instead of the whole re-rendered page.
+  function announce(msg) {
+    const s = $("#status");
+    s.textContent = "";
+    setTimeout(() => { s.textContent = msg; }, 50);
+  }
+
+  // Theme: same as the device, light or dark. The choice is remembered in this browser.
+  const THEME_NAMES = { auto: "same as device", light: "light", dark: "dark" };
+  let theme = store.get("theme", "auto");
+  function applyTheme() {
+    if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+    else { theme = "auto"; delete document.documentElement.dataset.theme; }
+    const label = "Theme: " + THEME_NAMES[theme] + ". Switch theme";
+    $("#themeBtn").setAttribute("aria-label", label); $("#themeBtn").title = label;
+  }
+  $("#themeBtn").addEventListener("click", () => {
+    theme = { auto: "light", light: "dark", dark: "auto" }[theme] || "auto";
+    store.set("theme", theme); applyTheme(); announce("Theme: " + THEME_NAMES[theme]);
+  });
+  applyTheme();
   // Desktop breadcrumbs after the brand: deck, then matchup or methods. The last one is the current page.
   function renderCrumbs() {
     const trail = state.view === "deck" ? [[state.deck]]
@@ -956,9 +1110,25 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
   }
 
   // ---------- filters ----------
+  // Segmented control. The buttons are built once and then only their pressed state changes,
+  // so the button you just pressed keeps keyboard focus.
   function seg(container, options, current, onPick) {
-    container.replaceChildren(...options.map(([v, label]) =>
-      h("button", { type: "button", "aria-pressed": String(v === current), onclick: () => onPick(v) }, label)));
+    container._pick = onPick;
+    let btns = [...container.children];
+    if (btns.length !== options.length || btns.some((b, k) => b.dataset.v !== String(options[k][0]))) {
+      btns = options.map(([v, label]) => h("button", { type: "button", "data-v": String(v), onclick: () => container._pick(v) }, label));
+      container.replaceChildren(...btns);
+    }
+    btns.forEach((b, k) => b.setAttribute("aria-pressed", String(options[k][0] === current)));
+  }
+  // One place for filter changes: apply, redraw, and say what the view now holds.
+  function changeFilter(apply) {
+    apply();
+    const sheet = $("#filterSheet");
+    if (sheet.open) { renderSheet(); sheet.style.minHeight = sheet.offsetHeight + "px"; }
+    render();
+    const n = decks().length, c = scope().coverage;
+    announce($("#filterLabel").textContent + ": " + n + " decks, " + fmt(c.matches) + " matches");
   }
   function setPeriod(v) { state.period = v; store.set("period", v); }
   function setScope(v) { state.scope = v; store.set("scope", v); }
@@ -972,36 +1142,70 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     ? "Win rates without the edge of stronger or weaker pilots. Player ratings come from the last 12 months of results (" + fmt((scope().pilot || {}).rated || 0) + " players with 10+ matches). Players are never shown."
     : "Plain results. A deck favored by strong players looks better than it is.";
   function renderSheet() {
-    seg($("#periodSeg"), periodOpts(), state.period, (v) => { setPeriod(v); renderSheet(); render(); });
-    seg($("#scopeSeg"), Object.entries(SCOPES), state.scope, (v) => { setScope(v); renderSheet(); render(); });
-    $("#scopeNote").textContent = SCOPE_NOTES[state.scope];
-    seg($("#adjustSeg"), ADJUST_OPTS, state.adjust, (v) => { setAdjust(v); renderSheet(); render(); });
+    seg($("#periodSeg"), periodOpts(), state.period, (v) => changeFilter(() => setPeriod(v)));
+    seg($("#scopeSeg"), Object.entries(SCOPES), state.scope, (v) => changeFilter(() => setScope(v)));
+    const notes = $("#scopeNote");
+    if (!notes.children.length) notes.replaceChildren(...Object.entries(SCOPE_NOTES).map(([k, v]) => h("span", { "data-v": k }, v)));
+    [...notes.children].forEach((s) => s.classList.toggle("on", s.dataset.v === state.scope));
+    seg($("#adjustSeg"), ADJUST_OPTS, state.adjust, (v) => changeFilter(() => setAdjust(v)));
     $("#adjustNote").textContent = adjustNote();
     const p = DATA.periods[state.period], c = scope().coverage;
     $("#sheetCov").replaceChildren(
       h("div", null, h("b", { class: "num" }, fmt(c.matches)), " matches with results, ", h("b", { class: "num" }, fmt(c.decks)), " decklists, ", fmt(c.events), " events"),
-      h("div", { class: "muted" }, p.since + " to " + p.until + ". Matches by source: " + (c.by_source.map((s) => s.source + " " + fmt(s.matches)).join(", ") || "none") + "."));
+      h("div", { class: "muted" }, dateRange(p.since, p.until) + ". Matches by source: " + (c.by_source.map((s) => s.source + " " + fmt(s.matches)).join(", ") || "none") + "."));
+    $("#sheetSrc").replaceChildren(...sourceSplit());
   }
+  // The top-bar filters are built once; later renders only update which button is pressed.
+  let bar = null;
   function renderBarFilters() {
-    const group = (label, title, opts, current, pick) => {
-      const s = h("div", { class: "seg", role: "group", "aria-label": typeof label === "string" ? label : label[0].textContent });
-      seg(s, opts, current, (v) => { pick(v); render(); });
-      return h("div", { class: "grp", title }, h("span", { class: "label" }, label), s);
-    };
+    if (!bar) {
+      const group = (label, ariaLabel) => {
+        const s = h("div", { class: "seg", role: "group", "aria-label": ariaLabel });
+        return [h("div", { class: "grp" }, h("span", { class: "label" }, label), s), s];
+      };
+      const [periodGrp, period] = group("Period", "Period");
+      const [scopeGrp, scopeS] = group("Events", "Events");
+      const [adjustGrp, adjust] = group([h("span", { class: "wide-only" }, "Correct for pilot skill"), h("span", { class: "narrow-only" }, "Pilot skill")], "Correct for pilot skill");
+      periodGrp.title = "Results from the last 30, 90 or 180 days";
+      bar = { period, scope: scopeS, adjust, scopeGrp, adjustGrp };
+      $("#barFilters").replaceChildren(periodGrp, scopeGrp, ...(HAS_PILOT ? [adjustGrp] : []));
+    }
     const short = Object.keys(DATA.periods).map((k) => [k, k.replace("d", " days")]);
-    $("#barFilters").replaceChildren(
-      group("Period", "Results from the last 30, 90 or 180 days", short, state.period, setPeriod),
-      group("Events", SCOPE_NOTES[state.scope], [["combined", "All"], ["paper", "Paper"], ["online", "Online"]], state.scope, setScope),
-      ...(HAS_PILOT ? [group([h("span", { class: "wide-only" }, "Correct for pilot skill"), h("span", { class: "narrow-only" }, "Pilot skill")],
-        adjustNote(), ADJUST_OPTS, state.adjust, setAdjust)] : []));
+    seg(bar.period, short, state.period, (v) => changeFilter(() => setPeriod(v)));
+    seg(bar.scope, [["combined", "All"], ["paper", "Paper"], ["online", "Online"]], state.scope, (v) => changeFilter(() => setScope(v)));
+    seg(bar.adjust, ADJUST_OPTS, state.adjust, (v) => changeFilter(() => setAdjust(v)));
+    bar.scopeGrp.title = SCOPE_NOTES[state.scope];
+    bar.adjustGrp.title = adjustNote();
+  }
+  // Meta share and win rates come from different sources: say how the current view splits.
+  function sourceSplit() {
+    const rows = scope().coverage.by_source || [], online = new Set(((DATA.sources || {}).scopes || {}).online || []);
+    const part = (k) => {
+      const all = rows.reduce((a, r) => a + (r[k] || 0), 0);
+      return all ? rows.reduce((a, r) => a + (online.has(r.source) ? r[k] || 0 : 0), 0) / all : null;
+    };
+    const lists = part("decks"), games = part("winrate");
+    if (lists == null || games == null || !online.size) return [];
+    const where = (x) => x >= 0.5 ? pct(x) + " MTGO" : pct(1 - x) + " paper";
+    if ((lists === 1 || lists === 0) && lists === games) return ["All lists and results in this view are from " + (lists ? "MTGO." : "paper events.")];
+    return ["Share of lists: ", h("b", null, where(lists)), ". Win rates: ", h("b", null, where(games)), "."];
   }
   $("#filterBtn").addEventListener("click", () => {
     renderSheet();
     const d = $("#filterSheet");
+    d.style.minHeight = "";
     if (typeof d.showModal === "function") d.showModal(); else d.setAttribute("open", "");
+    // The sheet sits on the bottom edge, so a shorter text would pull every control down under the finger.
+    // Holding its opening height keeps the buttons in place while you change filters.
+    d.style.minHeight = d.offsetHeight + "px";
   });
   $("#filterSheet").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
-  $("#search").addEventListener("input", (e) => { state.q = e.target.value.trim().toLowerCase(); renderList(); });
+  $("#search").addEventListener("input", (e) => {
+    state.q = e.target.value.trim().toLowerCase();
+    document.body.classList.toggle("searching", !!state.q);
+    renderList();
+    announce($("#listCount").textContent);
+  });
 
   // ---------- list view ----------
   function renderList() {
@@ -1014,29 +1218,45 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     if (state.q) rows = rows.filter((d) => d.name.toLowerCase().includes(state.q));
     $("#listCount").textContent = rows.length + (rows.length === 1 ? " deck" : " decks");
     const list = $("#deckList");
-    if (!rows.length) { list.replaceChildren(h("div", { class: "empty", style: "margin:12px" }, "No deck matches “" + state.q + "”.")); return; }
+    if (!rows.length) { list.replaceChildren(h("div", { class: "empty inset" }, "No deck matches “" + state.q + "”.")); return; }
     list.replaceChildren(...rows.map((d) => {
       const wr = h("div", { class: "wr" }, h("b", { class: "num" }, d.matches ? pct(d.wr) : "–"));
-      if (d.matches) wr.append(h("div", { style: "width:72px" }, dbar(d.wr, d.lo, d.hi, 0.5, 0.2)));
-      return h("button", {
-        class: "deckrow", type: "button", "aria-current": String(d.name === state.deck),
-        "aria-label": d.name + ", " + pct(d.share, 1) + " of decks, win rate " + (d.matches ? pct(d.wr) : "unknown"),
-        onclick: () => go("deck", d.name),
-      },
+      if (d.matches) wr.append(h("div", { class: "mini" }, dbar(d.wr, d.lo, d.hi, 0.5, 0.2)));
+      return navA({
+        class: "deckrow", href: hashOf("deck", d.name), "data-deck": d.name, "aria-current": d.name === state.deck ? "page" : null,
+        "aria-label": d.name + " (" + colorWords(d.color) + "), " + pct(d.share, 1) + " of published lists, win rate " + (d.matches ? pct(d.wr) : "unknown"),
+      }, () => go("deck", d.name),
       h("span", { class: "rank num" }, pos.get(d.name)),
-      h("div", { style: "min-width:0" },
+      h("div", { class: "minw0" },
         h("div", { class: "name" }, d.name),
-        h("div", { class: "meta num" }, mana(d.color), h("span", null, pct(d.share, 1) + " of decks,"), h("span", null, fmt(d.matches) + " matches"))),
+        h("div", { class: "meta num" }, mana(d.color), h("span", null, pct(d.share, 1) + " of lists,"), h("span", null, fmt(d.matches) + " matches"))),
       wr);
     }));
   }
+  // Pointing at a deck in the list marks its dot in the chart, and the other way round.
+  function highlight(name) {
+    document.querySelectorAll("#deckList .deckrow").forEach((r) => r.classList.toggle("hl", r.dataset.deck === name));
+    document.querySelectorAll("#overview .pt").forEach((p) => p.classList.toggle("hl", p.dataset.deck === name));
+  }
+  for (const ev of ["mouseover", "focusin"]) {
+    $("#deckList").addEventListener(ev, (e) => { const r = e.target.closest(".deckrow"); if (r && state.view === "list") highlight(r.dataset.deck); });
+  }
+  $("#deckList").addEventListener("mouseleave", () => highlight(null));
+  $("#deckList").addEventListener("focusout", () => highlight(null));
 
   // ---------- shared pieces ----------
   function suggestMore(parent, why) {
     const box = h("div", { class: "empty" }, h("span", null, why));
-    if (state.period !== "180d") box.append(h("button", { class: "linkbtn", type: "button", onclick: () => { setPeriod("180d"); render(); } }, "Use 180 days of data"));
-    if (state.scope === "online") box.append(h("button", { class: "linkbtn", type: "button", onclick: () => { setScope("combined"); render(); } }, "Include paper events"));
+    if (state.period !== "180d") box.append(h("button", { class: "linkbtn", type: "button", onclick: () => changeFilter(() => setPeriod("180d")) }, "Use 180 days of data"));
+    if (state.scope !== "combined") box.append(h("button", { class: "linkbtn", type: "button", onclick: () => changeFilter(() => setScope("combined")) }, "Use all events"));
     parent.append(box);
+    return box;
+  }
+  // Lean results: folded away under one heading, open by itself when nothing in the section is Clear.
+  function leanGroup(items, noun, row, open) {
+    return h("details", { class: "more lean", open: open || null },
+      h("summary", null, "Could go either way", h("span", { class: "count" }, items.length + " " + noun + (items.length === 1 ? "" : "s"))),
+      h("div", { class: "rows" }, items.map(row)));
   }
   function boardToggle(onChange) {
     const s = h("div", { class: "seg", role: "group", "aria-label": "Main deck or sideboard" });
@@ -1046,8 +1266,9 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
   }
   function matchupRow(deck, m) {
     const good = m.wr >= 0.5, sure = m.lo > 0.5 || m.hi < 0.5;
-    return h("button", { class: "row", type: "button", onclick: () => go("match", deck.name, m.opp.name),
-      "aria-label": deck.name + " against " + m.opp.name + ": " + pct(m.wr) + " in " + m.n + " matches, " + (sure ? "clear" : "could be even") },
+    return navA({ class: "row", href: hashOf("match", deck.name, m.opp.name),
+      "aria-label": deck.name + " against " + m.opp.name + " (" + colorWords(m.opp.color) + "): " + pct(m.wr) + " in " + m.n + " matches, 95% interval " + ci(m.lo, m.hi) + ", " + (sure ? "clear" : "could be even") },
+      () => go("match", deck.name, m.opp.name),
       h("div", { class: "deckcell" }, mana(m.opp.color), h("div", null,
         h("div", { class: "rname" }, m.opp.name),
         h("div", { class: "rsub num" }, record(m.wins, m.n) + " in " + fmt(m.n) + " matches"))),
@@ -1057,18 +1278,23 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
   function cardRow(r, context) {
     const good = r.delta >= 0, sure = r.lo > 0 || r.hi < 0;
     return h("div", { class: "row" },
-      h("div", { style: "min-width:0" }, h("div", { class: "cardname" }, h("span", { class: "rname" }, r.card), eyeButton(r.card)), h("div", { class: "rsub num" }, context)),
+      h("div", { class: "minw0" }, h("div", { class: "cardname" }, h("span", { class: "rname" }, r.card), eyeButton(r.card)), h("div", { class: "rsub num" }, context)),
       h("div", { class: "rval" }, tag(sure, good), h("b", { class: "num" }, pts(r.delta))),
       h("div", { class: "rbar" }, dbar(r.delta, r.lo, r.hi, 0, 0.3)),
       h("div", { class: "compare num" }, "With it " + pct(r.wrW) + " in " + fmt(r.nW) + " matches (" + r.dW + " lists), without " + pct(r.wrWo) + " in " + fmt(r.nWo) + " (" + r.dWo + " lists)"));
   }
-  function effectGroups(body, rows, ctx, suffix) {
-    const helps = rows.filter((r) => r.delta >= 0).sort((a, b) => b.delta - a.delta);
-    const hurts = rows.filter((r) => r.delta < 0).sort((a, b) => a.delta - b.delta);
-    if (helps.length) body.append(h("div", { class: "group" }, h("div", { class: "subhead" }, h("h3", { class: "good" }, "Lists with it win more" + suffix)),
+  // Only Clear differences get the "win more / win less" headings; the rest could go either way.
+  function effectGroups(body, rows, ctx, suffix, noneClear) {
+    const helps = rows.filter((r) => r.lo > 0).sort((a, b) => b.delta - a.delta);
+    const hurts = rows.filter((r) => r.hi < 0).sort((a, b) => a.delta - b.delta);
+    const lean = rows.filter((r) => !(r.lo > 0 || r.hi < 0)).sort((a, b) => b.delta - a.delta);
+    const count = (n) => n + (n === 1 ? " card" : " cards");
+    if (helps.length) body.append(h("div", { class: "group" }, h("div", { class: "subhead" }, h("h3", { class: "good" }, "Lists with it win more" + suffix), h("span", { class: "count" }, count(helps.length))),
       h("div", { class: "rows" }, helps.map((r) => cardRow(r, ctx(r))))));
-    if (hurts.length) body.append(h("div", { class: "group" }, h("div", { class: "subhead" }, h("h3", { class: "bad" }, "Lists with it win less" + suffix)),
+    if (hurts.length) body.append(h("div", { class: "group" }, h("div", { class: "subhead" }, h("h3", { class: "bad" }, "Lists with it win less" + suffix), h("span", { class: "count" }, count(hurts.length))),
       h("div", { class: "rows" }, hurts.map((r) => cardRow(r, ctx(r))))));
+    if (rows.length && !helps.length && !hurts.length) body.append(h("p", { class: "note" }, noneClear));
+    if (lean.length) body.append(leanGroup(lean, "card", (r) => cardRow(r, ctx(r)), !helps.length && !hurts.length));
     if (rows.length) body.append(scaleRow("−30 pts", "0", "+30 pts"));
   }
   // Axis labels under a group of bars, lined up with the bar column.
@@ -1077,7 +1303,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
 
   // ---------- deck view ----------
   function cardSection(deck) {
-    const body = h("div", { style: "display:grid;gap:8px" });
+    const body = h("div", { class: "stack" });
     const draw = () => {
       body.replaceChildren();
       const rows = cardRows(deck, state.board);
@@ -1086,12 +1312,13 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       const core = rows.filter((r) => r.delta == null && r.play >= CORE_PLAY);
       const rare = rows.filter((r) => r.delta == null && r.play < CORE_PLAY);
       if (!compared.length) suggestMore(body, "Not enough lists with and without each card (" + T.overall.min_decks + "+ lists and " + T.overall.min_matches + "+ matches on each side) to compare them yet.");
-      effectGroups(body, compared, (r) => "In " + pct(r.play) + " of lists, " + r.copies.toFixed(1) + " copies on average", "");
+      effectGroups(body, compared, (r) => "In " + pct(r.play) + " of lists, " + r.copies.toFixed(1) + " copies on average", "",
+        "No card clearly changes " + possessive(deck.name) + " win rate in this view. The differences below could be chance.");
       if (core.length) body.append(h("div", { class: "group" }, h("div", { class: "subhead" }, h("h3", null, "Core cards")),
         h("p", { class: "note" }, "In almost every list, so there's nothing to compare them against."),
         h("div", { class: "chips" }, core.map((r) => cardChip(r.card, h("b", null, Math.round(r.copies)), r.card)))));
-      if (rare.length) body.append(h("details", { class: "more" }, h("summary", null, rare.length + " more cards in too few lists to compare"),
-        h("div", { class: "chips", style: "margin-top:8px" }, rare.map((r) => cardChip(r.card, r.card + " " + pct(r.play))))));
+      if (rare.length) body.append(h("details", { class: "more" }, h("summary", null, rare.length + (rare.length === 1 ? " more card" : " more cards") + " in too few lists to compare"),
+        h("div", { class: "chips spaced" }, rare.map((r) => cardChip(r.card, r.card + " " + pct(r.play))))));
     };
     draw();
     return h("section", { class: "card" }, h("header", null, h("h2", null, "Cards that move the win rate"),
@@ -1102,7 +1329,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
   function pilotNote(x) {
     if (!HAS_PILOT || x.raw == null) return null;
     if (!state.adjust) return h("p", { class: "note" }, "Not corrected for pilot skill: a deck favored by strong players looks better than it is. ",
-      h("button", { class: "linkbtn", type: "button", style: "padding:0", onclick: () => { setAdjust(true); render(); } }, "Correct for pilot skill"));
+      h("button", { class: "linkbtn inline", type: "button", onclick: () => changeFilter(() => setAdjust(true)) }, "Correct for pilot skill"));
     if (x.lift == null) return h("p", { class: "note" }, "No pilot-skill correction is available for these matches.");
     const n = Math.round(Math.abs(x.lift * 100));
     const size = n < 1 ? "less than 1 point" : n + (n === 1 ? " point" : " points");
@@ -1129,33 +1356,36 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     const view = $("#deckView");
     const deck = deckByName(state.deck);
     if (!deck) {
-      view.replaceChildren(h("div", { class: "empty" }, h("span", null, state.deck + " isn't among the top decks in this view."),
-        h("button", { class: "linkbtn", type: "button", onclick: () => go("list") }, "Back to all decks")));
+      const box = suggestMore(view, state.deck + " isn't among the top decks in this view.");
+      box.append(h("button", { class: "linkbtn", type: "button", onclick: () => go("list") }, "Back to all decks"));
+      view.replaceChildren(h("h1", { class: "sr-only" }, state.deck), box);
       return;
     }
     const mus = matchups(deck);
     const enough = mus.filter((m) => m.n >= MIN_MU), few = mus.filter((m) => m.n < MIN_MU);
-    const good = enough.filter((m) => m.wr >= 0.5).sort((a, b) => b.lo - a.lo);
-    const bad = enough.filter((m) => m.wr < 0.5).sort((a, b) => a.hi - b.hi);
-    const clearGood = good.filter((m) => m.lo > 0.5).length, clearBad = bad.filter((m) => m.hi < 0.5).length;
+    const good = enough.filter((m) => m.lo > 0.5).sort((a, b) => b.lo - a.lo);
+    const bad = enough.filter((m) => m.hi < 0.5).sort((a, b) => a.hi - b.hi);
+    const lean = enough.filter((m) => !(m.lo > 0.5 || m.hi < 0.5)).sort((a, b) => b.wr - a.wr);
 
+    // The verdict comes right after the numbers; the notes on pilots and skill follow it.
     const hero = h("section", { class: "hero" });
     hero.append(
       h("div", { class: "title" }, mana(deck.color, true), h("h1", null, deck.name)),
       h("div", { class: "stats" },
         h("div", { class: "stat" }, h("b", { class: "num" }, deck.matches ? pct(deck.wr) : "–"), h("span", null, deck.matches ? "win rate, " + ci(deck.lo, deck.hi) : "no matches")),
-        h("div", { class: "stat" }, h("b", { class: "num" }, pct(deck.share, 1)), h("span", null, "of decklists")),
+        h("div", { class: "stat" }, h("b", { class: "num" }, pct(deck.share, 1)), h("span", null, "of published lists")),
         h("div", { class: "stat" }, h("b", { class: "num" }, fmt(deck.matches)), h("span", null, "matches"))),
-      pilotNote(deck) || "",
-      skillNote(deck),
       h("p", { class: "verdict" }, enough.length
-        ? ["Clearly ahead against ", h("b", null, String(clearGood)), clearGood === 1 ? " deck" : " decks", " and clearly behind against ", h("b", null, String(clearBad)), ". ",
-           String(enough.length - clearGood - clearBad), " more matchups lean one way but could still be even."]
-        : "Not enough matches against other top decks yet."));
+        ? ["Clearly ahead against ", h("b", null, String(good.length)), good.length === 1 ? " deck" : " decks", " and clearly behind against ", h("b", null, String(bad.length)), ". ",
+           String(lean.length), lean.length === 1 ? " more matchup could go either way." : " more matchups could go either way."]
+        : "Not enough matches against other top decks yet."),
+      pilotNote(deck) || "",
+      skillNote(deck));
 
     const muSec = h("section", { class: "card" }, h("header", null, h("h2", null, "Matchups"),
       h("p", { class: "note" }, "Most certain results first. Open a matchup for the cards that matter in it.")));
     if (!enough.length) suggestMore(muSec, "No matchup has " + MIN_MU + " or more matches in this view.");
+    else if (!good.length && !bad.length) muSec.append(h("p", { class: "note" }, "No matchup is clear in this view yet: every one could still be even."));
     const SHOW = 5;
     const listGroup = (title, cls, items) => {
       const g = h("div", { class: "group" },
@@ -1168,9 +1398,10 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     };
     if (good.length) muSec.append(listGroup("Good against", "good", good));
     if (bad.length) muSec.append(listGroup("Bad against", "bad", bad));
+    if (lean.length) muSec.append(leanGroup(lean, "deck", (m) => matchupRow(deck, m), !good.length && !bad.length));
     if (enough.length) muSec.append(scaleRow("15%", "50%", "85%"));
     if (few.length) muSec.append(h("details", { class: "more" }, h("summary", null, few.length + " matchups with fewer than " + MIN_MU + " matches"),
-      h("div", { class: "chips", style: "margin-top:8px" }, few.sort((a, b) => b.n - a.n).map((m) => h("span", { class: "chip" }, m.opp.name + " " + record(m.wins, m.n))))));
+      h("div", { class: "chips spaced" }, few.sort((a, b) => b.n - a.n).map((m) => h("span", { class: "chip" }, m.opp.name + " " + record(m.wins, m.n))))));
 
     view.replaceChildren(hero, muSec, cardSection(deck));
   }
@@ -1181,8 +1412,9 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     const deck = deckByName(state.deck), opp = deckByName(state.opp);
     const m = deck && opp ? matchups(deck).find((x) => x.opp.name === opp.name) : null;
     if (!m) {
-      view.replaceChildren(h("div", { class: "empty" }, h("span", null, "No matches between " + state.deck + " and " + state.opp + " in this view."),
-        h("button", { class: "linkbtn", type: "button", onclick: () => (deck ? go("deck", state.deck) : go("list")) }, "Back")));
+      const box = suggestMore(view, "No matches between " + state.deck + " and " + state.opp + " in this view.");
+      box.append(h("button", { class: "linkbtn", type: "button", onclick: () => (deck ? go("deck", state.deck) : go("list")) }, deck ? "Back to " + state.deck : "Back to all decks"));
+      view.replaceChildren(h("h1", { class: "sr-only" }, state.deck + " vs " + state.opp), box);
       return;
     }
     const good = m.wr >= 0.5, sure = m.lo > 0.5 || m.hi < 0.5;
@@ -1198,9 +1430,9 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       dbar(m.wr, m.lo, m.hi, 0.5, 0.35, verdict),
       pilotNote(m) || "",
       h("p", { class: "verdict" }, h("b", null, verdict + "."), " " + deck.name + " won " + record(m.wins, m.n) + " in " + m.n + " matches."),
-      h("button", { class: "linkbtn", type: "button", onclick: () => go("match", opp.name, deck.name) }, "See it from " + opp.name + "’s side"));
+      navA({ class: "linkbtn", href: hashOf("match", opp.name, deck.name) }, () => go("match", opp.name, deck.name), "See it from " + possessive(opp.name) + " side"));
 
-    const body = h("div", { style: "display:grid;gap:8px" });
+    const body = h("div", { class: "stack" });
     const draw = () => {
       body.replaceChildren();
       const overall = new Map((cardRows(deck, state.board) || []).map((r) => [r.card, r]));
@@ -1213,8 +1445,8 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       }
       effectGroups(body, rows, (r) => {
         const o = overall.get(r.card);
-        return o && o.delta != null ? "Across all matchups: " + pts(o.delta) + " pts" : o ? "In " + pct(o.play) + " of lists" : "";
-      }, " here");
+        return o && o.delta != null ? "Across all matchups: " + ptsUnit(o.delta) : o ? "In " + pct(o.play) + " of lists" : "";
+      }, " here", "No card clearly changes the result of this matchup in this view. The differences below could be chance.");
     };
     draw();
     const sec = h("section", { class: "card" }, h("header", null, h("h2", null, "Cards in this matchup"),
@@ -1232,8 +1464,8 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     if (!wide.matches) return renderMetaList(box, rows);
     $("#overviewNote").textContent = "Meta share against win rate for the " + rows.length + " decks with " + SORT_MIN +
       "+ matches. Whiskers are 95% intervals. Click a dot to open the deck.";
-    if (!rows.length) { box.replaceChildren(h("div", { class: "empty" }, "No deck has " + SORT_MIN + " or more matches in this view.")); return; }
-    const H = Math.max(360, Math.min(Math.max(520, innerHeight - 280), Math.round(W * 0.55))), m = { l: 44, r: 20, t: 26, b: 34 };
+    if (!rows.length) { box.replaceChildren(); suggestMore(box, "No deck has " + SORT_MIN + " or more matches in this view."); return; }
+    const H =Math.max(360, Math.min(Math.max(520, innerHeight - 280), Math.round(W * 0.55))), m = { l: 44, r: 20, t: 26, b: 34 };
     const lx = rows.map((d) => Math.log(d.share)), x0 = Math.min(...lx) - 0.15, x1 = Math.max(...lx) + 0.15;
     const y0 = Math.floor(Math.min(0.45, ...rows.map((d) => d.lo)) * 20) / 20, y1 = Math.ceil(Math.max(0.55, ...rows.map((d) => d.hi)) * 20) / 20;
     const X = (s) => m.l + (Math.log(s) - x0) / (x1 - x0) * (W - m.l - m.r), Y = (p) => m.t + (y1 - p) / (y1 - y0) * (H - m.t - m.b);
@@ -1243,7 +1475,10 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       for (const kid of kids) e.append(kid);
       return e;
     };
-    const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img", "aria-label": "Meta share against win rate" });
+    const above = rows.filter((d) => d.lo > 0.5).length, below = rows.filter((d) => d.hi < 0.5).length;
+    const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "group",
+      "aria-label": "Metagame chart: meta share against win rate for " + rows.length + " decks. " + above + " clearly above 50%, " + below +
+        " clearly below. Arrow keys move between decks, Enter opens one." });
     for (let p = y0; p <= y1 + 1e-9; p += 0.05) {
       const y = Y(p), mid = Math.abs(p - 0.5) < 1e-9;
       root.append(svg("line", { x1: m.l, x2: W - m.r, y1: y, y2: y, class: mid ? "axis50" : "grid" }),
@@ -1256,38 +1491,54 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     root.append(svg("text", { x: W - m.r, y: H - 4, "text-anchor": "end" }, "Meta share"),
       svg("text", { x: m.l - 8, y: 12, "text-anchor": "end" }, "Win rate"));
     const tip = h("div", { class: "tip", hidden: true });
+    const sureOf = (d) => d.lo > 0.5 || d.hi < 0.5;
     const colorOf = (d) => d.lo > 0.5 ? "var(--good)" : d.hi < 0.5 ? "var(--bad)" : "var(--neutral)";
-    // Big decks drawn last so they sit on top; labels placed biggest first where they don't collide.
+    const statusOf = (d) => d.lo > 0.5 ? "clearly above 50%" : d.hi < 0.5 ? "clearly below 50%" : "could be even";
+    // Big decks drawn last so they sit on top; labels placed where they don't collide,
+    // Clear decks first (they are the ones worth naming), then by share.
     const placed = [], labels = [];
     const free = (b) => b.x0 >= m.l && b.x1 <= W - m.r && b.y0 >= 0 && b.y1 <= H - m.b &&
       placed.every((o) => b.x1 < o.x0 || b.x0 > o.x1 || b.y1 < o.y0 || b.y0 > o.y1);
     rows.slice().sort((a, b) => b.share - a.share).forEach((d) => placed.push({ x0: X(d.share) - 7, x1: X(d.share) + 7, y0: Y(d.wr) - 7, y1: Y(d.wr) + 7 }));
-    rows.slice().sort((a, b) => b.share - a.share).forEach((d) => {
+    rows.slice().sort((a, b) => sureOf(b) - sureOf(a) || b.share - a.share).forEach((d) => {
       const w = d.name.length * 6.6, cx = X(d.share), cy = Y(d.wr);
       for (const [x, anchor] of [[cx + 10, "start"], [cx - 10, "end"]]) {
         const b = { x0: anchor === "start" ? x : x - w, x1: anchor === "start" ? x + w : x, y0: cy - 8, y1: cy + 6 };
         if (free(b)) { placed.push(b); labels.push(svg("text", { x, y: cy + 4, "text-anchor": anchor, class: "lbl" }, d.name)); return; }
       }
     });
-    rows.slice().sort((a, b) => a.share - b.share).forEach((d) => {
+    // Each dot is a real link. Only one is in the tab order; arrow keys move left and right along meta share.
+    const byShare = rows.slice().sort((a, b) => a.share - b.share);
+    const points = byShare.map((d, k) => {
       const cx = X(d.share), cy = Y(d.wr), c = colorOf(d);
-      const g = svg("g", { class: "pt", tabindex: "0", role: "link",
-        "aria-label": d.name + ": " + pct(d.share, 1) + " of decks, win rate " + pct(d.wr) + ", 95% interval " + ci(d.lo, d.hi) });
+      const g = svg("a", { class: "pt", href: hashOf("deck", d.name), "data-deck": d.name, tabindex: k === byShare.length - 1 ? "0" : "-1",
+        "aria-label": d.name + ": " + statusOf(d) + ", win rate " + pct(d.wr) + ", 95% interval " + ci(d.lo, d.hi) + ", " + pct(d.share, 1) + " of published lists" });
       g.append(svg("line", { x1: cx, x2: cx, y1: Y(d.lo), y2: Y(d.hi), stroke: c, "stroke-width": 1.5, opacity: 0.55 }),
+        svg("circle", { cx, cy, r: 9, class: "ring" }),
         svg("circle", { cx, cy, r: 5, fill: c, class: "dot" }),
         svg("circle", { cx, cy, r: 11, fill: "transparent" }));
       const show = () => {
-        tip.replaceChildren(h("b", null, d.name), pct(d.wr) + " win rate (" + ci(d.lo, d.hi) + ")", h("br"),
-          pct(d.share, 1) + " of decks, " + fmt(d.matches) + " matches");
+        tip.replaceChildren(h("b", null, d.name), pct(d.wr) + " win rate (" + ci(d.lo, d.hi) + "), " + statusOf(d), h("br"),
+          pct(d.share, 1) + " of lists, " + fmt(d.matches) + " matches");
         tip.hidden = false;
         const left = cx + 14 + 190 > W ? cx - 14 - tip.offsetWidth : cx + 14;
         tip.style.left = left + "px"; tip.style.top = Math.max(0, cy - 20) + "px";
+        highlight(d.name);
       };
+      const hide = () => { tip.hidden = true; highlight(null); };
       g.addEventListener("mouseenter", show); g.addEventListener("focus", show);
-      g.addEventListener("mouseleave", () => { tip.hidden = true; }); g.addEventListener("blur", () => { tip.hidden = true; });
-      g.addEventListener("click", () => go("deck", d.name));
-      g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go("deck", d.name); } });
+      g.addEventListener("mouseleave", hide); g.addEventListener("blur", hide);
+      navLink(g, () => go("deck", d.name));
+      g.addEventListener("keydown", (e) => {
+        const step = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key];
+        const to = e.key === "Home" ? 0 : e.key === "End" ? byShare.length - 1 : step ? Math.max(0, Math.min(byShare.length - 1, k + step)) : null;
+        if (to == null) return;
+        e.preventDefault();
+        points.forEach((p, j) => p.setAttribute("tabindex", j === to ? "0" : "-1"));
+        points[to].focus();
+      });
       root.append(g);
+      return g;
     });
     labels.forEach((l) => root.insertBefore(l, root.querySelector(".pt")));
     box.replaceChildren(root, tip);
@@ -1299,16 +1550,18 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     const even = rows.length - good.length - bad.length;
     $("#overviewNote").textContent = "Of the " + rows.length + " decks with " + SORT_MIN + "+ matches, these are the ones whose whole 95% interval is above or below 50%. "
       + even + (even === 1 ? " other could" : " others could") + " still be even.";
-    if (!rows.length) { box.replaceChildren(h("div", { class: "empty" }, "No deck has " + SORT_MIN + " or more matches in this view.")); return; }
-    const row = (d) => h("button", { class: "row", type: "button", onclick: () => go("deck", d.name),
-      "aria-label": d.name + ": win rate " + pct(d.wr) + ", 95% interval " + ci(d.lo, d.hi) + ", " + pct(d.share, 1) + " of decks" },
-      h("div", { style: "min-width:0" },
+    if (!rows.length) { box.replaceChildren(); suggestMore(box, "No deck has " + SORT_MIN + " or more matches in this view."); return; }
+    if (!good.length && !bad.length) { box.replaceChildren(); suggestMore(box, "No deck is clearly above or below 50% in this view."); return; }
+    const row = (d) => navA({ class: "row", href: hashOf("deck", d.name),
+      "aria-label": d.name + " (" + colorWords(d.color) + "): win rate " + pct(d.wr) + ", 95% interval " + ci(d.lo, d.hi) + ", " + pct(d.share, 1) + " of published lists" },
+      () => go("deck", d.name),
+      h("div", { class: "minw0" },
         h("div", { class: "rname" }, d.name),
-        h("div", { class: "rsub num metasub" }, mana(d.color), h("span", null, pct(d.share, 1) + " of decks,"), h("span", null, "interval " + ci(d.lo, d.hi)))),
+        h("div", { class: "rsub num metasub" }, mana(d.color), h("span", null, pct(d.share, 1) + " of lists,"), h("span", null, "interval " + ci(d.lo, d.hi)))),
       h("div", { class: "rval" }, h("b", { class: "num" }, pct(d.wr)), chevron()));
     const group = (title, cls, items) => h("div", { class: "group" },
       h("div", { class: "subhead" }, h("h3", { class: cls }, title), h("span", { class: "count" }, items.length + (items.length === 1 ? " deck" : " decks"))),
-      items.length ? h("div", { class: "rows" }, items.map(row)) : h("p", { class: "note", style: "padding:8px 0" }, "None in this view."));
+      items.length ? h("div", { class: "rows" }, items.map(row)) : h("p", { class: "note pad" }, "None in this view."));
     box.replaceChildren(group("Clearly above 50%", "good", good), group("Clearly below 50%", "bad", bad));
   }
   let overviewW = 0;
@@ -1319,10 +1572,13 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
 
   // "How to read this" sits under the deck list on phones and beside it on desktop.
   const wide = window.matchMedia("(min-width: 1024px)");
-  // So does the metagame block: above the deck list on phones.
+  // So does the metagame block: above the deck list on phones, under the search box so search stays near the top.
   const placeHowto = () => {
-    if (wide.matches) $("#emptyDetail").prepend($("#metaChart")); else $("#listView .intro").after($("#metaChart"));
+    const search = $("#listView .search");
+    $("#listView .intro").after(search);
+    if (wide.matches) $("#emptyDetail").prepend($("#metaChart")); else search.after($("#metaChart"));
     (wide.matches ? $("#emptyDetail") : $("#listView")).append($("#howto"));
+    $("#search").placeholder = wide.matches ? "Search decks (press /)" : "Search decks";
   };
   wide.addEventListener("change", placeHowto);
   placeHowto();
@@ -1345,6 +1601,9 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     };
     document.querySelectorAll("#methodsView [data-k]").forEach((el) => { el.textContent = vals[el.dataset.k] ?? "–"; });
     renderSources(S);
+    const back = $("#methodsBack");
+    back.hidden = !methodsFrom;
+    if (methodsFrom) back.textContent = "Back to " + backLabel(methodsFrom);
     typeset();
   }
   // Each source's share of the data behind every statistic, in the current view.
@@ -1362,17 +1621,21 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     $("#srcBody").replaceChildren(...[...rows].sort((a, b) => (b.winrate || 0) - (a.winrate || 0)).map((r) => row(r, r.source)),
       row(tot, h("b", null, "Total")));
   }
-  // MathJax (SVG output, no font files) loads the first time the page is opened.
-  let mathjax = null;
+  // MathJax (SVG output, no font files) loads the first time the page is opened and typesets once:
+  // the settings filled in later sit outside the formulas, so nothing needs typesetting again.
+  // Formulas stay out of the tab order (MathJax would otherwise add one stop per formula).
+  let mathjax = null, typesetDone = false;
   function typeset() {
+    if (typesetDone) return;
     const el = $("#methodsView");
     if (window.MathJax && window.MathJax.typesetPromise) {
-      window.MathJax.typesetClear([el]);
-      window.MathJax.typesetPromise([el]).catch(() => {});
+      typesetDone = true;
+      window.MathJax.typesetPromise([el]).catch(() => { typesetDone = false; });
       return;
     }
     if (mathjax) return;
     window.MathJax = { tex: { inlineMath: [["\\(", "\\)"]] }, svg: { fontCache: "global" },
+      options: { menuOptions: { settings: { inTabOrder: false } } },
       startup: { typeset: false, pageReady: () => window.MathJax.startup.defaultPageReady().then(typeset) } };
     mathjax = document.createElement("script");
     mathjax.src = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js";
@@ -1380,9 +1643,14 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     document.head.appendChild(mathjax);
   }
   $("#methodsLink").addEventListener("click", () => go("methods"));
+  const REDUCE_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)");
   document.querySelectorAll("#methodsView [data-jump]").forEach((a) => a.addEventListener("click", (e) => {
     e.preventDefault();
-    document.getElementById(a.dataset.jump).scrollIntoView({ behavior: "smooth", block: "start" });
+    const section = document.getElementById(a.dataset.jump), head = section.querySelector("h2");
+    section.scrollIntoView({ behavior: REDUCE_MOTION.matches ? "auto" : "smooth", block: "start" });
+    // Move focus too, so the next Tab continues inside that section.
+    head.setAttribute("tabindex", "-1");
+    head.focus({ preventScroll: true });
   }));
 
   // ---------- frame ----------
@@ -1394,22 +1662,31 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     document.body.dataset.view = state.view;
     const back = $("#backBtn");
     back.hidden = state.view === "list";
-    back.setAttribute("aria-label", state.view === "match" ? "Back to " + state.deck : "Back to all decks");
-    $("#barTitle").textContent = state.view === "methods" ? "Methods" : state.view === "deck" ? state.deck
+    back.setAttribute("aria-label", "Back to " + backLabel(backTarget()));
+    const title = state.view === "methods" ? "Methods" : state.view === "deck" ? state.deck
       : state.view === "match" ? state.deck + " vs " + state.opp : "";
-    document.querySelectorAll(".barSub").forEach((el) => { el.textContent = p.since + " to " + p.until; });
+    $("#barTitle").textContent = title;
+    document.title = (title ? title + " · " : "") + "Pauper Meta Lab";
+    document.querySelectorAll(".barSub").forEach((el) => { el.textContent = dateRange(p.since, p.until); });
     renderCrumbs();
     if (state.view === "methods") $("#methodsBarLink").setAttribute("aria-current", "page"); else $("#methodsBarLink").removeAttribute("aria-current");
     const c = scope().coverage;
     $("#generated").textContent = fmt(c.matches) + " matches, " + fmt(c.decks) + " decklists and " + fmt(c.events) + " events in this view. Data built " +
       DATA.generated + " from fbettega/MTG_decklistcache. Archetypes from MTGOFormatData.";
+    $("#srcLine").replaceChildren(...sourceSplit());
+    // Views are redrawn from scratch. If that removed the focused control, put focus on the page heading
+    // rather than letting it fall back to the top of the document.
+    const active = document.activeElement, inView = active && active !== document.body && active.closest(".view");
     renderBarFilters();
     renderList();
     if (state.view === "list") renderOverview();
     if (state.view === "deck") renderDeck();
     if (state.view === "match") renderMatch();
     if (state.view === "methods") renderMethods();
+    if (inView && !active.isConnected) focusView();
   }
-  fromHash();
+  // The deck list's sticky offset follows the real height of the top bar (it grows with larger text).
+  new ResizeObserver(() => document.documentElement.style.setProperty("--bar-h", $(".bar").offsetHeight + "px")).observe($(".bar"));
+  fromHash(false);
 })();
 </script>

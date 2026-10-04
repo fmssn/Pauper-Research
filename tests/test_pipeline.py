@@ -144,7 +144,11 @@ def test_dashboard_renders(tables):
     assert set(block["cards"][rm]) == {"main", "side", "decks"}
     html = dashboard.render(data, standalone=False)
     assert "/*__DATA__*/" not in html and "<!doctype" not in html
-    assert dashboard.render(data).startswith("<!doctype html>")
+    page = dashboard.render(data)
+    assert page.startswith("<!doctype html>")
+    # Title, fonts and styles sit in <head>, the page content in <body>.
+    head = page[:page.index("</head>")]
+    assert "<title>" in head and "<style>" in head and 'class="bar"' not in head
 
 
 def test_newcombe():
