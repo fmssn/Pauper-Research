@@ -73,7 +73,8 @@ width; from 1600px the deck view shows matchups and cards side by side.
   settings of the current build (link at the bottom of the deck list, or
   `#methods`).
 - **Card images:** the eye icon next to a card opens its Scryfall image full
-  screen. By default the page links to Scryfall's image server. For hosts that
+  screen on phones. On desktop it opens as a peek next to the pointer over a
+  slightly dimmed page, and closes when the mouse moves away or you click. By default the page links to Scryfall's image server. For hosts that
   block other sites, `--images sheets` (needs `pip install -e ".[images]"`)
   downloads the images once into `data/raw/scryfall/` and writes them next to
   the page as sheets of 9 cards in `cards/`.

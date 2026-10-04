@@ -371,6 +371,17 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
   display: grid; place-items: center;
 }
 .viewer-close svg { width: 22px; height: 22px; stroke: #fff; fill: none; stroke-width: 2.4; stroke-linecap: round; }
+/* Desktop peek: the page stays visible behind the card; moving away or clicking closes it. */
+dialog.viewer.peek { background: transparent; }
+dialog.viewer.peek::backdrop { background: rgba(8, 9, 11, 0.28); }
+dialog.viewer.peek .viewer-close { display: none; }
+dialog.viewer.peek .viewer-body {
+  position: fixed; height: auto; width: 300px; padding: 0; gap: 8px;
+}
+dialog.viewer.peek .cardimg { width: 100%; }
+dialog.viewer.peek .viewer-cap { background: rgba(17, 19, 23, 0.92); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 8px; padding: 8px 12px; gap: 4px; }
+dialog.viewer.peek .viewer-cap b { font-size: 16px; }
+dialog.viewer.peek .viewer-cap small { font-size: 11px; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
 </style>
 
@@ -776,9 +787,9 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
   }
   function eyeButton(name) {
     if (!hasImage(name)) return null;
-    return h("button", { class: "eye", type: "button", "aria-label": "Show card image: " + name, onclick: (e) => { e.stopPropagation(); showCard(name); } }, eyeIcon());
+    return h("button", { class: "eye", type: "button", "aria-label": "Show card image: " + name, onclick: (e) => { e.stopPropagation(); showCard(name, e); } }, eyeIcon());
   }
-  function showCard(name) {
+  function showCard(name, ev) {
     const img = $("#viewerImg"), ref = IMAGES.cards[name];
     let src, size = "100% 100%", position = "0 0";
     if (IMAGES.mode === "sheet") {
@@ -806,15 +817,40 @@ dialog.viewer::backdrop { background: rgba(8, 9, 11, 0.94); }
     $("#viewerName").textContent = name;
     $("#viewerLink").href = "https://scryfall.com/search?q=" + encodeURIComponent('!"' + name + '"');
     const d = $("#viewer");
+    const peek = PEEK.matches && ev && ev.currentTarget;
+    d.classList.toggle("peek", !!peek);
+    peekFrom = peek && ev.detail ? [ev.clientX, ev.clientY] : null;
+    const body = d.querySelector(".viewer-body");
+    body.style.left = body.style.top = "";
     if (typeof d.showModal === "function") d.showModal(); else d.setAttribute("open", "");
+    if (peek) {
+      // Beside the click (or the button, from the keyboard): to its right if there is room, else to its left.
+      const at = peekFrom ? new DOMRect(peekFrom[0], peekFrom[1], 0, 0) : ev.currentTarget.getBoundingClientRect();
+      const box = body.getBoundingClientRect(), gap = 20;
+      const vw = document.documentElement.clientWidth, vh = window.innerHeight;
+      const left = at.right + gap + box.width <= vw - 8 ? at.right + gap : Math.max(8, at.left - gap - box.width);
+      const top = Math.min(Math.max(8, at.top + at.height / 2 - box.height / 2), Math.max(8, vh - box.height - 8));
+      body.style.left = left + "px"; body.style.top = top + "px";
+    }
   }
   const closeViewer = () => { const d = $("#viewer"); if (d.open) d.close(); };
+  // On desktop the card opens as a light peek that closes once the mouse moves away
+  // from where it was clicked (unless it moves onto the card or its caption).
+  const PEEK = window.matchMedia("(min-width: 1024px) and (hover: hover) and (pointer: fine)");
+  const PEEK_MOVE = 48;      // px the mouse may move before the peek closes
+  let peekFrom = null;
+  $("#viewer").addEventListener("pointermove", (e) => {
+    if (!$("#viewer").classList.contains("peek") || e.pointerType !== "mouse") return;
+    if (!peekFrom) { peekFrom = [e.clientX, e.clientY]; return; }
+    if (e.target.closest(".cardimg, .viewer-cap")) { peekFrom = [e.clientX, e.clientY]; return; }
+    if (Math.hypot(e.clientX - peekFrom[0], e.clientY - peekFrom[1]) > PEEK_MOVE) closeViewer();
+  });
   $("#viewerClose").addEventListener("click", closeViewer);
   // Tapping anywhere but the link closes the viewer.
   $("#viewer").addEventListener("click", (e) => { if (!e.target.closest("a")) closeViewer(); });
   function cardChip(name, ...content) {
     if (!hasImage(name)) return h("span", { class: "chip" }, ...content);
-    return h("button", { class: "chip", type: "button", "aria-label": "Show card image: " + name, onclick: () => showCard(name) }, ...content, eyeIcon());
+    return h("button", { class: "chip", type: "button", "aria-label": "Show card image: " + name, onclick: (e) => showCard(name, e) }, ...content, eyeIcon());
   }
 
   // ---------- navigation ----------
