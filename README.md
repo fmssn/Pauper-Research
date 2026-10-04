@@ -61,7 +61,9 @@ see which cards move its win rate, overall and against a specific opponent.
 - **Matchup page:** the head-to-head record, plus card comparisons counting
   only matches against that opponent. Shown only when the sample allows it
   (25+ matches in the matchup, 3+ lists and 10+ matches on each side of a card).
-- Period (30 / 90 / 180 days) and events (all / paper / online) in the filter sheet.
+- Period (30 / 90 / 180 days), events (all / paper / online) and **pilot skill**
+  (adjusted, the default, or raw) in the filter sheet. See
+  [Pilot skill](#pilot-skill).
 - **Card images:** the eye icon next to a card opens its Scryfall image full
   screen. By default the page links to Scryfall's image server. For hosts that
   block other sites, `--images sheets` (needs `pip install -e ".[images]"`)
@@ -73,13 +75,18 @@ see which cards move its win rate, overall and against a specific opponent.
 | File | Contents |
 |---|---|
 | `README.md` | Coverage, meta share and win rate per archetype, matchup matrix of the top archetypes |
-| `archetypes.csv` | All archetypes: decks, meta share, non-mirror wins/matches, win rate, 95% CI |
-| `matchups.csv` | Every archetype pair: wins, matches, win rate, 95% CI |
+| `archetypes.csv` | All archetypes: decks, meta share, non-mirror wins/matches, win rate, 95% CI, pilot lift and pilot-adjusted win rate with its 95% CI |
+| `matchups.csv` | Every archetype pair: wins, matches, win rate, 95% CI, pilot lift, pilot-adjusted win rate and CI |
 | `matchup_matrix.csv` | Win-rate matrix of the top archetypes |
 
 `cards <archetype>` compares decks of one archetype that play each card against
 those that don't (win rate with / without, difference and 95% CI), and lists play
-rates and average copies.
+rates and average copies. With the pilot adjustment it also gives each side's
+average pilot lift and the difference after removing it (`delta_adj` and its CI).
+
+`report`, `cards` and `dashboard` take `--bootstrap N` (default 100): the number
+of refits used for the uncertainty of the pilot adjustment. `--bootstrap 0`
+skips them, which is much faster but leaves that uncertainty out of the intervals.
 
 A snapshot for July to September 2026 is in [reports/2026-Q3](reports/2026-Q3/combined/README.md)
 (also [online](reports/2026-Q3/online/README.md) and [paper](reports/2026-Q3/paper/README.md)).
@@ -94,6 +101,40 @@ A snapshot for July to September 2026 is in [reports/2026-Q3](reports/2026-Q3/co
 - **Meta share** is the share of *published* decklists, so for MTGO it means
   "share among the top 32 and 5-0 lists", not share of the whole field.
 
+## Pilot skill
+
+Raw win rates mix deck strength with pilot strength: a deck that strong players
+like to register looks better than it is. `pauper_research/ratings.py` separates
+the two.
+
+- **Model.** One regularized Bradley–Terry (logistic) model on match results:
+  `logit P(win) = (player − opp_player) + (deck − opp_deck)`. Deck effects are
+  per archetype per quarter, so they follow the meta. Opponents without a list
+  get an "Unknown" deck. Fitting both together means a player doesn't get credit
+  for their deck, and a deck doesn't get credit for its pilots.
+- **Data.** The 12 months up to the end of the period, with a 6-month half-life,
+  so older results count less. One fit per scope (online / paper / combined).
+  Mirror matches are included, since they are the cleanest signal of skill.
+- **Players.** Identified by name, normalized (case, whitespace, Unicode) and
+  merged across sources; no source has player IDs. Names never appear in any
+  report or on the dashboard: only aggregates are published.
+- **Shrinkage.** Player ratings get a ridge penalty, chosen per fit by 5-fold
+  cross-validation with whole events held out. A player with few matches stays
+  close to average.
+- **Pilot lift.** For every match, the model's win chance with both players'
+  ratings minus the chance with both set to 0. A deck's **pilot-adjusted win
+  rate** is its raw win rate minus its average lift over the same matches. The
+  same holds for matchup cells, and for the "with" and "without" sides of a card
+  comparison.
+- **Intervals.** The ratings are refitted on 100 bootstrap resamples of events.
+  The lift's spread is added, in quadrature, to the Wilson (or Newcombe) interval.
+
+The adjustment is **conservative**. Ratings are shrunk towards average, so for
+players with few matches only part of their edge is removed. On simulated data
+where strong pilots make an average deck look like a 70% deck, with about 40
+matches per player the adjustment brings it back to about 59%, not 50%. It also can't separate skill
+from anything else that comes with a player, such as a strong local scene.
+
 ## Known limitations
 
 - **MTGO gives few matches.** Since mid-2024 mtgo.com only publishes Challenge
@@ -101,8 +142,8 @@ A snapshot for July to September 2026 is in [reports/2026-Q3](reports/2026-Q3/co
   from paper events on Melee (mostly Italy) and CardsRealm (mostly Brazil), so
   win rates reflect those scenes more than the MTGO field.
 - **Card comparisons are descriptive, not causal.** Decks that play a card differ
-  in other ways too (pilot, event, date, other cards). Use them to find leads;
-  see the roadmap.
+  in other ways too (event, date, other cards, and pilot, which the pilot
+  adjustment only partly removes). Use them to find leads; see the roadmap.
 - Archetype rules are only as current as MTGOFormatData. Check `is_fallback`,
   `is_conflict` and `candidates` in the decks table when a new deck appears.
 
@@ -124,9 +165,23 @@ cutting or swapping specific cards. Planned on top of the current tables:
 
 1. **Adjust for confounders.** A logistic regression on match results
    within an archetype, with card counts as features plus opponent archetype,
-   event and time as controls, ideally with a player-strength term.
+   event and time as controls. Player strength is partly covered by the
+   [pilot adjustment](#pilot-skill); the ratings from `ratings.py` can serve as
+   the player-strength term.
 2. **Swap analysis.** Compare lists that differ by a specific swap (card A
    instead of card B), and see how the effect depends on the number of copies.
 3. **Per-matchup effects.** Does a sideboard card actually move its target
    matchup?
 4. **Join Scryfall data** for card types, mana value and prices.
+
+## Roadmap: dashboard
+
+Planned features:
+
+1. **Meta trends over time.** A weekly series of meta share and win rate per
+   archetype. Each deck gets small trend lines and a "Rising" or "Falling" badge
+   when its share has clearly changed in the last few weeks.
+2. **"What should I play?" calculator.** Expected win rate of every deck against
+   a chosen field: the current meta share by default, or a local meta you enter.
+   Matchups with few matches are pulled towards 50% according to their sample
+   size, and the result shows which matchups drive the edge.

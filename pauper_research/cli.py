@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import analysis, dashboard
+from . import analysis, dashboard, ratings
 from .archetypes import Classifier
 from .loader import load
 from .sources import DECKLIST_DIR, FORMAT_DIR, fetch_all
@@ -69,15 +69,25 @@ intervals don't overlap: the two scenes clearly disagree about that deck.
 """
 
 
+def _pilot(all_tables: dict[str, pd.DataFrame], since: str, until: str | None, sources: list[str] | None,
+           scope: str, bootstrap: int) -> ratings.PilotFit:
+    """Rating fit for one scope, over the 12 months up to the end of the period."""
+    end = pd.Timestamp(until) if until else all_tables["matches"]["date"].max()
+    return ratings.fit_scope(all_tables, analysis.SCOPES[scope], end, keep_since=since, sources=sources,
+                             bootstrap=bootstrap)
+
+
 def report(since: str, until: str | None, sources: list[str] | None, top: int, min_matches: int,
-           out_dir: Path, scope: str = "combined") -> Path:
-    period_tables = analysis.filter_period(_tables(), since, until, sources)
+           out_dir: Path, scope: str = "combined", bootstrap: int = ratings.BOOTSTRAP) -> Path:
+    all_tables = _tables()
+    period_tables = analysis.filter_period(all_tables, since, until, sources)
     tables = analysis.filter_period(period_tables, scope=scope)
     decks, matches, events = tables["decks"], tables["matches"], tables["events"]
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    summary = analysis.archetype_summary(decks, matches)
-    matchups = analysis.matchup_table(matches)
+    pilot = _pilot(all_tables, since, until, sources, scope, bootstrap)
+    summary = analysis.archetype_summary(decks, matches, pilot)
+    matchups = analysis.matchup_table(matches, pilot=pilot)
     summary.to_csv(out_dir / "archetypes.csv", index=False)
     matchups.to_csv(out_dir / "matchups.csv", index=False)
 
@@ -100,12 +110,20 @@ def report(since: str, until: str | None, sources: list[str] | None, top: int, m
     )
     legend = ", ".join(f"{i + 1} = {a}" for i, a in enumerate(top_archs))
 
+    def _pts(x: float) -> str:
+        return "" if pd.isna(x) else f"{round(x * 100, 1) + 0:+.1f}"  # + 0 turns -0.0 into 0.0
+
     arch_md = summary.head(top).assign(
         share=lambda d: d["share"].map(_pct),
         win_rate=lambda d: d["win_rate"].map(_pct),
         ci=lambda d: [f"{_pct(lo)}–{_pct(hi)}" if not pd.isna(lo) else "" for lo, hi in zip(d["ci_low"], d["ci_high"])],
-    )[["archetype", "decks", "share", "matches", "win_rate", "ci"]]
-    arch_md.columns = ["Archetype", "Decks", "Meta share", "Non-mirror matches", "Win rate", "95% CI"]
+        pilot_lift=lambda d: d["pilot_lift"].map(_pts),
+        adj_win_rate=lambda d: d["adj_win_rate"].map(_pct),
+        adj_ci=lambda d: [f"{_pct(lo)}–{_pct(hi)}" if not pd.isna(lo) else ""
+                          for lo, hi in zip(d["adj_ci_low"], d["adj_ci_high"])],
+    )[["archetype", "decks", "share", "matches", "win_rate", "ci", "pilot_lift", "adj_win_rate", "adj_ci"]]
+    arch_md.columns = ["Archetype", "Decks", "Meta share", "Non-mirror matches", "Win rate", "95% CI",
+                       "Pilot lift (pts)", "Adjusted WR", "Adjusted 95% CI"]
 
     coverage = events.groupby(["source", "event_type"]).size().rename("events").reset_index()
     match_src = (matches.groupby("source").size() // 2).rename("matches")
@@ -137,6 +155,14 @@ decks' intervals overlap heavily, the data can't tell them apart.
 
 {_md_table(arch_md)}
 
+**Adjusted WR** removes the pilots' edge: *pilot lift* is how many points the
+deck's pilots gained from being stronger (or weaker) than their opponents,
+from player ratings fitted on the 12 months up to the end of the period
+({pilot.players} players, {pilot.rated} with 10+ matches; ridge penalty
+{pilot.lam:g}, chosen by cross-validation). Ratings are shrunk towards
+average, so the adjustment is conservative. The adjusted interval adds the
+lift's bootstrap uncertainty ({bootstrap} refits) to the Wilson interval.
+
 ## Matchups (top {len(top_archs)} archetypes)
 
 Row deck's match win rate against the column deck, with the number of matches.
@@ -154,13 +180,15 @@ long-form data with intervals: `matchups.csv`.
 
 
 def cards(archetype: str, since: str, until: str | None, sources: list[str] | None, board: str,
-          min_decks: int, out_dir: Path, scope: str = "combined") -> None:
-    tables = analysis.filter_period(_tables(), since, until, sources, scope)
+          min_decks: int, out_dir: Path, scope: str = "combined", bootstrap: int = ratings.BOOTSTRAP) -> None:
+    all_tables = _tables()
+    tables = analysis.filter_period(all_tables, since, until, sources, scope)
     decks = tables["decks"]
     if archetype not in set(decks["archetype"]):
         close = [a for a in decks["archetype"].unique() if archetype.lower() in a.lower()]
         raise SystemExit(f"No decks for archetype {archetype!r}. Did you mean: {', '.join(close) or 'n/a'}?")
-    impact = analysis.card_impact(decks, tables["deck_cards"], tables["matches"], archetype, board, min_decks)
+    pilot = _pilot(all_tables, since, until, sources, scope, bootstrap)
+    impact = analysis.card_impact(decks, tables["deck_cards"], tables["matches"], archetype, board, min_decks, pilot)
     plays = analysis.card_play_rates(decks, tables["deck_cards"], archetype)
     out_dir.mkdir(parents=True, exist_ok=True)
     slug = archetype.lower().replace(" ", "-")
@@ -168,7 +196,7 @@ def cards(archetype: str, since: str, until: str | None, sources: list[str] | No
     plays.to_csv(out_dir / f"cards-{slug}-play-rates.csv", index=False)
     with pd.option_context("display.width", 200, "display.max_rows", 60):
         cols = ["card", "decks_with", "decks_without", "matches_with", "matches_without",
-                "win_rate_with", "win_rate_without", "delta", "delta_ci_low", "delta_ci_high"]
+                "win_rate_with", "win_rate_without", "delta", "delta_adj", "delta_adj_ci_low", "delta_adj_ci_high"]
         print(impact[cols].round(3).to_string(index=False) if not impact.empty else "Not enough data.")
     print(f"\nWrote {out_dir / f'cards-{slug}-impact.csv'} and play rates.")
 
@@ -184,6 +212,8 @@ def main(argv: list[str] | None = None) -> None:
                       help="leave out the html/head/body skeleton (for hosts that add their own)")
     dash.add_argument("--images", choices=["url", "sheets", "none"], default="url",
                       help="card images: link to Scryfall (default), bundle as image sheets next to the page, or none")
+    bootstrap_help = "bootstrap refits for the uncertainty of the pilot adjustment (0: none)"
+    dash.add_argument("--bootstrap", type=int, default=ratings.BOOTSTRAP, help=bootstrap_help)
 
     default_since = (date.today() - timedelta(days=90)).isoformat()
     for name in ("report", "cards"):
@@ -194,6 +224,7 @@ def main(argv: list[str] | None = None) -> None:
         p.add_argument("--scope", choices=[*analysis.SCOPES, "all"], default="combined",
                        help="online (MTGO), paper (Melee, CardsRealm, Topdeck), combined, or all three")
         p.add_argument("--out", type=Path, default=REPORTS / "latest")
+        p.add_argument("--bootstrap", type=int, default=ratings.BOOTSTRAP, help=bootstrap_help)
     sub.choices["report"].add_argument("--top", type=int, default=15)
     sub.choices["report"].add_argument("--min-matches", type=int, default=8)
     sub.choices["cards"].add_argument("archetype")
@@ -209,15 +240,18 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.command == "dashboard":
         images = None if args.images == "none" else args.images
-        print(f"Wrote {dashboard.write(_tables(), args.out, standalone=not args.fragment, images=images)}")
+        out = dashboard.write(_tables(), args.out, standalone=not args.fragment, images=images, bootstrap=args.bootstrap)
+        print(f"Wrote {out}")
         return
     scopes = list(analysis.SCOPES) if args.scope == "all" else [args.scope]
     for scope in scopes:
         # With several scopes, each gets its own subfolder.
         out = args.out / scope if len(scopes) > 1 else args.out
         if args.command == "report":
-            path = report(args.since, args.until, args.sources, args.top, args.min_matches, out, scope)
+            path = report(args.since, args.until, args.sources, args.top, args.min_matches, out, scope,
+                          args.bootstrap)
             print(f"Wrote {path}")
         elif args.command == "cards":
             print(f"\n== {args.archetype} · {scope} ==")
-            cards(args.archetype, args.since, args.until, args.sources, args.board, args.min_decks, out, scope)
+            cards(args.archetype, args.since, args.until, args.sources, args.board, args.min_decks, out, scope,
+                  args.bootstrap)
