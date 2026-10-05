@@ -5,4 +5,6 @@ __pycache__/
 *.egg-info/
 _site/
 .venv/
-.impeccable/
+# Impeccable: project design context is shared, per-developer overrides are not
+.impeccable/config.local.json
+.impeccable/live/server.json

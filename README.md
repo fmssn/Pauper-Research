@@ -61,8 +61,11 @@ leads back to the deck list; on desktop it is followed by breadcrumbs
 width; from 1600px the deck view shows matchups and cards side by side.
 
 - **Decks:** every top archetype with meta share (share of published lists) and
-  win rate. Search (`/` jumps to the search box) and sort; the number is the
-  deck's position in the current sort. A line under the title says where the
+  win rate. Search (`/` jumps to the search box) and sort by share, win rate or
+  **Vs. field**, which shows each deck's expected win rate against the field
+  with its interval (see below), grouped into favored, could be even, behind
+  and under 30 matches; on phones it replaces the metagame summary. The number
+  is the deck's position in the current sort. A line under the title says where the
   current view's lists and match results come from (e.g. "Share of lists: 56%
   MTGO. Win rates: 95% paper."), since the two come from different sources.
 - **Metagame chart:** meta share (log scale) against win rate with its 95%
@@ -71,12 +74,17 @@ width; from 1600px the deck view shows matchups and cards side by side.
   other. The dots are links: Tab reaches the chart, arrow keys move between
   decks. Phones instead get a list of those decks that are clearly above or
   below 50%, above the deck list (hidden while you search).
-- **Deck page:** good and bad matchups, most certain first, each with its 95%
+- **Deck page:** under the deck's numbers, its expected match win rate
+  **against the field** (the top decks weighted by share of lists, see below),
+  with its 95% interval, a Clear / Lean verdict and the costliest matchup. Then
+  good and bad matchups, most certain first, each with its 95%
   interval and a Clear / Lean label; then the deck's builds and decisions (see
   below); then the cards whose lists win more or less.
   The "Good against", "Bad against", "win more" and "win less" groups hold only
-  Clear results (solid bars). Lean ones are drawn as outlined bars and folded
-  under "Could go either way", which opens by itself when nothing is Clear.
+  Clear results (solid bars). Lean ones are drawn as outlined bars, with their
+  number in grey, and folded under "Could go either way", which opens by itself
+  when nothing is Clear. Builds and decisions list every option, so there the grey
+  number and outlined bar mark the Lean ones; a Clear opponent chip is tinted.
 - **Builds and decisions** (top 30 decks with 80+ lists in the view): the builds
   a deck comes in, each with its share, win rate, the opponents it does best and
   worst against compared with the deck's other lists (30+ matches on each side),
@@ -143,6 +151,15 @@ A snapshot for July to September 2026 is in [reports/2026-Q3](reports/2026-Q3/co
   with 30 matches, a cell is only accurate to about ±17 points.
 - **Meta share** is the share of *published* decklists, so for MTGO it means
   "share among the top 32 and 5-0 lists", not share of the whole field.
+- **Against the field** is a deck's expected match win rate when its opponents
+  are the top 40 decks in proportion to their meta share, the mirror counting
+  as 50%. Each matchup is a Beta posterior with 10 matches at 50% added to its
+  record (and its pilot lift shrunk by the same factor), so thin matchups count
+  close to even. The interval adds up the matchups' posterior variances, weighted
+  by share squared. The costliest matchup is the one losing the most expected
+  match wins, share × (50% − matchup win rate). The deck list's "Vs. field" sort
+  groups decks by this verdict and ranks by it within each group; decks with
+  fewer than 30 matches form a last group.
 - **Builds** come from a tree of single-card questions ("4+ Moon-Circuit
   Hacker?"), each the one that best predicts the rest of the list, up to 3 deep;
   each build's typical list is Frank Karsten's aggregate decklist. A card is
@@ -254,6 +271,7 @@ Planned features:
    archetype. Each deck gets small trend lines and a "Rising" or "Falling" badge
    when its share has clearly changed in the last few weeks.
 2. **"What should I play?" calculator.** Expected win rate of every deck against
-   a chosen field: the current meta share by default, or a local meta you enter.
+   a chosen field: the current meta share by default (each deck page already
+   shows this for itself, see "Against the field"), or a local meta you enter.
    Matchups with few matches are pulled towards 50% according to their sample
    size, and the result shows which matchups drive the edge.
