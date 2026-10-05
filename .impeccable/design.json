@@ -209,6 +209,10 @@
         "value": "1280px"
       },
       {
+        "name": "section-two-columns",
+        "value": "1360px"
+      },
+      {
         "name": "wide",
         "value": "1600px"
       }
@@ -282,7 +286,7 @@
   ],
   "narrative": {
     "northStar": "The Lab Notebook",
-    "overview": "The dashboard reads like a careful researcher's notebook: plain sans-serif entries in\ntabular figures, a single serif voice for the thing being studied (a deck's name, a\nmatchup), and every claim annotated with how sure it is. Nothing on the page is\ndecorative. Structure comes from hairline rules and whitespace, not from boxes,\nshadows or colour fields. The method is always one link away, because in a notebook\nyou show your working.\n\nDensity is high but calm. A grinder scrolls long lists of decks, matchups and cards,\nso rows are tight, numbers line up, and hierarchy comes from weight and size steps\ninside one sans family rather than from colour. Colour is reserved for a single\nmeaning: whether a result favours the deck (blue) or not (red). Grey carries\neverything else. Certainty is drawn, not written: a solid bar is a Clear result, an\noutlined bar is a Lean one, and every bar carries the whisker of its 95% interval.\n\nThe system is mobile-first and theme-symmetric. Phones get one stacked column with\n44px touch targets; from 1024px a sidebar of decks sits beside the detail; from\n1600px matchups and cards stand side by side. Light and dark themes share every\nrole, and both meet WCAG AA.",
+    "overview": "The dashboard reads like a careful researcher's notebook: plain sans-serif entries in\ntabular figures, a single serif voice for the thing being studied (a deck's name, a\nmatchup), and every claim annotated with how sure it is. Nothing on the page is\ndecorative. Structure comes from hairline rules and whitespace, not from boxes,\nshadows or colour fields. The method is always one link away, because in a notebook\nyou show your working.\n\nDensity is high but calm. A grinder scrolls long lists of decks, matchups and cards,\nso rows are tight, numbers line up, and hierarchy comes from weight and size steps\ninside one sans family rather than from colour. Colour is reserved for a single\nmeaning: whether a result favours the deck (blue) or not (red). Grey carries\neverything else. Certainty is drawn, not written: a solid bar is a Clear result, an\noutlined bar is a Lean one, and every bar carries the whisker of its 95% interval.\n\nThe system is mobile-first and theme-symmetric. Phones get one stacked column with\n44px touch targets. From 1024px the deck list page puts the list beside the metagame\nchart, and deck and matchup pages take the whole width like a notebook page: an index\nof the page on the left, the numbers in the middle, notes in the margin on the right. Light and dark themes share every\nrole, and both meet WCAG AA.",
     "keyCharacteristics": [
       "Rules, not boxes: sections are separated by 1px hairlines, never by cards with shadows.",
       "One meaning colour pair (Favoured Blue / Unfavoured Red); everything else is ink on paper.",

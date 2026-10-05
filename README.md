@@ -54,11 +54,16 @@ the latest data by [`.github/workflows/dashboard.yml`](.github/workflows/dashboa
 One self-contained HTML page (open it in a browser, no server needed). The
 flow is: pick a deck, see what it's good and bad against, then see which cards
 move its win rate, overall and against a specific opponent. On phones the views
-stack; from 1024px wide the deck list is a sidebar, the filters sit in the top
-bar and matchup and card rows fit on one line. The title in the top bar always
-leads back to the deck list; on desktop it is followed by breadcrumbs
-(deck / matchup), on phones a back button goes up one level. The page uses the full screen
-width; from 1600px the deck view shows matchups and cards side by side.
+stack. From 1024px wide the filters sit in the top bar and matchup and card rows
+fit on one line; the deck list page shows the list beside the metagame chart,
+and deck and matchup pages use the whole width: an index of the page's sections
+(and the decks around this one) on the left, the numbers in the middle, and the
+notes on how to read them in a margin on the right. The title in the top bar
+always leads back to the deck list; on desktop it is followed by breadcrumbs
+(All decks / deck / matchup), on phones a back button goes up one level. On a
+deck page the deck in the breadcrumb is a **switcher**: click it or press `/` to
+search the other decks and jump to one. **All decks** opens a full-screen picker
+with every deck in columns.
 
 - **Decks:** every top archetype with meta share (share of published lists) and
   win rate. Search (`/` jumps to the search box) and sort by share, win rate or
@@ -76,17 +81,21 @@ width; from 1600px the deck view shows matchups and cards side by side.
   below 50%, above the deck list (hidden while you search).
 - **Deck page:** under the deck's numbers, its expected match win rate
   **against the field** (the top decks weighted by share of lists, see below),
-  with its 95% interval, a Clear / Lean verdict and the costliest matchup. Then
-  the notes on pilot skill, and **In short**: one line each for matchups,
-  builds, decisions and cards, naming only Clear results, whose labels jump to
-  their sections (see below). Then
-  good and bad matchups, most certain first, each with its 95%
-  interval and a Clear / Lean label; then the deck's builds and decisions (see
+  with its 95% interval, a Clear / Lean verdict and the costliest matchup, and
+  **In short**: one line each for matchups, builds, decisions and cards, naming
+  only Clear results, whose labels jump to their sections (see below). The notes
+  on pilot skill sit in the margin. Then the matchups: the **field map** (one
+  column per opponent with 8+ matches, as wide as its share of lists and as tall
+  as the win rate against it, with its interval; point at a column for its
+  numbers, click to open the matchup), then good and bad matchups side by side,
+  most certain first, each with its 95% interval and a Clear / Lean label, then
+  the 8 most played that could go either way, on one line each, with the rest
+  behind "Show more". Then the deck's builds and decisions side by side (see
   below); then the cards whose lists win more or less.
   The "Good against", "Bad against", "win more" and "win less" groups hold only
   Clear results (solid bars). Lean ones are drawn as outlined bars, with their
-  number in grey, and folded under "Could go either way", which opens by itself
-  when nothing is Clear. Builds and decisions list every option, so there the grey
+  number in grey, under "Could go either way"; for cards that group is folded
+  and opens by itself when nothing is Clear. Builds and decisions list every option, so there the grey
   number and outlined bar mark the Lean ones; a Clear opponent chip is tinted.
 - **Builds and decisions** (top 30 decks with 80+ lists in the view): the builds
   a deck comes in, each with its share, win rate, the opponents it does best and
@@ -159,7 +168,12 @@ A snapshot for July to September 2026 is in [reports/2026-Q3](reports/2026-Q3/co
   as 50%. Each matchup is a Beta posterior with 10 matches at 50% added to its
   record (and its pilot lift shrunk by the same factor), so thin matchups count
   close to even. The interval adds up the matchups' posterior variances, weighted
-  by share squared. The costliest matchup is the one losing the most expected
+  by share squared. The **field map** draws the same idea from the raw matchups:
+  each opponent with 8+ matches is a column as wide as its share of lists among
+  them and as tall as the matchup win rate minus 50%, so the area above the line
+  minus the area below is the share-weighted average over those opponents. It
+  leaves out the mirror and thin matchups and doesn't pull towards 50%, so it is
+  close to the field estimate but not the same. The costliest matchup is the one losing the most expected
   match wins, share × (50% − matchup win rate). The deck list's "Vs. field" sort
   groups decks by this verdict and ranks by it within each group; decks with
   fewer than 30 matches form a last group.
