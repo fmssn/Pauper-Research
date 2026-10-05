@@ -12,8 +12,10 @@
 <script>try { const t = JSON.parse(localStorage.getItem("pml2.theme")); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) { /* storage unavailable */ }</script>
 <style>
 /* Layout: mobile-first. One column of stacked views (decks -> deck -> matchup).
-   From 1024px the deck list is a sidebar on the left, the filters sit in the top bar,
-   and the right side shows the metagame chart or the selected deck. */
+   From 1024px the filters sit in the top bar. The deck list page is the list beside the
+   metagame chart; deck and matchup pages use the full width: an index of the page on the
+   left, the numbers in the middle and notes in a margin on the right. Another deck is one
+   click away in the breadcrumb's deck switcher or the full-screen deck picker. */
 :root {
   --bg: #ffffff;
   --sunken: #f4f5f6;
@@ -172,19 +174,20 @@ body[data-view="methods"] #methodsView { display: grid; }
   .barlink span { display: inline; }
   .app { display: grid; grid-template-columns: 320px minmax(0, 1fr); padding-inline: 24px; }
   .view { padding-inline: 32px 0; padding-top: 28px; }
-  body[data-view] #listView { display: grid; }
+  body[data-view="list"] #listView { display: grid; }
   #listView {
     position: sticky; top: var(--bar-h); max-height: calc(100vh - var(--bar-h)); overflow-y: auto;
     padding: 20px 20px 24px 0; border-right: 1px solid var(--line); gap: 16px;
   }
   body[data-view="list"] #emptyDetail { display: grid; }
-  body:not([data-view="list"]) #listView .intro { display: none; }
   body[data-view="methods"] #listView, body[data-view="methods"] #emptyDetail { display: none; }
   body[data-view="methods"] #methodsView { grid-column: 1 / -1; max-width: 760px; width: 100%; justify-self: center; padding-inline: 0; }
   /* The section list stays in reach while reading */
   #methodsView .toc { position: sticky; top: var(--bar-h); z-index: 5; background: var(--bg); padding-block: 10px; border-bottom: 1px solid var(--line); }
   #methodsView .card { scroll-margin-top: calc(var(--bar-h) + 56px); }
-  #matchView { max-width: 1200px; }
+  /* Deck and matchup pages: no deck list, the page gets the whole width */
+  body[data-view="deck"] .app, body[data-view="match"] .app { grid-template-columns: minmax(0, 1fr); }
+  #deckView, #matchView { grid-template-columns: 176px minmax(0, 1fr); column-gap: 40px; padding-inline: 8px 0; max-width: 1760px; width: 100%; justify-self: center; }
 }
 /* Narrow desktops: make room for the breadcrumbs. The period and event buttons read fine without a label. */
 @media (min-width: 1024px) and (max-width: 1279px) {
@@ -193,17 +196,75 @@ body[data-view="methods"] #methodsView { display: grid; }
   .barlink { padding: 0 8px; }
   .barfilters { gap: 12px; }
 }
+/* Deck and matchup pages carry a longer trail (All decks / deck switcher / matchup), so they drop the labels up to 1499px,
+   and below 1280px the "All decks" crumb (the page index links to all decks too) and the switcher's rank. */
+@media (min-width: 1280px) and (max-width: 1499px) {
+  body[data-view="deck"] .barlink span, body[data-view="match"] .barlink span,
+  body[data-view="deck"] .barfilters .grp:not(:last-child) .label, body[data-view="match"] .barfilters .grp:not(:last-child) .label,
+  body[data-view="deck"] .barfilters .wide-only, body[data-view="match"] .barfilters .wide-only { display: none; }
+  body[data-view="deck"] .barfilters .narrow-only, body[data-view="match"] .barfilters .narrow-only { display: inline; }
+  body[data-view="deck"] .barfilters, body[data-view="match"] .barfilters { gap: 12px; }
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .crumbs .crumbbtn, .crumbs .crumbbtn + .sep, .switchbtn .rank { display: none; }
+}
 @media (min-width: 1200px) { .app { grid-template-columns: 380px minmax(0, 1fr); } }
-/* Wide screens: a wider sidebar, and the deck's matchups and cards side by side */
+/* Wide screens: a wider deck list on the list page */
 @media (min-width: 1600px) {
   .app { grid-template-columns: 420px minmax(0, 1fr); padding-inline: 32px; }
   .view { padding-inline: 40px 0; }
-  #deckView { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 48px; }
-  #deckView > .hero, #deckView > .empty { grid-column: 1 / -1; }
-  #deckView > .card { align-content: start; }
-  /* Matchups and cards side by side, builds and decisions across both below */
-  #deckView > .decisions { grid-column: 1 / -1; grid-row: 3; }
-  #deckView .row { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 8.5em; }
+  #deckView, #matchView { padding-inline: 8px 0; column-gap: 56px; }
+}
+
+/* Deck and matchup pages: each section is its numbers plus a margin of notes beside them.
+   Phones: the notes follow the numbers. Desktop: an index of the page on the left, the margin
+   on the right with a hairline, as in a lab notebook. */
+.pindex { display: none; }
+.pcontent { display: grid; gap: 24px; min-width: 0; align-content: start; }
+.psec { display: grid; gap: 14px; min-width: 0; scroll-margin-top: calc(var(--bar-h) + 12px); }
+.pmain { display: grid; gap: 14px; min-width: 0; align-content: start; }
+.pmain > header { display: grid; gap: 4px; }
+.pmain h2 { font-size: 18px; }
+.pmain > .seg { justify-self: start; }
+.pmargin { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.pmargin .note b { color: var(--ink); font-weight: 600; }
+.pmargin .linkbtn { font-size: 14px; }
+.psec + .psec { border-top: 1px solid var(--line); padding-top: 16px; }
+@media (min-width: 1024px) {
+  .pcontent { gap: 36px; padding-bottom: 24px; }
+  .psec { grid-template-columns: minmax(0, 1fr) minmax(220px, 280px); column-gap: 48px; }
+  .psec + .psec { padding-top: 24px; }
+  .pmargin { border-left: 1px solid var(--line); padding: 4px 0 0 20px; }
+  .pmargin .note { font-size: 13.5px; max-width: 46ch; }
+  .pmargin .linkbtn { font-size: 13.5px; padding: 0; }
+  .pindex {
+    display: grid; gap: 10px; align-content: start; align-self: start; position: sticky; top: calc(var(--bar-h) + 28px);
+    max-height: calc(100vh - var(--bar-h) - 40px); overflow-y: auto; font-size: 14px;
+  }
+  .pindex .ilabel { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; margin-top: 6px; }
+  .pindex .ilabel:first-child { margin-top: 0; }
+  .pindex ol { list-style: none; margin: 0; padding: 0; display: grid; }
+  .toc2 a { display: block; padding: 5px 10px; color: var(--ink-2); text-decoration: none; border-left: 1px solid var(--line); }
+  .toc2 a:hover { color: var(--ink); border-left-color: var(--ui-line); }
+  .toc2 a[aria-current] { color: var(--ink); font-weight: 600; border-left: 2px solid var(--ink); padding-left: 9px; }
+  .near a { display: grid; grid-template-columns: 1.5em minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 5px 4px; border-radius: 4px; color: inherit; text-decoration: none; font-size: 13.5px; }
+  .near a:hover { background: var(--hover); }
+  .near a[aria-current] { background: var(--sunken); font-weight: 600; }
+  .near .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .near .w { color: var(--muted); font-size: 12.5px; }
+  .pindex .linkbtn { font-size: 13.5px; padding: 0; margin-top: 2px; }
+}
+@media (min-width: 1600px) { .psec { grid-template-columns: minmax(0, 1fr) 320px; column-gap: 64px; } }
+/* Two columns inside a section (good | bad matchups, builds | decisions) once each has room for its bars */
+.cols2 { display: grid; gap: 16px; min-width: 0; }
+.cols2 > * { min-width: 0; align-content: start; }
+.cols2 .scale2 { display: none; }
+@media (min-width: 1360px) {
+  .cols2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 40px; }
+  .cols2 .scale2 { display: block; }
+  /* Half a column: the name gets more of the row than the bar */
+  .cols2 .row { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 8.5em; gap: 4px 14px; }
+  .cols2 > .group + .group { margin-top: 0; }
 }
 
 /* Sections: separated by rules, not boxes */
@@ -313,7 +374,7 @@ body[data-view="methods"] #methodsView { display: grid; }
 .field .note a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
 .verdict b { color: var(--ink); font-weight: 600; }
 /* In short: one line per section below, Clear results only; the labels jump to their section */
-.brief { display: grid; gap: 6px; max-width: 640px; padding-top: 12px; border-top: 1px solid var(--line); }
+.brief { display: grid; gap: 6px; max-width: 820px; padding-top: 12px; border-top: 1px solid var(--line); }
 .brief h2 { font-size: 13px; font-weight: 600; color: var(--ink); }
 .brief h2 span { font-weight: 500; color: var(--muted); }
 .brief dl { display: grid; grid-template-columns: 1fr; margin: 0; }
@@ -328,7 +389,6 @@ body[data-view="methods"] #methodsView { display: grid; }
   .brief dt { padding-top: 1px; }
   .brief dd { margin-bottom: 6px; }
 }
-#deckView > section { scroll-margin-top: calc(var(--bar-h) + 12px); }
 .vs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .vs b { font: 600 22px/1.2 var(--font-head); }
 
@@ -358,6 +418,11 @@ a.row:hover .rname { text-decoration: underline; text-underline-offset: 3px; }
 .tag.lean { color: var(--muted); font-weight: 500; }
 .scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
 .row.scalerow { padding-top: 4px; border-top: 1px solid var(--line); }
+/* Matchups that could go either way: one line each, so the most played fit beside the Clear ones */
+.row.compact { padding-block: 6px; }
+.row.compact .deckcell > div { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.row.compact .rname { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row.compact .rsub { white-space: nowrap; }
 @media (min-width: 1024px) {
   .row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 9.5em; gap: 4px 20px; padding: 8px 6px; }
   .row > :first-child { grid-column: 1; }
@@ -367,6 +432,8 @@ a.row:hover .rname { text-decoration: underline; text-underline-offset: 3px; }
   .rname { font-size: 14px; }
   .rsub { font-size: 12px; }
   .rval b { font-size: 15px; }
+  .row.compact { padding-block: 4px; }
+  .row.compact .rname { font-size: 13.5px; }
 }
 
 /* Diverging bar: centre line = 50% (or 0 pts), fill to the value, whisker = 95% interval */
@@ -513,6 +580,74 @@ body.searching #listView .metachart { display: none; }
 }
 .tip b { color: var(--ink); font-weight: 600; display: block; }
 
+/* Field map: one column per opponent, as wide as its share of lists, as tall as the deck's win rate against it */
+.fmap { position: relative; min-width: 0; }
+.fmap svg { display: block; width: 100%; overflow: visible; }
+.fmap text { font: 11px var(--font); fill: var(--muted); font-variant-numeric: tabular-nums; }
+.fmap .lbl { fill: var(--ink-2); font-size: 11.5px; font-weight: 500; }
+.fmap .grid { stroke: var(--line); }
+.fmap .axis50 { stroke: var(--ui-line); }
+.fmap .hit { fill: transparent; cursor: pointer; }
+.fmap .hit:hover, .fmap .hit.on { fill: var(--hover); }
+.fkey { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--ink-2); }
+.fkey span { display: inline-flex; align-items: center; gap: 6px; }
+.fkey i { width: 12px; height: 10px; border-radius: 2px; }
+.fkey .k-good { background: var(--good); } .fkey .k-bad { background: var(--bad); } .fkey .k-lean { box-shadow: inset 0 0 0 1.5px var(--neutral); }
+
+/* Deck switcher (breadcrumb) and the full-screen deck picker */
+.switchbtn {
+  display: inline-flex; align-items: center; gap: 8px; height: 30px; margin-top: -4px; padding: 0 6px 0 8px; max-width: 100%;
+  border: 1px solid var(--line-strong); border-radius: 6px; background: var(--bg); cursor: pointer; font-size: 15px; font-weight: 600; color: var(--ink);
+}
+.switchbtn:hover, .switchbtn[aria-expanded="true"] { background: var(--hover); }
+.switchbtn .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
+.crumbs > .switchbtn, .crumbs > .crumbbtn { flex: none; }
+.switchbtn .rank { font-size: 12px; font-weight: 500; }
+.switchbtn svg { width: 16px; height: 16px; flex: none; stroke: var(--ink-2); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.crumbs .crumbbtn { border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.crumbs .crumbbtn:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.pop {
+  position: fixed; z-index: 15; width: min(440px, calc(100vw - 32px)); max-height: min(620px, calc(100vh - var(--bar-h) - 24px));
+  display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; background: var(--bg); color: var(--ink);
+  border: 1px solid var(--line-strong); border-radius: 6px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+.pop[hidden] { display: none; }
+.pop .search { margin: 10px 12px 0; }
+.pophead { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 12px; }
+.pophead .seg button { height: 28px; font-size: 12.5px; padding: 0 9px; }
+.poplist, .pgrid { list-style: none; margin: 0; padding: 0; }
+.poplist { overflow-y: auto; padding: 0 6px 6px; }
+.pickrow {
+  display: grid; grid-template-columns: 1.8em minmax(0, 1fr) 2.8em 64px; gap: 8px; align-items: center;
+  padding: 6px; border-radius: 4px; color: inherit; text-decoration: none; font-size: 14px;
+}
+.pickrow:hover, .pickrow:focus-visible { background: var(--hover); }
+.pickrow[aria-current="page"] { background: var(--sunken); box-shadow: inset 2px 0 0 var(--ink); }
+.pickrow .rank { font-size: 12px; }
+.pickrow .n { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pickrow .n span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pickrow .n small { color: var(--muted); font-size: 12px; margin-left: 4px; font-variant-numeric: tabular-nums; }
+.pickrow .w { text-align: right; font-weight: 600; }
+.pickrow .w.lean { color: var(--muted); font-weight: 500; }
+.pickrow .mana i { width: 14px; height: 14px; font-size: 8px; }
+.popall { border: 0; border-top: 1px solid var(--line); background: none; padding: 10px 12px; text-align: left; cursor: pointer; color: var(--good-ink); font-weight: 500; font-size: 14px; }
+.popall:hover { background: var(--hover); }
+dialog.picker { border: 0; padding: 0; margin: 0; width: 100%; height: 100%; max-width: none; max-height: none; background: var(--bg); color: var(--ink); }
+dialog.picker[open] { display: grid; grid-template-rows: auto auto minmax(0, 1fr); }
+dialog.picker::backdrop { background: rgba(10, 12, 15, 0.45); }
+.pkhead { display: flex; align-items: center; gap: 16px; padding: 12px 40px; border-bottom: 1px solid var(--line); }
+.pkhead h2 { font: 600 22px/1.2 var(--font-head); letter-spacing: -0.01em; }
+.pkhead .search { flex: 1; max-width: 520px; }
+.pkhead .iconbtn { margin-left: auto; }
+.pksub { padding: 10px 40px 0; }
+.pgrid { overflow-y: auto; padding: 6px 40px 32px; columns: 300px 4; column-gap: 32px; }
+.pgrid li { break-inside: avoid; }
+.pgrid .pickrow { border-radius: 0; border-bottom: 1px solid var(--line); padding-block: 7px; }
+/* Full screen: the share and matches go on a second line under the name */
+.pgrid .pickrow .n span { display: grid; white-space: normal; }
+.pgrid .pickrow .n small { margin-left: 0; }
+@media (max-width: 1023px) { .pkhead, .pksub, .pgrid { padding-inline: 16px; } .pkhead { flex-wrap: wrap; } }
+
 /* Filter sheet (mobile) */
 dialog.sheet {
   border: 0; padding: 0; width: 100%; max-width: 520px; margin: auto auto 0; border-radius: 12px 12px 0 0;
@@ -618,6 +753,16 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
   </button>
 </div>
 
+<div class="pop" id="switcher" role="dialog" aria-label="Switch deck" hidden>
+  <label class="search">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+    <input id="switchQ" type="search" placeholder="Search decks" autocomplete="off" aria-label="Search decks" aria-controls="switchList">
+  </label>
+  <div class="pophead"><span class="label" id="switchCount"></span><div class="seg" id="switchSort" role="group" aria-label="Sort decks"></div></div>
+  <ol class="poplist" id="switchList"></ol>
+  <button class="popall" id="switchAll" type="button"></button>
+</div>
+
 <main class="app">
   <section class="view" id="listView" aria-label="Decks">
     <div class="intro">
@@ -640,7 +785,8 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       <ul>
         <li><b>Win rate</b> is match wins excluding mirrors, with draws as half a win.</li>
         <li>On every bar the centre line is 50% (or no difference). The whisker is the 95% interval: the range the true value most likely sits in.</li>
-        <li><b>Clear</b> means the whole interval is on one side of the line. <b>Lean</b> means it could still be even. Headings such as "Good against" list only Clear results, in solid colour; Lean ones are outlined, with their number in grey, and folded under "Could go either way".</li>
+        <li><b>Clear</b> means the whole interval is on one side of the line. <b>Lean</b> means it could still be even. Headings such as "Good against" list only Clear results, in solid colour; Lean ones are outlined, with their number in grey, and kept apart under "Could go either way".</li>
+        <li>The <b>field map</b> at the top of a deck's matchups has one column per opponent: as wide as its share of lists, as tall as the deck's win rate against it.</li>
         <li><b>Against the field</b> on a deck page is its expected match win rate if the opponents are the top decks in proportion to their share of lists. Matchups with few matches count close to even. Sort by <b>Vs. field</b> to see it for every deck, grouped into favored, could be even and behind.</li>
         <li><b>Share of lists</b> counts published decklists, which are mostly MTGO's winning lists. Win rates count matches, which come mostly from paper events. The line under the title says how the current view splits.</li>
         <li><b>Card effects</b> compare lists of the same deck with and without a card. They show what winning lists play, which isn't always what makes them win. With dozens of cards, about 1 in 20 can look Clear by chance.</li>
@@ -687,7 +833,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     <nav class="toc" aria-label="Sections">
         <a href="#methods" data-jump="m-sources">Data sources</a><a href="#methods" data-jump="m-results">Results</a><a href="#methods" data-jump="m-share">Meta share</a>
         <a href="#methods" data-jump="m-winrate">Win rate</a><a href="#methods" data-jump="m-wilson">Intervals</a>
-        <a href="#methods" data-jump="m-labels">Clear / Lean</a><a href="#methods" data-jump="m-field">Against the field</a><a href="#methods" data-jump="m-summary">In short</a><a href="#methods" data-jump="m-cards">Cards</a><a href="#methods" data-jump="m-builds">Builds</a>
+        <a href="#methods" data-jump="m-labels">Clear / Lean</a><a href="#methods" data-jump="m-field">Against the field</a><a href="#methods" data-jump="m-fieldmap">Field map</a><a href="#methods" data-jump="m-summary">In short</a><a href="#methods" data-jump="m-cards">Cards</a><a href="#methods" data-jump="m-builds">Builds</a>
         <a href="#methods" data-jump="m-pilot">Pilot skill</a><a href="#methods" data-jump="m-skill">Skill sensitivity</a>
         <a href="#methods" data-jump="m-thresholds">Thresholds</a><a href="#methods" data-jump="m-refs">References</a>
     </nav>
@@ -743,7 +889,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       <h2>Clear and Lean</h2>
       <div class="eq">\[ \text{Clear} \iff L > c \ \text{ or } \ U < c \]</div>
       <p class="where">Otherwise Lean. \(c = 0.5\) for win rates and matchups, \(c = 0\) for card differences. Clear means the whole interval is on one side of the line. With dozens of cards, about 1 in 20 can look Clear by chance.</p>
-      <p>The labels decide how results are grouped. "Good against" and "Bad against" on a deck page, and "Lists with it win more" and "win less" for cards, hold only Clear results, drawn as solid bars. Lean results are drawn as outlined bars, with their number in grey at a lighter weight, in a folded "Could go either way" group, which opens by itself when nothing in the section is Clear. Builds and decisions show every option, so there the grey number and the outlined bar mark the Lean ones. Deck pages sort Clear matchups by how far the interval is from 50%: good ones by \(L\), bad ones by \(U\).</p>
+      <p>The labels decide how results are grouped. "Good against" and "Bad against" on a deck page, and "Lists with it win more" and "win less" for cards, hold only Clear results, drawn as solid bars. Lean results are drawn as outlined bars, with their number in grey at a lighter weight, under "Could go either way": for matchups the <b data-k="leanTop"></b> most played are listed and the rest wait behind a button; for cards the group is folded and opens by itself when nothing in the section is Clear. Builds and decisions show every option, so there the grey number and the outlined bar mark the Lean ones. Deck pages sort Clear matchups by how far the interval is from 50%: good ones by \(L\), bad ones by \(U\).</p>
       <p>In the reports, an archetype is flagged as <b>skewed</b> between online and paper when the two intervals don't overlap: \(L_\text{online} > U_\text{paper}\) or \(L_\text{paper} > U_\text{online}\).</p>
     </section>
 
@@ -757,6 +903,15 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       <p class="where">The sums run over the top <b data-k="topArchetypes"></b> decks in the view, the deck itself included; \(z = 1.959964\). The deck is Clear against the field when the whole interval is on one side of 50%. Decks outside the top <b data-k="topArchetypes"></b> are left out, and share of lists is mostly MTGO's winning lists (see Meta share), so this is the field those lists describe.</p>
       <p>When less than <b data-k="fieldThin"></b> of the field's weight comes from real matches, \(\sum_{b \ne a} \text{share}_b \frac{n_b}{n_b + k} \big/ \sum_{b \ne a} \text{share}_b\), the page says the estimate leans towards 50%. The <b>costliest matchup</b> is the opponent with the largest \(\text{share}_b\,(0.5 - \tilde p_b)\): the most expected match wins lost to one deck.</p>
       <p>The deck list's <b>Vs. field</b> sort shows \(E_a\) and its interval for every deck, grouped by verdict (Clear above 50%, Lean, Clear below 50%) and ranked by \(E_a\) within each group. Decks with fewer than <b data-k="sortMin"></b> matches form a last group, as they rank last in the win-rate sort.</p>
+    </section>
+
+    <section class="card" id="m-fieldmap" tabindex="-1">
+      <h2>Field map</h2>
+      <p>The chart at the top of a deck's matchups. Each opponent \(b\) the deck met <b data-k="minMu"></b>+ times is a column. Its width is its share of lists among those opponents, its height the deck's win rate against it, measured from 50%:</p>
+      <div class="eq">\[ w_b = \frac{\text{share}_b}{\sum_{c \in B} \text{share}_c}, \qquad h_b = \hat p_b - 0.5 \]</div>
+      <p class="where">\(B\): the opponents with <b data-k="minMu"></b>+ matches against the deck; \(\hat p_b\): the matchup win rate (pilot-adjusted when the correction is on), with its 95% interval as the whisker. A column is solid when the matchup is Clear and outlined when it is Lean, and columns run from the best matchup to the worst. On screen each column gets <b data-k="mapMinW"></b> px before the shares divide the rest of the width \(W\): \(m + w_b\,(W - |B|\,m)\) px with \(m\) = <b data-k="mapMinW"></b>, so the rarest opponents stay visible.</p>
+      <p>A column's area \(w_b h_b\) is its matchup's part of a share-weighted average over \(B\): the area above the line minus the area below it is \(\sum_b w_b \hat p_b - 0.5\). That is close to the field estimate but not the same: the estimate also counts the mirror and the opponents left out here, and pulls each matchup towards 50% by <b data-k="fieldPrior"></b> matches. The key under the chart says what share of the other decks' lists the columns cover.</p>
+      <p>Below the chart, the Clear matchups are listed surest first (see Clear and Lean); the ones that could go either way follow, most played first, the <b data-k="leanTop"></b> most played shown and the rest behind a button.</p>
     </section>
 
     <section class="card" id="m-summary" tabindex="-1">
@@ -870,6 +1025,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
           <tr><td>Metagame chart</td><td>Decks with <b data-k="sortMin"></b>+ matches; meta share on a log scale. On phones, a list of those decks that are Clear above or below 50%</td></tr>
           <tr><td>Win-rate sort</td><td>Decks with <b data-k="sortMin"></b>+ matches first</td></tr>
           <tr><td>Matchups shown</td><td><b data-k="minMu"></b>+ matches</td></tr>
+          <tr><td>Field map</td><td>Opponents with <b data-k="minMu"></b>+ matches; every column at least <b data-k="mapMinW"></b> px wide; <b data-k="leanTop"></b> matchups that could go either way listed before "Show more"</td></tr>
           <tr><td>Against the field</td><td>Each matchup pulled towards 50% by <b data-k="fieldPrior"></b> matches; "leans towards 50%" below <b data-k="fieldThin"></b> real data</td></tr>
           <tr><td>Card breakdowns</td><td>Top <b data-k="cardArchetypes"></b> archetypes; cards in <b data-k="minPlayRate"></b>+ of lists</td></tr>
           <tr><td>Card comparison</td><td><b data-k="overallDecks"></b>+ lists and <b data-k="overallMatches"></b>+ matches with and without the card</td></tr>
@@ -920,6 +1076,22 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
   </form>
 </dialog>
 
+<dialog class="picker" id="picker" aria-labelledby="pickerTitle">
+  <div class="pkhead">
+    <h2 id="pickerTitle">All decks</h2>
+    <label class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+      <input id="pickQ" type="search" placeholder="Search decks" autocomplete="off" aria-label="Search decks" aria-controls="pickList">
+    </label>
+    <div class="seg" id="pickSort" role="group" aria-label="Sort decks"></div>
+    <button class="iconbtn" id="pickClose" type="button" aria-label="Close">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <p class="srcline pksub" id="pickSrc"></p>
+  <ol class="pgrid" id="pickList"></ol>
+</dialog>
+
 <dialog class="viewer" id="viewer" aria-label="Card image">
   <button class="viewer-close" id="viewerClose" type="button" aria-label="Close card image">
     <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
@@ -946,6 +1118,8 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
   const SKILL_LEAN = 0.15;   // skill sensitivity this far from 1 counts as leaning one way
   const FIELD_PRIOR = 10;    // matches at 50% that every matchup is pulled towards in the field estimate
   const FIELD_THIN = 0.5;    // below this share of real matches in the field estimate, say it leans on 50%
+  const MU_LEAN_TOP = 8;     // matchups that could go either way listed before "Show more", most played first
+  const FIELD_MAP_MIN_W = 2; // px every field map column gets before the shares divide the rest
   const PERIODS = { "30d": "30 days", "90d": "90 days", "180d": "180 days" };
   const SCOPES = { combined: "All events", paper: "Paper", online: "Online" };
   const SCOPE_NOTES = {
@@ -985,6 +1159,12 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
   function chevron() {
     const s = document.createElementNS(SVGNS, "svg"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("class", "chev"); s.setAttribute("aria-hidden", "true");
     const p = document.createElementNS(SVGNS, "path"); p.setAttribute("d", "M9 5l7 7-7 7"); s.appendChild(p); return s;
+  }
+  function svgEl(tag, attrs, ...kids) {
+    const e = document.createElementNS(SVGNS, tag);
+    for (const k in attrs) if (attrs[k] != null) e.setAttribute(k, attrs[k]);
+    for (const kid of kids) e.append(kid);
+    return e;
   }
   const fmt = (n) => Number(n).toLocaleString("en-US");
   const pct = (x, d = 0) => x == null || isNaN(x) ? "–" : (x * 100).toFixed(d) + "%";
@@ -1224,6 +1404,9 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
   document.addEventListener("keydown", (e) => {
     if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || e.target.closest("input, textarea, select, [contenteditable]") || document.querySelector("dialog[open]")) return;
     e.preventDefault();
+    // Desktop deck and matchup pages have no deck list: "/" opens the switcher (or the picker) instead.
+    if (wide.matches && state.view === "deck") return openSwitcher();
+    if (wide.matches && state.view === "match") return openPicker();
     if (state.view === "methods" || (!wide.matches && state.view !== "list")) go("list", null, null, true, false);
     $("#search").focus();
   });
@@ -1249,18 +1432,115 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     store.set("theme", theme); applyTheme(); announce("Theme: " + THEME_NAMES[theme]);
   });
   applyTheme();
-  // Desktop breadcrumbs after the brand: deck, then matchup or methods. The last one is the current page.
+  // Desktop breadcrumbs after the brand: "All decks" (opens the deck picker), then the deck, then the matchup
+  // or Methods. On a deck page the deck is a switcher: a searchable list of the other decks.
   function renderCrumbs() {
-    const trail = state.view === "deck" ? [[state.deck]]
-      : state.view === "match" ? [[state.deck, "#d-" + slug(state.deck), () => go("deck", state.deck)], ["vs " + state.opp]]
-      : state.view === "methods" ? [["Methods"]] : [];
-    $("#crumbs").replaceChildren(...trail.flatMap(([label, href, to], i) => {
-      const last = i === trail.length - 1;
-      const el = last ? h("span", { "aria-current": "page" }, label) : h("a", { href }, label);
-      if (!last) navLink(el, to);
-      return [h("span", { class: "sep", "aria-hidden": "true" }, "/"), el];
-    }));
+    const sep = () => h("span", { class: "sep", "aria-hidden": "true" }, "/");
+    const trail = [];
+    if (state.view === "deck" || state.view === "match") {
+      trail.push(sep(), h("button", { class: "crumbbtn", type: "button", "aria-haspopup": "dialog", onclick: openPicker }, "All decks"), sep());
+      const deck = deckByName(state.deck);
+      if (state.view === "deck" && deck) trail.push(h("button", { class: "switchbtn", id: "switchBtn", type: "button", "aria-haspopup": "dialog", "aria-expanded": "false",
+        "aria-label": state.deck + ", deck " + (deck.i + 1) + " of " + decks().length + " by share of lists. Switch deck", title: "Switch deck (press /)",
+        onclick: () => ($("#switcher").hidden ? openSwitcher() : closeSwitcher(true)) },
+        mana(deck.color), h("span", { class: "nm" }, state.deck), h("span", { class: "rank num" }, "#" + (deck.i + 1)), chevronDown()));
+      else if (state.view === "deck") trail.push(h("span", { "aria-current": "page" }, state.deck));
+      else {
+        const a = h("a", { href: hashOf("deck", state.deck) }, state.deck);
+        navLink(a, () => go("deck", state.deck));
+        trail.push(a, sep(), h("span", { "aria-current": "page" }, "vs " + state.opp));
+      }
+    } else if (state.view === "methods") trail.push(sep(), h("span", { "aria-current": "page" }, "Methods"));
+    $("#crumbs").replaceChildren(...trail);
   }
+  function chevronDown() {
+    const s = document.createElementNS(SVGNS, "svg"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("aria-hidden", "true");
+    const p = document.createElementNS(SVGNS, "path"); p.setAttribute("d", "M6 9l6 6 6-6"); s.appendChild(p); return s;
+  }
+
+  // ---------- deck switcher and deck picker (desktop deck and matchup pages) ----------
+  // Both list every deck like the deck list does: rank by share of lists, colors, win rate with its interval.
+  const PICK_SORTS = [["share", "Most played"], ["wr", "Win rate"]];
+  let switchSort = "share", pickSort = "share";
+  function pickRows(q, sort) {
+    let rows = decks();
+    if (sort === "wr") rows.sort((a, b) => (b.matches >= SORT_MIN) - (a.matches >= SORT_MIN) || (b.wr ?? 0) - (a.wr ?? 0));
+    return q ? rows.filter((d) => d.name.toLowerCase().includes(q)) : rows;
+  }
+  function pickRow(d, close, full) {
+    return h("li", null, navA({ class: "pickrow", href: hashOf("deck", d.name), "aria-current": state.view === "deck" && d.name === state.deck ? "page" : null,
+      "aria-label": d.name + " (" + colorWords(d.color) + "), " + pct(d.share, 1) + " of published lists, win rate " + (d.matches ? pct(d.wr) : "unknown") },
+      () => { close(); go("deck", d.name); },
+      h("span", { class: "rank num" }, d.i + 1),
+      h("span", { class: "n" }, mana(d.color), h("span", null, d.name, h("small", null, pct(d.share, 1) + (full ? " of lists, " + fmt(d.matches) + " matches" : "")))),
+      h("b", { class: "w num" }, d.matches ? pct(d.wr) : "–"),
+      d.matches ? dbar(d.wr, d.lo, d.hi, 0.5, 0.2) : h("span")));
+  }
+  const noMatch = (q) => h("li", { class: "empty inset" }, "No deck matches “" + q + "”.");
+  function renderSwitcher() {
+    const q = $("#switchQ").value.trim().toLowerCase(), rows = pickRows(q, switchSort);
+    seg($("#switchSort"), PICK_SORTS, switchSort, (v) => { switchSort = v; renderSwitcher(); });
+    $("#switchCount").textContent = plural(rows.length, "deck", "decks");
+    $("#switchList").replaceChildren(...(rows.length ? rows.map((d) => pickRow(d, () => closeSwitcher(false))) : [noMatch(q)]));
+    $("#switchAll").textContent = "Browse all " + decks().length + " decks full screen";
+  }
+  function openSwitcher() {
+    const btn = $("#switchBtn"), pop = $("#switcher");
+    if (!btn) return;
+    $("#switchQ").value = "";
+    renderSwitcher();
+    pop.hidden = false;
+    const r = btn.getBoundingClientRect();
+    pop.style.left = Math.max(16, Math.min(r.left, innerWidth - pop.offsetWidth - 16)) + "px";
+    pop.style.top = r.bottom + 6 + "px";
+    btn.setAttribute("aria-expanded", "true");
+    $("#switchQ").focus();
+  }
+  function closeSwitcher(refocus) {
+    const pop = $("#switcher"), btn = $("#switchBtn");
+    if (pop.hidden) return;
+    pop.hidden = true;
+    if (btn) { btn.setAttribute("aria-expanded", "false"); if (refocus) btn.focus(); }
+  }
+  // Arrow keys move from the search box into the list and along it; Enter in the box opens the first deck.
+  function listKeys(input, list) {
+    const rows = () => [...list.querySelectorAll(".pickrow")];
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown" && rows().length) { e.preventDefault(); rows()[0].focus(); }
+      if (e.key === "Enter" && rows().length) { e.preventDefault(); rows()[0].click(); }
+    });
+    list.addEventListener("keydown", (e) => {
+      const all = rows(), k = all.indexOf(document.activeElement);
+      if (k < 0 || (e.key !== "ArrowDown" && e.key !== "ArrowUp")) return;
+      e.preventDefault();
+      if (e.key === "ArrowUp" && k === 0) input.focus(); else all[Math.max(0, Math.min(all.length - 1, k + (e.key === "ArrowDown" ? 1 : -1)))].focus();
+    });
+  }
+  listKeys($("#switchQ"), $("#switchList"));
+  $("#switchQ").addEventListener("input", renderSwitcher);
+  $("#switchAll").addEventListener("click", () => { closeSwitcher(false); openPicker(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#switcher").hidden) { e.preventDefault(); closeSwitcher(true); } });
+  document.addEventListener("click", (e) => { if (!e.target.closest("#switcher, #switchBtn")) closeSwitcher(false); });
+  window.addEventListener("resize", () => closeSwitcher(false));
+
+  function renderPicker() {
+    const q = $("#pickQ").value.trim().toLowerCase(), rows = pickRows(q, pickSort);
+    seg($("#pickSort"), PICK_SORTS, pickSort, (v) => { pickSort = v; renderPicker(); });
+    $("#pickSrc").replaceChildren(...sourceSplit(), " Select a deck to open it.");
+    $("#pickList").replaceChildren(...(rows.length ? rows.map((d) => pickRow(d, closePicker, true)) : [noMatch(q)]));
+  }
+  function openPicker() {
+    closeSwitcher(false);
+    const d = $("#picker");
+    $("#pickQ").value = "";
+    renderPicker();
+    if (typeof d.showModal === "function") d.showModal(); else d.setAttribute("open", "");
+    $("#pickQ").focus();
+  }
+  function closePicker() { const d = $("#picker"); if (d.open) d.close(); }
+  listKeys($("#pickQ"), $("#pickList"));
+  $("#pickQ").addEventListener("input", renderPicker);
+  $("#pickClose").addEventListener("click", closePicker);
 
   // ---------- filters ----------
   // Segmented control. The buttons are built once and then only their pressed state changes,
@@ -1452,14 +1732,15 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     boardViews.push({ el: s, draw, onChange });
     return s;
   }
-  function matchupRow(deck, m) {
+  // `compact`: one line, for the matchups that could go either way.
+  function matchupRow(deck, m, compact) {
     const good = m.wr >= 0.5, sure = m.lo > 0.5 || m.hi < 0.5;
-    return navA({ class: "row", href: hashOf("match", deck.name, m.opp.name),
+    return navA({ class: "row" + (compact ? " compact" : ""), href: hashOf("match", deck.name, m.opp.name),
       "aria-label": deck.name + " against " + m.opp.name + " (" + colorWords(m.opp.color) + "): " + pct(m.wr) + " in " + m.n + " matches, 95% interval " + ci(m.lo, m.hi) + ", " + (sure ? "clear" : "could be even") },
       () => go("match", deck.name, m.opp.name),
       h("div", { class: "deckcell" }, mana(m.opp.color), h("div", null,
         h("div", { class: "rname" }, m.opp.name),
-        h("div", { class: "rsub num" }, record(m.wins, m.n) + " in " + fmt(m.n) + " matches"))),
+        h("div", { class: "rsub num" }, record(m.wins, m.n) + " in " + fmt(m.n) + (compact ? "" : " matches")))),
       h("div", { class: "rval" }, tag(sure, good), val(pct(m.wr), sure), chevron()),
       h("div", { class: "rbar" }, dbar(m.wr, m.lo, m.hi, 0.5, 0.35)));
   }
@@ -1489,6 +1770,122 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
   const scaleRow = (lo, mid, hi) => h("div", { class: "row scalerow", "aria-hidden": "true" }, h("span", { class: "ph" }),
     h("div", { class: "rbar scale num" }, h("span", null, lo), h("span", null, mid), h("span", null, hi)), h("span", { class: "ph rval" }));
 
+  // ---------- page layout (deck and matchup pages) ----------
+  // A section: its numbers, and beside them (below them on phones) a margin of notes on how to read them.
+  function pageSection(id, main, margin) {
+    return h("section", { class: "psec", id },
+      h("div", { class: "pmain" }, main),
+      margin && margin.length ? h("aside", { class: "pmargin", "aria-label": "Notes on " + (NOTES_ON[id] || "this section") }, margin) : null);
+  }
+  const NOTES_ON = { "sec-hero": "the verdict", "sec-mu": "the matchups", "sec-dec": "builds and decisions", "sec-cards": "the cards",
+    "sec-match": "the result", "sec-mcards": "the cards in this matchup" };
+  const marginNote = (title, ...text) => h("p", { class: "note" }, h("b", null, title + ". "), text);
+  // A link to a section of the Methods page.
+  const toMethods = (id, label) => h("button", { class: "linkbtn", type: "button", onclick: () => {
+    go("methods", null, null, true, false);
+    const s = document.getElementById(id); s.scrollIntoView(); s.focus({ preventScroll: true });
+  } }, label);
+  // Desktop: the page's sections on the left, the current one marked as you scroll, plus a few ways on.
+  let tocLinks = [];
+  function pageIndex(title, toc, ...extra) {
+    tocLinks = toc.map(([label, id]) => ({ id, a: h("a", { href: location.hash || "#", onclick: (e) => { e.preventDefault(); jumpTo(id); } }, label) }));
+    const nav = h("nav", { class: "pindex", "aria-label": "On this page" },
+      h("p", { class: "ilabel" }, title), h("ol", { class: "toc2" }, tocLinks.map((x) => h("li", null, x.a))), extra);
+    requestAnimationFrame(markToc);
+    return nav;
+  }
+  function markToc() {
+    const live = tocLinks.filter((x) => x.a.isConnected);
+    if (!live.length) return;
+    const line = $(".bar").offsetHeight + 80, atEnd = scrollY > 0 && innerHeight + scrollY >= document.documentElement.scrollHeight - 2;
+    let cur = live[0];
+    for (const x of live) { const sec = document.getElementById(x.id); if (sec && sec.getBoundingClientRect().top < line) cur = x; }
+    if (atEnd) cur = live[live.length - 1];
+    live.forEach((x) => (x === cur ? x.a.setAttribute("aria-current", "location") : x.a.removeAttribute("aria-current")));
+  }
+  window.addEventListener("scroll", markToc, { passive: true });
+  // The decks around this one by share of lists, and the way to all of them.
+  function nearbyDecks(deck) {
+    const all = decks(), from = Math.max(0, Math.min(deck.i - 2, all.length - 5));
+    return [h("p", { class: "ilabel" }, "Nearby by share"),
+      h("ol", { class: "near" }, all.slice(from, from + 5).map((d) => h("li", null, navA({ href: hashOf("deck", d.name), "aria-current": d.i === deck.i ? "page" : null,
+        "aria-label": d.name + ", win rate " + (d.matches ? pct(d.wr) : "unknown") }, () => go("deck", d.name),
+        h("span", { class: "rank num" }, d.i + 1), h("span", { class: "n" }, d.name), h("span", { class: "w num" }, d.matches ? pct(d.wr) : "–"))))),
+      h("button", { class: "linkbtn", type: "button", "aria-haspopup": "dialog", onclick: openPicker }, "All " + all.length + " decks")];
+  }
+
+  // Field map: one column per opponent with MIN_MU+ matches, as wide as its share of lists among them and as tall as
+  // the deck's win rate against it, whisker = 95% interval; solid when Clear, outlined when Lean, as on the bars.
+  // Best matchup on the left. The rows below list the same matchups, so they are the keyboard and screen-reader route;
+  // the chart adds pointing (a tooltip) and clicking (opens the matchup). See the methods page (m-fieldmap).
+  function fieldMap(deck, rows) {
+    const items = rows.slice().sort((a, b) => b.wr - a.wr);
+    const total = items.reduce((t, m) => t + m.opp.share, 0);
+    const others = decks().filter((d) => d.i !== deck.i).reduce((t, d) => t + d.share, 0);
+    const good = items.filter((m) => m.lo > 0.5).length, bad = items.filter((m) => m.hi < 0.5).length;
+    const box = h("div", { class: "fmap" }), tip = h("div", { class: "tip", hidden: true });
+    let w0 = 0;
+    const ro = new ResizeObserver(() => draw());
+    function draw() {
+      if (!box.isConnected) { if (w0) ro.disconnect(); return; }
+      const W = box.clientWidth;
+      if (!W || W === w0) return;
+      w0 = W;
+      const H = wide.matches ? 300 : 220, m = { l: 38, r: 2, t: 10, b: wide.matches ? 42 : 24 };
+      const y0 = Math.max(0, Math.floor(Math.min(0.3, ...items.map((x) => x.lo)) * 10) / 10);
+      const y1 = Math.min(1, Math.ceil(Math.max(0.7, ...items.map((x) => x.hi)) * 10) / 10);
+      const Y = (p) => m.t + (y1 - p) / (y1 - y0) * (H - m.t - m.b);
+      const gap = W / items.length < 8 ? 1 : 2, iw = W - m.l - m.r - gap * (items.length - 1) - FIELD_MAP_MIN_W * items.length;
+      const root = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, height: H, role: "img",
+        "aria-label": "Field map of " + deck.name + " against " + items.length + " opponents, each as wide as its share of lists: clearly ahead against " +
+          good + ", clearly behind against " + bad + ". The same matchups are listed below." });
+      for (let k = Math.round(y0 * 10); k <= Math.round(y1 * 10); k++) {
+        const y = Y(k / 10);
+        root.append(svgEl("line", { x1: m.l, x2: W - m.r, y1: y, y2: y, class: k === 5 ? "axis50" : "grid" }));
+        if ((k - 5) % 2 === 0) root.append(svgEl("text", { x: m.l - 6, y: y + 4, "text-anchor": "end" }, k * 10 + "%"));
+      }
+      const mid = Y(0.5);
+      let x = m.l;
+      items.forEach((mu) => {
+        const w = FIELD_MAP_MIN_W + mu.opp.share / total * iw, cx = x + w / 2, y = Y(mu.wr);
+        const sure = mu.lo > 0.5 || mu.hi < 0.5, color = mu.wr >= 0.5 ? "var(--good)" : "var(--bad)";
+        const top = Math.min(mid, y), tall = Math.max(1.5, Math.abs(y - mid));
+        const hit = svgEl("rect", { class: "hit", x: x - gap / 2, y: m.t, width: w + gap, height: H - m.t - m.b });
+        root.append(hit, sure ? svgEl("rect", { x, y: top, width: w, height: tall, fill: color, "pointer-events": "none" })
+          : svgEl("rect", { x: x + 0.75, y: top + 0.75, width: Math.max(0.5, w - 1.5), height: Math.max(0.5, tall - 1.5), fill: "none", stroke: color, "stroke-width": 1.5, "pointer-events": "none" }));
+        if (w >= 5) {
+          const yl = Y(mu.lo), yh = Y(mu.hi), cap = Math.min(4, w / 2 - 1);
+          root.append(svgEl("g", { stroke: color, "stroke-width": 1.5, opacity: 0.6, "pointer-events": "none" },
+            svgEl("line", { x1: cx, x2: cx, y1: yh, y2: yl }), svgEl("line", { x1: cx - cap, x2: cx + cap, y1: yh, y2: yh }), svgEl("line", { x1: cx - cap, x2: cx + cap, y1: yl, y2: yl })));
+        }
+        // Names under the columns wide enough for them: one line, else two on desktop.
+        const fits = (t) => t.length * 6.4 + 6 <= w, words = mu.opp.name.split(" "), cut = Math.ceil(words.length / 2);
+        const lines = fits(mu.opp.name) ? [mu.opp.name] : wide.matches && words.length > 1 && fits(words.slice(0, cut).join(" ")) && fits(words.slice(cut).join(" "))
+          ? [words.slice(0, cut).join(" "), words.slice(cut).join(" ")] : [];
+        lines.forEach((t, k) => root.append(svgEl("text", { x: cx, y: H - m.b + 15 + k * 13, "text-anchor": "middle", class: "lbl" }, t)));
+        const status = sure ? (mu.wr >= 0.5 ? "clearly ahead" : "clearly behind") : "could go either way";
+        hit.addEventListener("mouseenter", () => {
+          hit.classList.add("on");
+          tip.replaceChildren(h("b", null, mu.opp.name), pct(mu.wr) + " (" + ci(mu.lo, mu.hi) + "), " + status, h("br"),
+            pct(mu.opp.share, 1) + " of lists, " + record(mu.wins, mu.n) + " in " + fmt(mu.n) + " matches");
+          tip.hidden = false;
+          tip.style.left = (cx + 12 + 200 > W ? Math.max(0, cx - 12 - tip.offsetWidth) : cx + 12) + "px";
+          tip.style.top = Math.max(0, Math.min(y, mid) - 24) + "px";
+        });
+        hit.addEventListener("mouseleave", () => { hit.classList.remove("on"); tip.hidden = true; });
+        hit.addEventListener("click", () => go("match", deck.name, mu.opp.name));
+        x += w + gap;
+      });
+      box.replaceChildren(root, tip);
+    }
+    ro.observe(box);
+    const key = h("div", { class: "fkey" },
+      h("span", null, h("i", { class: "k-good" }), "Clearly ahead"), h("span", null, h("i", { class: "k-bad" }), "Clearly behind"),
+      h("span", null, h("i", { class: "k-lean" }), "Could go either way"),
+      h("span", { class: "muted" }, "Width: share of lists. The columns cover " + pct(others ? total / others : 0) + " of the other decks’ lists."));
+    return h("div", { class: "stack" }, box, key);
+  }
+
   // ---------- deck view ----------
   function cardSection(deck) {
     const body = h("div", { class: "stack" });
@@ -1509,10 +1906,11 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
         h("div", { class: "chips spaced" }, rare.map((r) => cardChip(r.card, r.card + " " + pct(r.play))))));
     };
     draw();
-    return h("section", { class: "card", id: "sec-cards" }, h("header", null, h("h2", null, "Cards that move the win rate"),
+    return pageSection("sec-cards", [h("header", null, h("h2", null, "Cards that move the win rate"),
       h("p", { class: "note" }, "Win rate of " + deck.name + " lists with each card minus lists without it, in percentage points. Open a matchup for the same comparison against one opponent.")),
-      boardToggle(draw), body);
+      boardToggle(draw), body], [cardsNote(), toMethods("m-cards", "How cards are compared")]);
   }
+  const cardsNote = () => marginNote("Descriptive, not causal", "Lists with a card also differ in event, date and their other cards, so these show what winning lists play, not what makes them win. With dozens of cards, about 1 in 20 can look Clear by chance.");
 
   // ---------- builds and decisions ----------
   // Records come as [wins, matches, average pilot lift, its SD]; comparisons as
@@ -1756,6 +2154,9 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
         h("div", { class: "subhead" }, top ? h("h3", { class: "lvl" }, title) : h("h4", null, title), summary),
         h("div", { class: "rows" }, rows, scaleRow("−20 pts", "0", "+20 pts")));
 
+      // Builds on the left, the decisions across the deck on the right, once both have room.
+      const left = h("div", { class: "stack" }), right = h("div", { class: "stack" });
+      body.append(h("div", { class: "cols2" }, left, right));
       const ls = data.builds, stock = ls[0];
       if (ls.length > 1) {
         const rows = ls.flatMap((b) => {
@@ -1765,10 +2166,10 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
             : defs.map(([c, k]) => h("span", { class: "def" }, (k ? k + " " : "no ") + c)))];
           return [optionRow(label, b.share, b.win, b.cmp, chips(b.mu), btn), panel];
         });
-        body.append(group("Builds", verdict(ls.map((b) => ({ text: b.name, cmp: b.cmp }))), rows, true));
+        left.append(group("Builds", verdict(ls.map((b) => ({ text: b.name, cmp: b.cmp }))), rows, true));
       } else {
         const [btn, panel] = listToggle(stock);
-        body.append(h("div", { class: "group" }, h("div", { class: "subhead" }, h("h3", { class: "lvl" }, "One build"), h("span", { class: "count" }, fmt(data.lists) + " lists")),
+        left.append(h("div", { class: "group" }, h("div", { class: "subhead" }, h("h3", { class: "lvl" }, "One build"), h("span", { class: "count" }, fmt(data.lists) + " lists")),
           h("p", { class: "note" }, "No single card choice splits these lists into clearly different builds."), btn, panel));
       }
 
@@ -1780,21 +2181,23 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       // Phones list fewer before "more"; a "more" that would hide a single decision isn't worth it.
       let top = wide.matches ? DEC_TOP : DEC_TOP_NARROW;
       if (items.length - top < 2) top = items.length;
-      body.append(h("div", { class: "subhead", style: "margin-top:16px" }, h("h3", { class: "lvl" }, "Decisions"),
+      right.append(h("div", { class: "subhead" }, h("h3", { class: "lvl" }, "Decisions"),
         h("span", { class: "count" }, items.length ? "Most open first" : "")));
-      if (!items.length) body.append(h("p", { class: "note" }, "Beyond the builds, these lists all play the same cards."));
-      items.slice(0, top).forEach((x) => body.append(x.el));
-      if (items.length > top) body.append(h("details", { class: "more" }, h("summary", null, (items.length - top) + " more, mostly settled"),
+      if (!items.length) right.append(h("p", { class: "note" }, "Beyond the builds, these lists all play the same cards."));
+      items.slice(0, top).forEach((x) => right.append(x.el));
+      if (items.length > top) right.append(h("details", { class: "more" }, h("summary", null, (items.length - top) + " more, mostly settled"),
         h("div", { style: "display:grid;gap:16px;margin-top:12px" }, items.slice(top).map((x) => x.el))));
-      if (fixed.length) body.append(h("details", { class: "more" }, h("summary", null, plural(fixed.length, "card", "cards") + " every list plays the same"),
+      if (fixed.length) right.append(h("details", { class: "more" }, h("summary", null, plural(fixed.length, "card", "cards") + " every list plays the same"),
         h("div", { class: "chips", style: "margin-top:8px" }, fixed.map(([c, k]) => cardChip(c, h("b", null, k), c)))));
       if (!main) body.append(h("p", { class: "note" }, "Matchups per option are left out on the sideboard: what a list sideboards follows the field it expects."));
     };
     draw();
-    return h("section", { class: "card decisions", id: "sec-dec" }, h("header", null, h("h2", null, "Builds and decisions"),
-      h("p", { class: "note" }, "The builds " + deck.name + " comes in, then the choices its lists make, most open first. Win rates are for the lists that made each choice: like card effects, they show what winning lists play, not what makes them win."),
-      h("button", { class: "linkbtn", type: "button", onclick: () => { go("methods", null, null, true, false); const m = document.getElementById("m-builds"); m.scrollIntoView(); m.focus({ preventScroll: true }); } }, "How builds and decisions are found")),
-      boardToggle(draw), body);
+    return pageSection("sec-dec", [h("header", null, h("h2", null, "Builds and decisions"),
+      h("p", { class: "note" }, "The builds " + deck.name + " comes in, then the choices its lists make, most open first.")),
+      boardToggle(draw), body],
+      [marginNote("Builds", "Groups of lists that answer the same few card questions, largest first. The largest is the stock list; open a build for its typical list."),
+        marginNote("Win rates", "For the lists that made each choice. Like card effects, they show what winning lists play, not what makes them win."),
+        toMethods("m-builds", "How builds and decisions are found")]);
   }
 
   function pilotNote(x) {
@@ -1862,9 +2265,8 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       notes.push("Costliest matchup: ", navA({ href: hashOf("match", deck.name, f.risk.o.name) }, () => go("match", deck.name, f.risk.o.name), f.risk.o.name),
         h("span", { class: "num" }, " (" + pct(f.risk.o.share, 1) + " of lists" + (m ? ", " + pct(m.wr) + " in " + fmt(m.n) + " matches" : "") + ")."), " ");
     }
-    if (f.data < FIELD_THIN) notes.push("Few matches against much of the field, so this estimate leans towards 50%. ");
-    notes.push(h("button", { class: "linkbtn inline", type: "button", onclick: () => { go("methods", null, null, true, false); const s = document.getElementById("m-field"); s.scrollIntoView(); s.focus({ preventScroll: true }); } }, "How this is estimated"));
-    box.append(h("p", { class: "note" }, notes));
+    if (f.data < FIELD_THIN) notes.push("Few matches against much of the field, so this estimate leans towards 50%.");
+    if (notes.length) box.append(h("p", { class: "note" }, notes));
     return box;
   }
 
@@ -1926,7 +2328,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
   }
   // Scrolls to a section of the deck page and moves focus to its heading.
   function jumpTo(id) {
-    const s = document.getElementById(id), head = s && s.querySelector("h2");
+    const s = document.getElementById(id), head = s && s.querySelector("h1, h2");
     if (!s) return;
     s.scrollIntoView({ block: "start" });
     head.setAttribute("tabindex", "-1");
@@ -1948,23 +2350,26 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     const bad = enough.filter((m) => m.hi < 0.5).sort((a, b) => a.hi - b.hi);
     const lean = enough.filter((m) => !(m.lo > 0.5 || m.hi < 0.5)).sort((a, b) => b.wr - a.wr);
 
-    // The verdict comes right after the numbers, then the notes on pilots and skill, then the summary of the sections below.
-    const hero = h("section", { class: "hero" });
-    hero.append(
+    // The numbers, the verdict against the field and the summary of the sections below; the notes on how the
+    // verdict is estimated, on pilots and on skill go in the margin.
+    const hero = pageSection("sec-hero", [
       h("div", { class: "title" }, mana(deck.color, true), h("h1", null, deck.name)),
       h("div", { class: "stats" },
         h("div", { class: "stat" }, h("b", { class: "num" }, deck.matches ? pct(deck.wr) : "–"), h("span", null, deck.matches ? "win rate, " + ci(deck.lo, deck.hi) : "no matches")),
         h("div", { class: "stat" }, h("b", { class: "num" }, pct(deck.share, 1)), h("span", null, "of published lists")),
         h("div", { class: "stat" }, h("b", { class: "num" }, fmt(deck.matches)), h("span", null, "matches"))),
       fieldBlock(deck) || "",
-      pilotNote(deck) || "",
-      skillNote(deck),
-      deckSummary(deck, enough, good, bad, lean));
+      deckSummary(deck, enough, good, bad, lean)], [
+      deck.matches ? marginNote("Against the field", "The expected match win rate if the opponents are the top " + decks().length +
+        " decks, each as often as its share of lists. Matchups with few matches count close to even.") : null,
+      deck.matches ? toMethods("m-field", "How this is estimated") : null,
+      pilotNote(deck), skillNote(deck)].filter(Boolean));
+    hero.querySelector(".pmain").classList.add("hero");
 
-    const muSec = h("section", { class: "card", id: "sec-mu" }, h("header", null, h("h2", null, "Matchups"),
-      h("p", { class: "note" }, "Most certain results first. Open a matchup for the cards that matter in it.")));
-    if (!enough.length) suggestMore(muSec, "No matchup has " + MIN_MU + " or more matches in this view.");
-    else if (!good.length && !bad.length) muSec.append(h("p", { class: "note" }, "No matchup is clear in this view yet: every one could still be even."));
+    const muMain = [h("header", null, h("h2", null, "Matchups"))];
+    if (!enough.length) suggestMore(muMain[0], "No matchup has " + MIN_MU + " or more matches in this view.");
+    else muMain.push(fieldMap(deck, enough));
+    if (enough.length && !good.length && !bad.length) muMain.push(h("p", { class: "note" }, "No matchup is clear in this view yet: every one could still be even."));
     const SHOW = 5;
     const listGroup = (title, cls, items) => {
       const g = h("div", { class: "group" },
@@ -1975,14 +2380,36 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
         h("div", { class: "rows" }, items.slice(SHOW).map((m) => matchupRow(deck, m)))));
       return g;
     };
-    if (good.length) muSec.append(listGroup("Good against", "good", good));
-    if (bad.length) muSec.append(listGroup("Bad against", "bad", bad));
-    if (lean.length) muSec.append(leanGroup(lean, "deck", (m) => matchupRow(deck, m), !good.length && !bad.length));
-    if (enough.length) muSec.append(scaleRow("15%", "50%", "85%"));
-    if (few.length) muSec.append(h("details", { class: "more" }, h("summary", null, few.length + " matchups with fewer than " + MIN_MU + " matches"),
+    if (good.length || bad.length) muMain.push(h("div", { class: "cols2" }, good.length ? listGroup("Good against", "good", good) : null, bad.length ? listGroup("Bad against", "bad", bad) : null));
+    // Could go either way: one line each, most played first, the rest behind a button. Two columns on wide screens.
+    if (lean.length) {
+      const byShare = lean.slice().sort((a, b) => b.opp.share - a.opp.share);
+      let all = false;
+      const cols = h("div", { class: "cols2" });
+      const more = lean.length > MU_LEAN_TOP ? h("button", { class: "linkbtn", type: "button", "aria-expanded": "false" }) : null;
+      const drawLean = () => {
+        const items = all ? byShare : byShare.slice(0, MU_LEAN_TOP), half = Math.ceil(items.length / 2);
+        cols.replaceChildren(...[items.slice(0, half), items.slice(half)].map((xs) => h("div", { class: "rows" }, xs.map((m) => matchupRow(deck, m, true)))));
+        if (more) { more.textContent = all ? "Show fewer" : "Show " + (lean.length - MU_LEAN_TOP) + " more"; more.setAttribute("aria-expanded", String(all)); }
+      };
+      if (more) more.addEventListener("click", () => { all = !all; drawLean(); });
+      drawLean();
+      muMain.push(h("div", { class: "group" }, h("div", { class: "subhead" }, h("h3", null, "Could go either way"),
+        h("span", { class: "count" }, plural(lean.length, "deck", "decks") + (lean.length > 1 ? ", most played first" : ""))), cols, more));
+    }
+    if (enough.length) muMain.push(h("div", { class: "cols2" }, scaleRow("15%", "50%", "85%"), h("div", { class: "scale2" }, scaleRow("15%", "50%", "85%"))));
+    if (few.length) muMain.push(h("details", { class: "more" }, h("summary", null, few.length + " matchups with fewer than " + MIN_MU + " matches"),
       h("div", { class: "chips spaced" }, few.sort((a, b) => b.n - a.n).map((m) => h("span", { class: "chip" }, m.opp.name + " " + record(m.wins, m.n))))));
+    const muSec = pageSection("sec-mu", muMain, [
+      enough.length ? marginNote("Field map", "One column per opponent with " + MIN_MU + "+ matches: as wide as its share of lists, as tall as " + possessive(deck.name) +
+        " win rate against it, best on the left. Whiskers are 95% intervals. Point at a column for its numbers; click it to open the matchup.") : null,
+      marginNote("Clear or Lean", "Clear: the whole 95% interval is on one side of 50%, drawn solid. Lean: it could still be even, drawn outlined with its number in grey."),
+      marginNote("Order", "Good and bad matchups list the surest first. The ones that could go either way list the most played first. Open a matchup for the cards that matter in it."),
+      toMethods("m-fieldmap", "How the field map is drawn")].filter(Boolean));
 
-    view.replaceChildren(hero, muSec, decisionsSection(deck), cardSection(deck));
+    view.replaceChildren(
+      pageIndex(deck.name, [["Verdict", "sec-hero"], ["Matchups", "sec-mu"], ["Builds and decisions", "sec-dec"], ["Cards", "sec-cards"]], ...nearbyDecks(deck)),
+      h("div", { class: "pcontent" }, hero, muSec, decisionsSection(deck), cardSection(deck)));
   }
 
   // ---------- matchup view ----------
@@ -1998,8 +2425,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
     }
     const good = m.wr >= 0.5, sure = m.lo > 0.5 || m.hi < 0.5;
     const verdict = sure ? (good ? "Clearly favored" : "Clearly behind") : (good ? "Leans favored, could be even" : "Leans behind, could be even");
-    const hero = h("section", { class: "hero" });
-    hero.append(
+    const hero = pageSection("sec-match", [
       h("div", { class: "title" }, mana(deck.color, true), h("h1", null, deck.name)),
       h("div", { class: "vs" }, h("span", { class: "muted" }, "against"), mana(opp.color), h("b", null, opp.name)),
       h("div", { class: "stats" },
@@ -2007,9 +2433,12 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
         h("div", { class: "stat" }, h("b", { class: "num" }, ci(m.lo, m.hi)), h("span", null, "95% interval")),
         h("div", { class: "stat" }, h("b", { class: "num" }, record(m.wins, m.n)), h("span", null, "match record"))),
       dbar(m.wr, m.lo, m.hi, 0.5, 0.35, verdict),
-      pilotNote(m) || "",
       h("p", { class: "verdict" }, h("b", null, verdict + "."), " " + deck.name + " won " + record(m.wins, m.n) + " in " + m.n + " matches."),
-      navA({ class: "linkbtn", href: hashOf("match", opp.name, deck.name) }, () => go("match", opp.name, deck.name), "See it from " + possessive(opp.name) + " side"));
+      navA({ class: "linkbtn", href: hashOf("match", opp.name, deck.name) }, () => go("match", opp.name, deck.name), "See it from " + possessive(opp.name) + " side")], [
+      marginNote("Interval", "With " + m.n + " matches the true win rate could be anywhere from " + ci(m.lo, m.hi) + ". " +
+        (sure ? "The whole interval is on one side of 50%, so the result is Clear." : "The interval includes 50%, so the matchup could still be even.")),
+      pilotNote(m)].filter(Boolean));
+    hero.querySelector(".pmain").classList.add("hero");
 
     const body = h("div", { class: "stack" });
     const draw = () => {
@@ -2028,10 +2457,15 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       }, " here", "No card clearly changes the result of this matchup in this view. The differences below could be chance.");
     };
     draw();
-    const sec = h("section", { class: "card" }, h("header", null, h("h2", null, "Cards in this matchup"),
-      h("p", { class: "note" }, deck.name + " lists with each card against lists without it, counting only matches against " + opp.name + ". Samples are small: trust big, Clear differences most.")),
-      boardToggle(draw), body);
-    view.replaceChildren(hero, sec);
+    const sec = pageSection("sec-mcards", [h("header", null, h("h2", null, "Cards in this matchup"),
+      h("p", { class: "note" }, deck.name + " lists with each card against lists without it, counting only matches against " + opp.name + ".")),
+      boardToggle(draw), body], [marginNote("Small samples", "One matchup has far fewer matches than the whole deck, so trust big, Clear differences most."),
+      cardsNote(), toMethods("m-cards", "How cards are compared")]);
+    view.replaceChildren(
+      pageIndex(deck.name + " vs " + opp.name, [["Result", "sec-match"], ["Cards in this matchup", "sec-mcards"]],
+        navA({ class: "linkbtn", href: hashOf("deck", deck.name) }, () => go("deck", deck.name), "Back to " + deck.name),
+        h("button", { class: "linkbtn", type: "button", "aria-haspopup": "dialog", onclick: openPicker }, "All " + decks().length + " decks")),
+      h("div", { class: "pcontent" }, hero, sec));
   }
 
   // ---------- metagame chart (desktop list view) ----------
@@ -2171,7 +2605,7 @@ dialog.viewer.peek .viewer-cap small { font-size: 11px; }
       grid: (M.lambda_grid || []).join(", "), bootstrap: M.bootstrap,
       lam: pl.lam == null ? "–" : pl.lam, rated: fmt(pl.rated || 0), players: fmt(pl.players || 0),
       topArchetypes: T.topArchetypes, cardArchetypes: T.cardArchetypes, minPlayRate: pct(T.minPlayRate),
-      minMu: MIN_MU, sortMin: SORT_MIN, fieldPrior: FIELD_PRIOR, fieldThin: pct(FIELD_THIN), corePlay: pct(CORE_PLAY), overallDecks: T.overall.min_decks, overallMatches: T.overall.min_matches,
+      minMu: MIN_MU, leanTop: MU_LEAN_TOP, mapMinW: FIELD_MAP_MIN_W, sortMin: SORT_MIN, fieldPrior: FIELD_PRIOR, fieldThin: pct(FIELD_THIN), corePlay: pct(CORE_PLAY), overallDecks: T.overall.min_decks, overallMatches: T.overall.min_matches,
       matchupTotal: T.matchupTotal, matchupDecks: T.matchup.min_decks, matchupMatches: T.matchup.min_matches,
       slopeLambda: M.slope_lambda, skillMin: M.skill_min_matches, skillLean: SKILL_LEAN,
       skillLeanHi: (1 + SKILL_LEAN).toFixed(2), skillLeanLo: (1 - SKILL_LEAN).toFixed(2),

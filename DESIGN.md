@@ -183,8 +183,9 @@ everything else. Certainty is drawn, not written: a solid bar is a Clear result,
 outlined bar is a Lean one, and every bar carries the whisker of its 95% interval.
 
 The system is mobile-first and theme-symmetric. Phones get one stacked column with
-44px touch targets; from 1024px a sidebar of decks sits beside the detail; from
-1600px matchups and cards stand side by side. Light and dark themes share every
+44px touch targets. From 1024px the deck list page puts the list beside the metagame
+chart, and deck and matchup pages take the whole width like a notebook page: an index
+of the page on the left, the numbers in the middle, notes in the margin on the right. Light and dark themes share every
 role, and both meet WCAG AA.
 
 **Key Characteristics:**
@@ -291,15 +292,24 @@ Mobile-first, one column of stacked views (deck list → deck → matchup → Me
   Filters button that opens a bottom sheet. All touch targets are at least 44px tall;
   card chips are 40px because they form a dense cloud. Below 520px chip buttons switch
   to short labels.
-- **From 1024px:** a two-column app. The deck list becomes a sticky, independently
-  scrolling sidebar (320px, 380px from 1200px, 420px from 1600px) separated by a
-  hairline. The filters move into the top bar as compact segmented controls, and
-  breadcrumbs follow the brand. Matchup and card rows go onto one line: name | bar |
+- **From 1024px:** the filters move into the top bar as compact segmented controls,
+  breadcrumbs follow the brand, and matchup and card rows go onto one line: name | bar |
   value.
+  - **Deck list page:** two columns. The deck list is a sticky, independently scrolling
+    sidebar (320px, 380px from 1200px, 420px from 1600px) separated by a hairline,
+    beside the metagame chart.
+  - **Deck and matchup pages:** no deck list. A 176px sticky page index on the left
+    (the sections, the current one marked as you scroll, the neighbouring decks by
+    share, a link to all decks), then the sections, up to 1760px in all. Each section
+    is its numbers plus a margin of notes (220–280px, 320px from 1600px) behind a
+    hairline on the right. Phones put the notes under the numbers.
+- **From 1360px:** inside a section, good and bad matchups, the matchups that could go
+  either way, and builds and decisions each split into two columns (40px gap); rows
+  in a half column give the name more room than the bar.
 - **1024–1279px:** filter labels and the Methods link text are dropped to make room
-  for breadcrumbs.
-- **From 1600px:** the deck view splits into matchups and cards side by side (48px
-  gap), with builds and decisions spanning both below.
+  for breadcrumbs; deck and matchup pages also drop the "All decks" crumb (the page
+  index links to all decks) and the switcher's rank, and keep the labels off up to
+  1499px.
 - **Methods:** a single centred 760px reading column with a sticky table of contents.
 
 Spacing follows a 4px base with common steps of 8, 12/14, 16, 24 and 32px. Rows are
@@ -314,7 +324,7 @@ Modal layers dim the page with a translucent backdrop instead.
 
 ### Shadow Vocabulary
 - **Tooltip** (`box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12)`): the metagame chart's
-  hover tooltip.
+  and field map's hover tooltips, and the deck switcher popover.
 - **Card image** (`box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6)`): the Scryfall card
   image in the viewer.
 - **Current-row marker** (`box-shadow: inset 2px 0 0 var(--ink)`): not elevation; a
@@ -368,6 +378,17 @@ chart dots are full circles. Borders are 1px hairlines; the only thicker lines a
   date range) always links home on desktop, followed by breadcrumbs in Ink Secondary
   with the current page in Ink weight 600. On phones, a back button and the current
   context replace both.
+- **Deck switcher:** on a deck page the deck in the breadcrumb is a 30px Hairline
+  Strong button (pips, name, Muted rank, chevron). It, or `/`, opens a 440px
+  popover under it: a search box, a Most played / Win rate segmented control, one 30px
+  line per deck (rank | pips, name, Muted share | win rate | 64px mini bar), and a
+  last line, "Browse all decks full screen". Arrow keys move from the search box
+  through the list; Esc closes it and returns focus to the button.
+- **Deck picker:** "All decks" in the breadcrumb, or that last line, opens a
+  full-screen dialog with the same rows in columns of at least 300px (share and matches
+  on a second line), a search box and the sort.
+- **Page index:** Muted uppercase labels; section links with a 1px Hairline left rule,
+  the current one in Ink weight 600 with a 2px Ink rule; nearby decks as compact rows.
 - **Deck row** (`deck-row`): rank | name with mana pips and metadata | win rate with a
   72px mini bar. Hover fill on hover; the current deck gets a Sunken fill and a 2px Ink
   left edge.
@@ -389,6 +410,23 @@ matchup count. A bold verdict sentence ("Clearly favored against the field.") wi
 the expected match win rate and its interval, a Diverging Bar (max 640px), then one
 Muted note naming the costliest matchup as a link. Hairlines above and below set it
 apart from the stats without a box.
+
+### Field Map
+The top of a deck's matchups: one column per opponent with enough matches, as wide
+as its share of lists and as tall as the deck's win rate against it, measured from a
+1px UI Line at 50%, best matchup on the left. It follows the Diverging Bar's marks:
+solid Favoured Blue or Unfavoured Red for Clear, a 1.5px outline for Lean, whiskers at
+60% opacity. Hairline grid every 10 points, labels every 20 around 50%. Names sit under
+columns wide enough for them; every column shows a tooltip on hover and opens its
+matchup on click. A key below names the three marks and how much of the field the
+columns cover. 300px tall on desktop, 220px on phones. The rows below it carry the
+same matchups for keyboards and screen readers.
+
+### Margin Notes
+The right-hand column of a deck or matchup section: short Ink Secondary notes
+(13.5px) that open with a bold lead-in ("Clear or Lean."), and a link to the matching
+Methods section. Explanations live here so the middle column holds only numbers and
+verdicts.
 
 ### Build Panel
 A Sunken panel (`panel`, 6px radius) holding a typical decklist in two columns
